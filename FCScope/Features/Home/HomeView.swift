@@ -1,0 +1,292 @@
+import SwiftUI
+
+@Observable
+@MainActor
+final class HomeViewModel {
+    var state: Loadable<HomeResponse> = .idle
+    /// 캐시 우선 렌더 후 백그라운드 갱신 — 앱 재실행 시 홈이 즉시 채워진다.
+    func load() async {
+        if case .loaded = state { return }
+        if let hit: (value: HomeResponse, isFresh: Bool) = await APIClient.shared.cachedValue("/api/v1/home") {
+            state = .loaded(hit.value)
+            if hit.isFresh { return }
+        } else { state = .loading }
+        await refresh()
+    }
+    func refresh() async {
+        do { state = .loaded(try await APIClient.shared.getAndCache("/api/v1/home", auth: false)) }
+        catch { if state.value == nil { state = .failed(error) } }
+    }
+}
+
+struct HomeView: View {
+    @Environment(AppRouter.self) private var router
+    @State private var vm = HomeViewModel()
+    @State private var prefs = LocalPrefs.shared
+    @State private var query = ""
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                hero
+                if let mine = prefs.myNickname { myFormCard(mine) }
+                else if let demo = vm.state.value?.demoNickname { demoCard(demo) }
+                if !prefs.favorites.isEmpty { favoritesSection }
+                if let home = vm.state.value {
+                    if let mover = home.mover { moverCard(mover) }
+                    if !home.liveSearches.isEmpty { liveChips(home.liveSearches) }
+                    if !home.posts.isEmpty { latestPosts(home.posts) }
+                } else if vm.state.isLoading { Skeleton(height: 60) }
+                if !prefs.recentSearches.isEmpty { recentSection }
+                featureGrid
+            }
+            .padding(16)
+        }
+        .fcScreen()
+        .navigationTitle("전적")
+        .searchable(text: $query, prompt: "구단주명 검색")
+        .onSubmit(of: .search) { search(query) }
+        .searchSuggestions {
+            ForEach(prefs.recentSearches.filter { query.isEmpty || $0.localizedCaseInsensitiveContains(query) }, id: \.self) { n in
+                Text(n).searchCompletion(n)
+            }
+        }
+        .task { await vm.load() }
+        .refreshable { await vm.refresh() }
+    }
+
+    private func search(_ raw: String) {
+        let nick = raw.trimmingCharacters(in: .whitespaces)
+        guard !nick.isEmpty else { return }
+        Haptic.light()
+        query = ""
+        router.push(.user(nick))
+    }
+
+    private var hero: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            SectionLabel("EA SPORTS FC ONLINE DATA LAB", color: FC.accent)
+            (Text("감이 아니라, ") + Text("데이터").foregroundStyle(FC.accent) + Text("로."))
+                .font(.system(size: 28, weight: .bold)).foregroundStyle(FC.ink)
+            Text("전적·슛맵·선수 성적표·플레이스타일·이적시장을 구단주명 하나로.").font(.system(size: 14)).foregroundStyle(FC.muted)
+        }
+    }
+
+    /// 구단주명이 없는 첫 방문자용 — 서버가 내려주는 데모 계정으로 결과 화면을 먼저 보여준다.
+    /// (웹의 "예시 리포트" 버튼과 동일 목적. Vercel `NEXT_PUBLIC_DEMO_NICKNAME` 미설정 시 자동 숨김)
+    private func demoCard(_ nick: String) -> some View {
+        Button { router.push(.user(nick)) } label: {
+            Panel(highlight: FC.gold.opacity(0.4)) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        SectionLabel("처음이신가요?", color: FC.gold)
+                        Text("예시 리포트 먼저 보기").font(.system(size: 17, weight: .bold)).foregroundStyle(FC.ink)
+                        Text("실제 구단주 \(nick) 의 전적·슛맵·진단을 그대로 볼 수 있어요.").font(.system(size: 13)).foregroundStyle(FC.muted)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").foregroundStyle(FC.muted)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func myFormCard(_ nick: String) -> some View {
+        Button { router.push(.user(nick)) } label: {
+            Panel(highlight: FC.accent.opacity(0.5)) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        SectionLabel("내 구단")
+                        Text(nick).font(.system(size: 18, weight: .bold)).foregroundStyle(FC.ink)
+                        if let s = prefs.snapshot(for: nick) {
+                            HStack(spacing: 8) {
+                                Text("승률 \(s.winRate)%").font(.scoreboard(14)).foregroundStyle(FC.accent)
+                                if let p = s.prevWinRate, p != s.winRate {
+                                    Text(s.winRate > p ? "▲\(s.winRate - p)%p" : "▼\(p - s.winRate)%p").font(.scoreboard(12)).foregroundStyle(s.winRate > p ? FC.win : FC.lose)
+                                }
+                                if s.streak >= 2 { Text("🔥\(s.streak)연승").font(.system(size: 12, weight: .bold)).foregroundStyle(FC.gold) }
+                                if s.streak <= -2 { Text("🥶\(-s.streak)연패").font(.system(size: 12, weight: .bold)).foregroundStyle(FC.lose) }
+                            }
+                        } else {
+                            Text("탭해서 최근 폼 확인").font(.system(size: 13)).foregroundStyle(FC.muted)
+                        }
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").foregroundStyle(FC.muted)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var favoritesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("⭐ 즐겨찾기 구단주")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(prefs.favorites, id: \.self) { n in
+                        Button { router.push(.user(n)) } label: {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(n).font(.system(size: 14, weight: .semibold)).foregroundStyle(FC.ink).lineLimit(1)
+                                if let s = prefs.snapshot(for: n) {
+                                    HStack(spacing: 4) {
+                                        Text("\(s.winRate)%").font(.scoreboard(13)).foregroundStyle(FC.accent)
+                                        if let p = s.prevWinRate, p != s.winRate {
+                                            Text(s.winRate > p ? "▲" : "▼").font(.scoreboard(11)).foregroundStyle(s.winRate > p ? FC.win : FC.lose)
+                                        }
+                                        if s.streak >= 2 { Text("🔥\(s.streak)").font(.system(size: 11)) }
+                                    }
+                                } else { Text("폼 미확인").font(.system(size: 11)).foregroundStyle(FC.muted) }
+                            }
+                            .padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
+                        }.buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private func moverCard(_ m: Mover) -> some View {
+        Button { router.push(.player(m.spId)) } label: {
+            Panel(padding: 12, highlight: FC.win.opacity(0.4)) {
+                HStack(spacing: 10) {
+                    PlayerImage(spid: m.spId, size: 44)
+                    VStack(alignment: .leading, spacing: 2) {
+                        SectionLabel("⚡ 오늘의 급상승", color: FC.win)
+                        Text(m.name).font(.system(size: 15, weight: .bold)).foregroundStyle(FC.ink)
+                        Text("\(m.positionLabel) · \(m.lineTitle ?? m.line)").font(.system(size: 12)).foregroundStyle(FC.muted)
+                    }
+                    Spacer()
+                    Text(m.isNew ? "NEW" : "▲\(m.deltaValue ?? 0)").font(.scoreboard(14)).foregroundStyle(m.isNew ? FC.gold : FC.win)
+                        .padding(.horizontal, 8).padding(.vertical, 5).background((m.isNew ? FC.gold : FC.win).opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
+                }
+            }
+        }.buttonStyle(.plain)
+    }
+
+    private func liveChips(_ names: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("지금 검색되는 구단주")
+            FlowLayout(spacing: 6) {
+                ForEach(names, id: \.self) { n in
+                    Button { router.push(.user(n)) } label: { Chip(text: n, color: FC.ink) }.buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private func latestPosts(_ posts: [HomePost]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("커뮤니티 최신")
+            ForEach(posts) { p in
+                Button { router.push(.post(p.id)) } label: {
+                    HStack {
+                        Text(p.title).font(.system(size: 14, weight: .medium)).foregroundStyle(FC.ink).lineLimit(1)
+                        Spacer()
+                        if let c = p.commentCount, c > 0 { Text("💬\(c)").font(.system(size: 12)).foregroundStyle(FC.muted) }
+                        Text(DateFmt.relative(p.createdAt)).font(.system(size: 12)).foregroundStyle(FC.muted)
+                    }
+                    .padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
+                }.buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var recentSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("최근 검색")
+            FlowLayout(spacing: 6) {
+                ForEach(prefs.recentSearches, id: \.self) { n in
+                    Button { router.push(.user(n)) } label: { Chip(text: n, color: FC.ink) }.buttonStyle(.plain)
+                        .contextMenu { Button("삭제", role: .destructive) { prefs.recentSearches.removeAll { $0 == n } } }
+                }
+            }
+        }
+    }
+
+    private var featureGrid: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("여기서 할 수 있는 것")
+            feature("전적 · 분석 리포트", "슛맵부터 스쿼드 진단까지", "경기별 슛맵, 선수 성적표, 플레이스타일, 이적시장 내역을 한 번에.") { }
+            feature("스쿼드 빌더", "스쿼드 만들고 공유", "포메이션에 선수 배치, 팀 프리셋, 최근 경기 선발 그대로 불러오기.") { router.tab = .squad }
+            feature("랭커 픽 랭킹 · 선수 도감", "지금 랭커는 누굴 쓸까", "상위 랭커가 많이 쓴 카드를 포지션별로 매일 갱신.") { router.tab = .meta }
+            feature("커뮤니티 · 배틀", "자랑하고, 모으고, 겨룬다", "스쿼드 자랑과 평가, 클럽원 모집, 투표로 겨루는 스쿼드 배틀.") { router.tab = .community }
+        }
+    }
+    private func feature(_ tag: String, _ title: String, _ desc: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Panel(padding: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(tag).font(.system(size: 12, weight: .bold)).foregroundStyle(FC.gold)
+                    Text(title).font(.system(size: 16, weight: .bold)).foregroundStyle(FC.ink)
+                    Text(desc).font(.system(size: 13)).foregroundStyle(FC.muted)
+                }
+            }
+        }.buttonStyle(.plain)
+    }
+}
+
+/// 간단한 줄바꿈 레이아웃 (칩)
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 6
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? 300
+        var x: CGFloat = 0, y: CGFloat = 0, rowH: CGFloat = 0
+        for s in subviews {
+            let sz = s.sizeThatFits(.unspecified)
+            if x + sz.width > width, x > 0 { x = 0; y += rowH + spacing; rowH = 0 }
+            x += sz.width + spacing; rowH = max(rowH, sz.height)
+        }
+        return CGSize(width: width, height: y + rowH)
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x: CGFloat = bounds.minX, y: CGFloat = bounds.minY, rowH: CGFloat = 0
+        for s in subviews {
+            let sz = s.sizeThatFits(.unspecified)
+            if x + sz.width > bounds.maxX, x > bounds.minX { x = bounds.minX; y += rowH + spacing; rowH = 0 }
+            s.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(sz))
+            x += sz.width + spacing; rowH = max(rowH, sz.height)
+        }
+    }
+}
+
+/// 온보딩 3화면 — 로그인 강요 없음, 구단주명 입력은 건너뛰기 가능
+struct OnboardingView: View {
+    @State private var prefs = LocalPrefs.shared
+    @State private var page = 0
+    @State private var nick = ""
+    var body: some View {
+        VStack {
+            TabView(selection: $page) {
+                onboardPage(icon: "chart.xyaxis.line", title: "감이 아니라, 데이터로.", desc: "구단주명 하나로 최근 30경기 승률·슛맵·선수 성적표·플레이스타일을 진단해요. 로그인 없이 바로.").tag(0)
+                VStack(spacing: 16) {
+                    Image(systemName: "person.text.rectangle").font(.system(size: 56)).foregroundStyle(FC.accent)
+                    Text("내 구단주명을 알려주세요").font(.system(size: 22, weight: .bold)).foregroundStyle(FC.ink)
+                    Text("홈에 내 폼 카드가 고정되고, 위젯·주간 성적표에 쓰여요. 나중에 바꿀 수 있어요.").font(.system(size: 14)).foregroundStyle(FC.muted).multilineTextAlignment(.center)
+                    TextField("FC온라인 구단주명", text: $nick).textFieldStyle(.roundedBorder).padding(.horizontal, 32).autocorrectionDisabled()
+                }.tag(1)
+                onboardPage(icon: "bell.badge", title: "주간 성적표를 받아볼까요?", desc: "일요일 밤 이번 주 승률·연승 리캡, 금요일엔 랭커 메타 한 줄 요약만 보내요. 경기마다 알림하지 않아요.").tag(2)
+            }
+            .tabViewStyle(.page)
+            Button {
+                if page < 2 { withAnimation { page += 1 } } else { finish() }
+            } label: { Text(page == 1 && nick.isEmpty ? "나중에 입력할게요" : page < 2 ? "다음" : "시작하기").frame(maxWidth: .infinity) }
+            .buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk)
+            .padding(.horizontal, 24).padding(.bottom, 24)
+        }
+        .background(FC.bg.ignoresSafeArea())
+    }
+    private func onboardPage(icon: String, title: String, desc: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: icon).font(.system(size: 56)).foregroundStyle(FC.accent)
+            Text(title).font(.system(size: 22, weight: .bold)).foregroundStyle(FC.ink)
+            Text(desc).font(.system(size: 14)).foregroundStyle(FC.muted).multilineTextAlignment(.center).padding(.horizontal, 32)
+        }
+    }
+    private func finish() {
+        let n = nick.trimmingCharacters(in: .whitespaces)
+        if !n.isEmpty { prefs.myNickname = n }
+        Task { await PushManager.shared.requestPermission() }
+        prefs.onboardingDone = true
+    }
+}

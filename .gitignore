@@ -1,0 +1,22 @@
+# ── Xcode
+/FCScope.xcodeproj/
+# 빌드 산출물 — derivedDataPath 를 build/ · build-release/ 등으로 쓴다
+build*/
+DerivedData*/
+.swiftpm/
+xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# ── Capacitor 셸 (legacy-capacitor/) — 참고용 보관, 산출물은 제외
+node_modules/
+legacy-capacitor/www/
+legacy-capacitor/ios/App/Pods/
+legacy-capacitor/ios/App/App/public/
+legacy-capacitor/ios/App/App/capacitor.config.json
+legacy-capacitor/ios/App/App/config.xml
+
+# ── 기타
+.DS_Store
+*.p8
+*.mobileprovision
+*.p12

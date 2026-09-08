@@ -1,0 +1,27 @@
+{
+  "name": "fcscope-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FC Scope iOS 앱 (Capacitor 셸 — 원격 웹 https://www.fcscope.xyz 로드)",
+  "scripts": {
+    "sync": "cap sync ios",
+    "open": "cap open ios",
+    "sync:dev": "cap sync ios",
+    "build:sim": "xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build"
+  },
+  "dependencies": {
+    "@capacitor-community/admob": "^8.1.0",
+    "@capacitor-community/apple-sign-in": "^7.1.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/cli": "^8.5.1",
+    "@capacitor/core": "^8.5.1",
+    "@capacitor/filesystem": "^8.1.3",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.5.1",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3"
+  }
+}
