@@ -370,7 +370,10 @@ struct PostDetailResponse: Decodable {
     let viewer: Viewer
     struct Viewer: Decodable { let loggedIn: Bool; let isOwner: Bool; let canComment: Bool }
 }
-struct BattleVotes: Decodable { let a: Int?; let b: Int?; let mine: String? ; enum CodingKeys: String, CodingKey { case a = "A", b = "B", mine } }
+/// 서버(`/api/community/battle`)는 소문자 `{"a":0,"b":0}` 로 내려준다 — 웹 BattleVote 도 같은 키를 읽는다.
+/// 대문자 "A"/"B" 로 매핑하면 옵셔널이라 디코딩은 성공하지만 값이 항상 nil 이 된다(표 수가 늘 0).
+/// 내가 어디에 투표했는지는 서버가 알려주지 않으므로 화면에서 로컬로 들고 있는다.
+struct BattleVotes: Decodable { let a: Int?; let b: Int? }
 
 // MARK: - squad
 

@@ -233,6 +233,8 @@ struct PostDetailView: View {
 struct BattleBlock: View {
     let postId: String; let squadA: String; let squadB: String
     @State private var votes: BattleVotes?
+    /// 서버가 "내 투표"를 돌려주지 않으므로 이 화면에서만 기억한다(중복 투표는 서버가 upsert 로 막는다).
+    @State private var myPick: String?
     @Environment(AppRouter.self) private var router
     var body: some View {
         VStack(spacing: 8) {
@@ -243,8 +245,8 @@ struct BattleBlock: View {
             GeometryReader { g in HStack(spacing: 2) { Rectangle().fill(FC.accent).frame(width: g.size.width * CGFloat(a) / CGFloat(total)); Rectangle().fill(FC.lose) } }.frame(height: 10).clipShape(Capsule())
             HStack { Text("A \(a)표").font(.scoreboard(12)).foregroundStyle(FC.accent); Spacer(); Text("B \(b)표").font(.scoreboard(12)).foregroundStyle(FC.lose) }
             HStack(spacing: 8) {
-                Button("A에 투표") { Task { await vote("A") } }.buttonStyle(.bordered).tint(FC.accent).disabled(votes?.mine != nil)
-                Button("B에 투표") { Task { await vote("B") } }.buttonStyle(.bordered).tint(FC.lose).disabled(votes?.mine != nil)
+                Button("A에 투표") { Task { await vote("A") } }.buttonStyle(.bordered).tint(FC.accent).disabled(myPick != nil)
+                Button("B에 투표") { Task { await vote("B") } }.buttonStyle(.bordered).tint(FC.lose).disabled(myPick != nil)
             }
         }
         .task { votes = try? await APIClient.shared.get("/api/community/battle", query: ["postId": postId]) }
@@ -255,6 +257,7 @@ struct BattleBlock: View {
     private func vote(_ pick: String) async {
         let device = UIDevice.current.identifierForVendor?.uuidString ?? "anon"
         votes = try? await APIClient.shared.send("/api/community/battle", method: "POST", json: ["postId": postId, "pick": pick, "voter": device])
+        myPick = pick
         Haptic.success()
     }
 }
