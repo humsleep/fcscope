@@ -61,7 +61,7 @@ struct MetaView: View {
         let t = q.trimmingCharacters(in: .whitespaces)
         guard t.count >= 2 else { hits = []; return }
         if PlayerIndex.shared.isReady {
-            hits = PlayerIndex.shared.search(t)
+            hits = await PlayerIndex.shared.search(t)
             return
         }
         let r: PlayerSearchResponse? = try? await APIClient.shared.get("/api/players/search", query: ["q": t], auth: false)

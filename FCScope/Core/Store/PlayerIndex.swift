@@ -21,7 +21,7 @@ final class PlayerIndex {
     private var players: [Entry] = []
     private var loaded = false
 
-    struct Entry {
+    struct Entry: Sendable {
         let pid: Int
         let name: String
         /// 최신순 시즌 ID
@@ -57,24 +57,50 @@ final class PlayerIndex {
     }
 
     /// 번들 스냅샷 또는 (더 최신이면) 내려받은 인덱스를 로드. 최초 1회만 파싱.
-    func load() {
+    ///
+    /// **파싱은 반드시 메인 스레드 밖에서.** 인덱스가 5만 행이라 실측(M 시리즈 Mac, -O)으로
+    /// 디코딩 82ms + 매핑 9ms 다. 실기기는 배 이상 걸리므로 메인에서 돌리면 런치가 그만큼 멈춘다.
+    func load() async {
         guard !loaded else { return }
         loaded = true
-        let bundleData = Bundle.main.url(forResource: "players", withExtension: "json").flatMap { try? Data(contentsOf: $0) }
-        let cachedData = cacheURL.flatMap { try? Data(contentsOf: $0) }
-        // 캐시가 번들보다 최신일 때만 채택
-        let candidates = [cachedData, bundleData].compactMap { $0 }
+        let cacheURL = self.cacheURL
+        guard let parsed = await Task.detached(priority: .userInitiated) { () -> Parsed? in
+            let bundleData = Bundle.main.url(forResource: "players", withExtension: "json").flatMap { try? Data(contentsOf: $0) }
+            let cachedData = cacheURL.flatMap { try? Data(contentsOf: $0) }
+            // 캐시가 번들보다 최신일 때만 채택 — 날짜만 먼저 보고 이긴 쪽만 전부 파싱한다.
+            return Self.parseBest([cachedData, bundleData].compactMap { $0 })
+        }.value else { return }
+        apply(parsed)
+    }
+
+    /// 파싱 결과 (메인으로 넘길 값 타입).
+    struct Parsed: Sendable {
+        let date: String
+        let seasons: [Int: String]
+        let players: [Entry]
+    }
+
+    private func apply(_ p: Parsed) {
+        date = p.date
+        seasons = p.seasons
+        players = p.players
+    }
+
+    /// 후보 중 가장 최신 스냅샷 하나만 골라 파싱. 메인 액터와 무관하다.
+    nonisolated static func parseBest(_ candidates: [Data]) -> Parsed? {
         var best: Payload?
         for data in candidates {
             guard let p = try? JSONDecoder().decode(Payload.self, from: data) else { continue }
             if best == nil || p.date > best!.date { best = p }
         }
-        guard let payload = best else { return }
-        date = payload.date
-        seasons = Dictionary(uniqueKeysWithValues: payload.seasons.compactMap { k, v in Int(k).map { ($0, v) } })
-        players = payload.players.map {
-            Entry(pid: $0.pid, name: $0.name, seasonIds: $0.seasonIds, key: $0.name.lowercased())
-        }
+        guard let payload = best else { return nil }
+        return Parsed(
+            date: payload.date,
+            seasons: Dictionary(uniqueKeysWithValues: payload.seasons.compactMap { k, v in Int(k).map { ($0, v) } }),
+            players: payload.players.map {
+                Entry(pid: $0.pid, name: $0.name, seasonIds: $0.seasonIds, key: $0.name.lowercased())
+            }
+        )
     }
 
     var isReady: Bool { !players.isEmpty }
@@ -84,23 +110,29 @@ final class PlayerIndex {
     func seasonName(spid: Int) -> String { seasonName(NexonCDN.seasonId(of: spid)) }
 
     /// 로컬 검색 — 접두 일치 우선, 그다음 부분 일치. 서버 `searchPlayers` 와 동일한 정렬 의도.
-    func search(_ raw: String, limit: Int = 24) -> [PlayerHit] {
-        load()
+    ///
+    /// 5만 행 전수 스캔이라 실측 22ms/타(Mac, -O). 메인에서 돌리면 한글 IME 조합 중
+    /// 매 타마다 프레임을 떨어뜨리므로 스캔은 백그라운드에서 한다.
+    func search(_ raw: String, limit: Int = 24) async -> [PlayerHit] {
+        await load()
         let q = raw.trimmingCharacters(in: .whitespaces).lowercased()
         guard q.count >= 2, !players.isEmpty else { return [] }
-        var prefix: [Entry] = []
-        var contains: [Entry] = []
-        for e in players {
-            if e.key.hasPrefix(q) { prefix.append(e) }
-            else if e.key.contains(q) { contains.append(e) }
-            if prefix.count >= limit { break }
-        }
-        let merged = (prefix + contains).prefix(limit)
-        return merged.map { hit(from: $0) }
+        let snapshot = players   // 값 타입 배열 — COW 라 복사 비용 없음
+        let matched = await Task.detached(priority: .userInitiated) { () -> [Entry] in
+            var prefix: [Entry] = []
+            var contains: [Entry] = []
+            for e in snapshot {
+                if e.key.hasPrefix(q) { prefix.append(e) }
+                else if e.key.contains(q) { contains.append(e) }
+                if prefix.count >= limit { break }
+            }
+            return Array((prefix + contains).prefix(limit))
+        }.value
+        return matched.map { hit(from: $0) }
     }
 
-    func player(spid: Int) -> PlayerHit? {
-        load()
+    func player(spid: Int) async -> PlayerHit? {
+        await load()
         let pid = NexonCDN.pid(of: spid)
         guard let e = players.first(where: { $0.pid == pid }) else { return nil }
         return hit(from: e)
@@ -123,7 +155,7 @@ final class PlayerIndex {
     private static let checkedKey = "fcscope.playerIndexCheckedAt"
 
     func refreshIfStale() async {
-        load()
+        await load()
         let last = UserDefaults.standard.double(forKey: Self.checkedKey)
         guard Date().timeIntervalSince1970 - last > 7 * 86_400 else { return }
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.checkedKey)
@@ -133,8 +165,8 @@ final class PlayerIndex {
               p.date > date
         else { return }
         if let url = cacheURL { try? data.write(to: url, options: .atomic) }
-        date = p.date
-        seasons = Dictionary(uniqueKeysWithValues: p.seasons.compactMap { k, v in Int(k).map { ($0, v) } })
-        players = p.players.map { Entry(pid: $0.pid, name: $0.name, seasonIds: $0.seasonIds, key: $0.name.lowercased()) }
+        // 갱신분 매핑도 5만 행이다 — 메인에서 하지 않는다.
+        guard let parsed = await Task.detached(priority: .utility) { Self.parseBest([data]) }.value else { return }
+        apply(parsed)
     }
 }

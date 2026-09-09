@@ -256,7 +256,7 @@ struct PlayerSearchSheet: View {
             VStack(spacing: 0) {
                 TextField("선수 이름 (2자 이상)", text: $q).textFieldStyle(.roundedBorder).padding().autocorrectionDisabled()
                     .task(id: q) { await search(q) }
-                    .onAppear { PlayerIndex.shared.load() }
+                    .task { await PlayerIndex.shared.load() }
                 if q.trimmingCharacters(in: .whitespaces).count >= 2 && hits.isEmpty && !searching {
                     Text("검색 결과가 없어요. 한글 이름으로 검색해 보세요.").font(.system(size: 13)).foregroundStyle(FC.muted).padding(.horizontal)
                 }
@@ -290,7 +290,7 @@ struct PlayerSearchSheet: View {
         let t = v.trimmingCharacters(in: .whitespaces)
         guard t.count >= 2 else { hits = []; return }
         if PlayerIndex.shared.isReady {
-            hits = PlayerIndex.shared.search(t)
+            hits = await PlayerIndex.shared.search(t)
             return
         }
         searching = true; defer { searching = false }
@@ -316,7 +316,7 @@ struct SquadDetailView: View {
                     HStack {
                         Button { router.pendingSquadImport = .load(squadId); router.tab = .squad } label: { Text("빌더에서 수정").frame(maxWidth: .infinity) }.buttonStyle(.bordered)
                         ShareCardButton(squad: SquadCardData(name: model.name, formationId: model.formation.id, slots: model.slots, shareCode: squadId), label: "카드")
-                        ShareLink(item: AppConfig.absolute("/squad/\(squadId)")) { Image(systemName: "link") }.buttonStyle(.bordered)
+                        ShareLink(item: AppConfig.absolute("/squad/\(squadId)")) { Image(systemName: "link") }.buttonStyle(.bordered).accessibilityLabel("스쿼드 링크 공유")
                     }
                 } else if let m = model.message { ErrorState(title: "스쿼드를 찾을 수 없어요", message: m) } else { Skeleton(height: 400) }
             }.padding(16)

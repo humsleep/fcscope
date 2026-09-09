@@ -151,8 +151,9 @@ struct RecordView: View {
                     Button { Haptic.light(); prefs.toggleFavorite(nickname) } label: {
                         Image(systemName: prefs.isFavorite(nickname) ? "star.fill" : "star").foregroundStyle(FC.gold)
                     }
+                    .accessibilityLabel(prefs.isFavorite(nickname) ? "즐겨찾기 해제" : "즐겨찾기 추가")
                     if let o = vm.overview.value {
-                        ShareLink(item: AppConfig.absolute("/user/\(o.profile.nickname.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? nickname)")) { Image(systemName: "link") }
+                        ShareLink(item: AppConfig.absolute("/user/\(o.profile.nickname.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? nickname)")) { Image(systemName: "link") }.accessibilityLabel("전적 링크 공유")
                     }
                 }
             }

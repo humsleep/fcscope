@@ -56,7 +56,7 @@ struct CommunityView: View {
             }.padding(16)
         }
         .fcScreen().navigationTitle("커뮤니티")
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { if auth.isLoggedIn { showCompose = true } else { showLogin = true } } label: { Image(systemName: "square.and.pencil") } } }
+        .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { if auth.isLoggedIn { showCompose = true } else { showLogin = true } } label: { Image(systemName: "square.and.pencil") }.accessibilityLabel("글쓰기") } }
         .sheet(isPresented: $showCompose) { ComposeView(types: model.types, initialType: model.type) { Task { await model.load(reset: true) } } }
         .sheet(isPresented: $showLogin) { LoginView(reason: "글을 쓰려면 로그인이 필요해요") }
         .task { await model.load() }
@@ -162,7 +162,7 @@ struct PostDetailView: View {
                                 Button { prefs.block(p.authorId); Haptic.warning() } label: { Text("차단").font(.system(size: 13)).foregroundStyle(FC.muted) }
                             }
                             Spacer()
-                            ShareLink(item: AppConfig.absolute("/community/\(p.id)")) { Image(systemName: "square.and.arrow.up") }
+                            ShareLink(item: AppConfig.absolute("/community/\(p.id)")) { Image(systemName: "square.and.arrow.up") }.accessibilityLabel("글 공유")
                         }
                     }
                 }

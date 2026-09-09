@@ -101,7 +101,7 @@ struct MyPageView: View {
                         Button { router.push(.user(n)) } label: { Text(n).foregroundStyle(FC.ink) }.buttonStyle(.plain)
                         Spacer()
                         if let s = prefs.snapshot(for: n) { Text("\(s.winRate)%").font(.scoreboard(12)).foregroundStyle(FC.accent) }
-                        Button { prefs.toggleFavorite(n) } label: { Image(systemName: "xmark").font(.system(size: 11)).foregroundStyle(FC.muted) }
+                        Button { prefs.toggleFavorite(n) } label: { Image(systemName: "xmark").font(.system(size: 11)).foregroundStyle(FC.muted) }.accessibilityLabel("\(n) 즐겨찾기 해제")
                     }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8))
                 }
             }

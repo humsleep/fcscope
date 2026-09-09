@@ -29,7 +29,7 @@ struct RootView: View {
         .onAppear { prefs.recordVisit() }
         .task {
             // 번들 선수 인덱스 로드(검색 서버 왕복 0) + 주 1회 신규 시즌 갱신
-            PlayerIndex.shared.load()
+            await PlayerIndex.shared.load()
             await PlayerIndex.shared.refreshIfStale()
         }
     }
