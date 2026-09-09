@@ -4,10 +4,10 @@ FC온라인 전적·스쿼드 도구 [FC Scope](https://www.fcscope.xyz) 의 **i
 
 웹 서비스와는 **저장소가 분리**되어 있습니다.
 
-| 저장소 | 내용 |
-|---|---|
-| [humsleep/fconline](https://github.com/humsleep/fconline) | 웹(Next.js) + 앱이 호출하는 `/api/v1` 백엔드 |
-| 이 저장소 | iOS 앱 (SwiftUI · WidgetKit) |
+| 저장소 | 위치 | 내용 |
+|---|---|---|
+| 웹 | [humsleep/fconline](https://github.com/humsleep/fconline) (GitHub) | 웹(Next.js) + 앱이 호출하는 `/api/v1` 백엔드 |
+| 앱 | 이 저장소 — **로컬 전용, 원격 없음** | iOS 앱 (SwiftUI · WidgetKit) |
 
 앱에는 자체 서버가 없습니다. 넥슨 API 키를 서버에만 두기 위해, 앱은 웹 서버의
 `https://www.fcscope.xyz/api/v1` JSON 을 호출합니다.

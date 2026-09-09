@@ -3,16 +3,19 @@
 코드로 할 수 있는 일은 끝났습니다. 여기 적힌 것은 **계정·키·결정**이라 제가 대신 할 수 없는 것들입니다.
 값을 채워야 하는 위치까지 정확히 적었습니다.
 
+> **저장소 구조**: 웹은 GitHub(`humsleep/fconline`), **앱은 로컬 전용**(`~/workspace/fcscope-ios`, 원격 없음).
+> 앱은 자체 서버가 없어 웹 서버의 `/api/v1` 을 호출합니다 — 웹이 배포돼 있어야 앱이 동작합니다.
+
 ---
 
 ## 실행 순서 — 남은 것만
 
 | # | 할 일 | 어디서 | 소요 |
 |---|---|---|---|
-| ✅ | ~~넥슨 키 재발급~~ · ~~0018 마이그레이션~~ · ~~match_cache 정리~~ | | 완료 |
-| 1 | `0019_drop_dead_schema.sql` 실행 (선택) | Supabase SQL Editor | 1분 |
+| ✅ | ~~넥슨 키 재발급~~ · ~~0018·0019 마이그레이션~~ · ~~match_cache 정리~~ | | 완료 |
+| 1 | 웹 저장소 `feat/app-backend-and-efficiency` 를 main 에 머지 → Vercel 배포 | GitHub | 5분 |
 | 2 | Supabase Redirect URL·Apple provider 설정 | Supabase 대시보드 | 10분 |
-| 3 | Vercel 환경변수 6개 추가 → 재배포 | Vercel | 15분 |
+| 3 | Vercel 환경변수 7개 추가 → 재배포 | Vercel | 15분 |
 | 4 | Apple Developer: App ID·권한 4종·APNs 키 | developer.apple.com | 30분 |
 | 5 | AdMob 계정·앱·배너 단위 생성 | AdMob | 20분 |
 | 6 | Info.plist 4개 값 입력 → `xcodegen generate` | 로컬 | 5분 |
@@ -39,7 +42,7 @@
 | 서버 시크릿이 앱에 들어갔는지 | ✅ 없음 (전수 확인) |
 | match_cache 용량 | ✅ 93MB (무료 한도 내) |
 | 마이그레이션 0001~0018 | ✅ 전부 적용 |
-| 마이그레이션 0019 (죽은 스키마) | ⬜ 선택 |
+| 마이그레이션 0019 (죽은 스키마) | ✅ 적용 완료 |
 | Supabase 값 (앱) | ⬜ **비어 있음 — 채워야 로그인 동작** |
 | AdMob 값 (앱) | ⬜ **구글 테스트 ID — 채워야 광고 수익** |
 
@@ -108,7 +111,7 @@
 > ⚠️ **`service_role` 키는 절대 넣지 마세요.** anon 키만입니다. 두 키는 같은 화면에 나란히 있어 헷갈리기 쉽습니다.
 > `service_role`은 데이터베이스 보안을 우회하는 키라 앱에 들어가면 누구나 추출할 수 있습니다.
 
-값을 넣은 뒤 `cd native && xcodegen generate` 를 다시 돌리면 됩니다.
+값을 넣은 뒤 iOS 저장소 루트에서 `xcodegen generate` 를 다시 돌리면 됩니다.
 
 ---
 
@@ -125,7 +128,7 @@
 | `APNS_PRIVATE_KEY` | `.p8` 파일 **내용 전체** | 푸시 발송 |
 | `APNS_BUNDLE_ID` | `xyz.fcscope.app` | 푸시 발송 |
 | `NEXT_PUBLIC_DEMO_NICKNAME` | `보엠` | 앱 홈 "예시 리포트" 카드 |
-| `NEXON_API_KEY` | **재발급한 새 키** | 위 🔑 항목 참고 |
+| `NEXON_API_KEY` | ✅ 재발급 완료분 반영 여부만 확인 | 넥슨 오픈API 콘솔 |
 
 `.p8` 내용은 `-----BEGIN PRIVATE KEY-----` 부터 끝까지 통째로 붙여넣으면 됩니다. 개행은 그대로 두어도 됩니다.
 
@@ -135,14 +138,8 @@
 
 ## 5. Supabase 설정
 
-1. **마이그레이션** — 0001~0018 전부 적용 완료. 남은 것은 **0019(선택)** 뿐입니다.
-   `supabase/migrations/0019_drop_dead_schema.sql` — 읽는 코드가 없는 컬럼·테이블 제거입니다.
-   되돌릴 수 없으니 실행 전 아래로 비어 있는지 확인하세요.
-   ```sql
-   select count(*) as ouid_cache from ouid_cache;
-   select count(*) as club_posts from club_posts;
-   ```
-2. **용량 정리** — 위 🔴 항목의 `scripts/cleanup-match-cache.sql` 을 실행하세요.
+1. **마이그레이션** — ✅ 0001~0019 전부 적용 완료. 남은 것 없음.
+2. **용량 정리** — ✅ 완료 (1,664MB → 93MB).
 3. **Authentication → URL Configuration → Redirect URLs** 에 추가
    ```
    fcscope://auth/callback
