@@ -69,9 +69,9 @@
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
 	<key>FCSupabaseURL</key>
-	<string></string>
+	<string>https://ywkbnzvensvsqhuhfqwo.supabase.co</string>
 	<key>FCSupabaseAnonKey</key>
-	<string></string>
+	<string>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl3a2JuenZlbnN2c3FodWhmcXdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1OTg1NTIsImV4cCI6MjA5OTE3NDU1Mn0.3TvE4m2TAq5VNzvZvEvtSxl8PbglTbNFiUXOD90lntU</string>
 	<key>FCAdMobBannerUnit</key>
 	<string></string>
 	<key>CFBundleURLTypes</key>
