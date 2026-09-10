@@ -5,16 +5,47 @@ import SwiftUI
 final class CommunityModel {
     var state: Loadable<PostListResponse> = .idle
     var type: String? = nil
-    var page = 1
     var types: [PostTypeInfo] = []
+
+    /// 지금까지 이어붙인 글. 페이지 버튼 대신 **아래로 스크롤하면 다음 장을 붙인다**(iOS 표준).
+    var posts: [Post] = []
+    private(set) var page = 1
+    private(set) var totalPages = 1
+    private(set) var loadingMore = false
+    var hasMore: Bool { page < totalPages }
+
     func load(reset: Bool = false) async {
-        if reset { page = 1 }
+        if reset { page = 1; posts = [] }
         if state.value == nil || reset { state = .loading }
-        var q = ["page": String(page)]; if let t = type { q["type"] = t }
+        await fetch(page: 1, append: false)
+    }
+
+    /// 목록 바닥이 보이면 호출된다. 중복 호출·마지막 장에서는 아무 것도 하지 않는다.
+    func loadMore() async {
+        guard !loadingMore, hasMore, state.value != nil else { return }
+        loadingMore = true
+        await fetch(page: page + 1, append: true)
+        loadingMore = false
+    }
+
+    private func fetch(page target: Int, append: Bool) async {
+        var q = ["page": String(target)]; if let t = type { q["type"] = t }
         do {
             let r: PostListResponse = try await APIClient.shared.get("/api/v1/community/posts", query: q, auth: false)
-            types = r.types; state = .loaded(r)
-        } catch { state = .failed(error) }
+            types = r.types
+            page = r.page
+            totalPages = r.totalPages
+            // 같은 글이 두 번 들어오지 않게(글이 새로 올라오면 페이지 경계가 밀린다)
+            if append {
+                let known = Set(posts.map(\.id))
+                posts += r.posts.filter { !known.contains($0.id) }
+            } else {
+                posts = r.posts
+            }
+            state = .loaded(r)
+        } catch {
+            if !append { state = .failed(error) }
+        }
     }
 }
 
@@ -38,18 +69,21 @@ struct CommunityView: View {
                 switch model.state {
                 case .idle, .loading: Skeleton(height: 300)
                 case .failed(let e): ErrorState(title: "커뮤니티를 불러오지 못했어요", message: e.localizedDescription, retry: { Task { await model.load(reset: true) } })
-                case .loaded(let r):
-                    let visible = r.posts.filter { !prefs.isBlocked($0.authorId) }
-                    if visible.isEmpty { Panel { Text("아직 글이 없어요. 첫 글을 남겨보세요!").font(.system(size: 14)).foregroundStyle(FC.muted).frame(maxWidth: .infinity) } }
-                    ForEach(visible) { p in
-                        Button { router.push(.post(p.id)) } label: { PostRow(post: p) }.buttonStyle(.plain)
+                case .loaded:
+                    let visible = model.posts.filter { !prefs.isBlocked($0.authorId) }
+                    if visible.isEmpty { Panel { Text("아직 글이 없어요. 첫 글을 남겨보세요!").fcFont(14).foregroundStyle(FC.muted).frame(maxWidth: .infinity) } }
+                    LazyVStack(spacing: 12) {
+                        ForEach(visible) { p in
+                            Button { router.push(.post(p.id)) } label: { PostRow(post: p) }.buttonStyle(.plain)
+                                // 마지막 글이 보이면 다음 장을 미리 붙인다 — 버튼을 누를 필요가 없다.
+                                .onAppear { if p.id == visible.last?.id { Task { await model.loadMore() } } }
+                        }
                     }
-                    if r.totalPages > 1 {
-                        HStack {
-                            Button("← 이전") { model.page = max(1, model.page - 1); Task { await model.load() } }.disabled(model.page <= 1)
-                            Spacer(); Text("\(model.page) / \(r.totalPages)").font(.scoreboard(13)).foregroundStyle(FC.muted); Spacer()
-                            Button("다음 →") { model.page += 1; Task { await model.load() } }.disabled(model.page >= r.totalPages)
-                        }.font(.system(size: 13, weight: .semibold))
+                    if model.hasMore {
+                        HStack { Spacer(); ProgressView(); Spacer() }.padding(.vertical, 12)
+                    } else if visible.count > 8 {
+                        Text("마지막 글이에요").fcFont(12).foregroundStyle(FC.muted)
+                            .frame(maxWidth: .infinity).padding(.vertical, 12)
                     }
                 }
                 AdSlot()
@@ -64,7 +98,7 @@ struct CommunityView: View {
     }
     private func tab(_ t: String?, _ label: String) -> some View {
         Button { model.type = t; Task { await model.load(reset: true) } } label: {
-            Text(label).font(.system(size: 13, weight: .semibold)).padding(.horizontal, 10).padding(.vertical, 7)
+            Text(label).fcFont(13, weight: .semibold).padding(.horizontal, 10).padding(.vertical, 7)
                 .background(model.type == t ? FC.accent : FC.surface2, in: Capsule()).foregroundStyle(model.type == t ? FC.accentInk : FC.muted)
         }
     }
@@ -80,16 +114,16 @@ struct PostRow: View {
                     if post.status == "closed" { Chip(text: "마감") }
                     if let r = post.region { Chip(text: "📍\(r)", color: FC.accent, bg: FC.accent.opacity(0.12)) }
                     Spacer()
-                    Text(DateFmt.relative(post.createdAt)).font(.system(size: 11)).foregroundStyle(FC.muted)
+                    Text(DateFmt.relative(post.createdAt)).fcFont(11).foregroundStyle(FC.muted)
                 }
-                Text(post.title).font(.system(size: 15, weight: .bold)).foregroundStyle(FC.ink).lineLimit(2)
-                if let pv = post.preview, !pv.isEmpty { Text(pv).font(.system(size: 13)).foregroundStyle(FC.muted).lineLimit(2) }
+                Text(post.title).fcFont(15, weight: .bold).foregroundStyle(FC.ink).lineLimit(2)
+                if let pv = post.preview, !pv.isEmpty { Text(pv).fcFont(13).foregroundStyle(FC.muted).lineLimit(2) }
                 HStack(spacing: 8) {
-                    Text(post.author.nickname).font(.system(size: 12, weight: .semibold)).foregroundStyle(FC.ink)
-                    if let v = post.author.verifiedNickname { Text("✓ \(v)").font(.system(size: 11)).foregroundStyle(FC.accent) }
+                    Text(post.author.nickname).fcFont(12, weight: .semibold).foregroundStyle(FC.ink)
+                    if let v = post.author.verifiedNickname { Text("✓ \(v)").fcFont(11).foregroundStyle(FC.accent) }
                     Spacer()
-                    if post.squadId != nil { Text("🧩 스쿼드").font(.system(size: 11)).foregroundStyle(FC.muted) }
-                    Text("💬 \(post.commentCount ?? 0)").font(.system(size: 11)).foregroundStyle(FC.muted)
+                    if post.squadId != nil { Text("🧩 스쿼드").fcFont(11).foregroundStyle(FC.muted) }
+                    Text("💬 \(post.commentCount ?? 0)").fcFont(11).foregroundStyle(FC.muted)
                 }
             }
         }
@@ -143,23 +177,23 @@ struct PostDetailView: View {
                 Panel {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 6) { Chip(text: "\(p.typeEmoji) \(p.typeLabel)", color: FC.ink); if p.status == "closed" { Chip(text: "마감") }; if let r = p.region { Chip(text: "📍\(r)", color: FC.accent, bg: FC.accent.opacity(0.12)) } }
-                        Text(p.title).font(.system(size: 22, weight: .bold)).foregroundStyle(FC.ink)
-                        Text(DateFmt.relative(p.createdAt)).font(.system(size: 12)).foregroundStyle(FC.muted)
+                        Text(p.title).fcFont(22, weight: .bold).foregroundStyle(FC.ink)
+                        Text(DateFmt.relative(p.createdAt)).fcFont(12).foregroundStyle(FC.muted)
                         if !p.positions.isEmpty { FlowLayout(spacing: 4) { ForEach(p.positions, id: \.self) { Chip(text: $0, color: FC.ink) } } }
                         if let rows = p.metaRows, !rows.isEmpty {
-                            ForEach(rows) { r in HStack { Text(r.label).font(.system(size: 12)).foregroundStyle(FC.muted).frame(width: 70, alignment: .leading); Text(r.value).font(.system(size: 14, weight: .semibold)).foregroundStyle(FC.ink) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8)) }
+                            ForEach(rows) { r in HStack { Text(r.label).fcFont(12).foregroundStyle(FC.muted).frame(width: 70, alignment: .leading); Text(r.value).fcFont(14, weight: .semibold).foregroundStyle(FC.ink) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8)) }
                         }
-                        Text(p.body).font(.system(size: 15)).foregroundStyle(FC.ink).textSelection(.enabled)
+                        Text(p.body).fcFont(15).foregroundStyle(FC.ink).textSelection(.enabled)
                         if p.type == "squad_battle", let a = p.squadId, let b = p.squadB { BattleBlock(postId: p.id, squadA: a, squadB: b) }
                         else if let s = p.squadId { squadLink(s) }
-                        if let c = p.contact { HStack { Text("연락").font(.system(size: 12, weight: .semibold)).foregroundStyle(FC.muted); Text(c).font(.system(size: 14)).foregroundStyle(FC.ink).textSelection(.enabled) } }
+                        if let c = p.contact { HStack { Text("연락").fcFont(12, weight: .semibold).foregroundStyle(FC.muted); Text(c).fcFont(14).foregroundStyle(FC.ink).textSelection(.enabled) } }
                         Divider().background(FC.line)
                         HStack(spacing: 12) {
                             if d.viewer.isOwner {
-                                Button(role: .destructive) { Task { await deletePost() } } label: { Text("삭제").font(.system(size: 13)) }
+                                Button(role: .destructive) { Task { await deletePost() } } label: { Text("삭제").fcFont(13) }
                             } else {
-                                Button { showReport = ("post", p.id) } label: { Text("신고").font(.system(size: 13)).foregroundStyle(FC.muted) }
-                                Button { prefs.block(p.authorId); Haptic.warning() } label: { Text("차단").font(.system(size: 13)).foregroundStyle(FC.muted) }
+                                Button { showReport = ("post", p.id) } label: { Text("신고").fcFont(13).foregroundStyle(FC.muted) }
+                                Button { prefs.block(p.authorId); Haptic.warning() } label: { Text("차단").fcFont(13).foregroundStyle(FC.muted) }
                             }
                             Spacer()
                             ShareLink(item: AppConfig.absolute("/community/\(p.id)")) { Image(systemName: "square.and.arrow.up") }.accessibilityLabel("글 공유")
@@ -169,7 +203,7 @@ struct PostDetailView: View {
                 comments(d)
                 Panel(padding: 12) {
                     HStack {
-                        VStack(alignment: .leading) { SectionLabel("작성자"); Text(p.author.nickname).font(.system(size: 16, weight: .bold)).foregroundStyle(FC.ink); if let v = p.author.verifiedNickname { Text("✓ FC Online: \(v)").font(.system(size: 12)).foregroundStyle(FC.accent) } }
+                        VStack(alignment: .leading) { SectionLabel("작성자"); Text(p.author.nickname).fcFont(16, weight: .bold).foregroundStyle(FC.ink); if let v = p.author.verifiedNickname { Text("✓ FC Online: \(v)").fcFont(12).foregroundStyle(FC.accent) } }
                         Spacer()
                         if let v = p.author.verifiedNickname { Button("전적·진단") { router.push(.user(v)) }.buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk) }
                     }
@@ -179,7 +213,7 @@ struct PostDetailView: View {
     }
 
     private func squadLink(_ id: String) -> some View {
-        Button { router.push(.squad(id)) } label: { HStack { Text("🧩 첨부 스쿼드 보기").font(.system(size: 14, weight: .semibold)).foregroundStyle(FC.accent); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) }.padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10)) }.buttonStyle(.plain)
+        Button { router.push(.squad(id)) } label: { HStack { Text("🧩 첨부 스쿼드 보기").fcFont(14, weight: .semibold).foregroundStyle(FC.accent); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) }.padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10)) }.buttonStyle(.plain)
     }
 
     private func comments(_ d: PostDetailResponse) -> some View {
@@ -189,14 +223,14 @@ struct PostDetailView: View {
                 ForEach(d.comments.filter { !prefs.isBlocked($0.authorId) }) { c in
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 6) {
-                            Text(c.author.nickname).font(.system(size: 13, weight: .semibold)).foregroundStyle(FC.ink)
-                            Text(DateFmt.relative(c.createdAt)).font(.system(size: 11)).foregroundStyle(FC.muted)
+                            Text(c.author.nickname).fcFont(13, weight: .semibold).foregroundStyle(FC.ink)
+                            Text(DateFmt.relative(c.createdAt)).fcFont(11).foregroundStyle(FC.muted)
                             Spacer()
-                            if c.isOwn { Button("삭제") { Task { await deleteComment(c.id) } }.font(.system(size: 12)).foregroundStyle(FC.lose) }
-                            else { Button("신고") { showReport = ("comment", c.id) }.font(.system(size: 12)).foregroundStyle(FC.muted); Button("차단") { prefs.block(c.authorId) }.font(.system(size: 12)).foregroundStyle(FC.muted) }
+                            if c.isOwn { Button("삭제") { Task { await deleteComment(c.id) } }.fcFont(12).foregroundStyle(FC.lose) }
+                            else { Button("신고") { showReport = ("comment", c.id) }.fcFont(12).foregroundStyle(FC.muted); Button("차단") { prefs.block(c.authorId) }.fcFont(12).foregroundStyle(FC.muted) }
                         }
-                        Text(c.body).font(.system(size: 14)).foregroundStyle(FC.ink).padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
-                        if let s = c.squadId { Button("🧩 제안 스쿼드 보기 →") { router.push(.squad(s)) }.font(.system(size: 12, weight: .semibold)).foregroundStyle(FC.accent) }
+                        Text(c.body).fcFont(14).foregroundStyle(FC.ink).padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
+                        if let s = c.squadId { Button("🧩 제안 스쿼드 보기 →") { router.push(.squad(s)) }.fcFont(12, weight: .semibold).foregroundStyle(FC.accent) }
                     }
                 }
                 if d.viewer.canComment {
@@ -205,9 +239,9 @@ struct PostDetailView: View {
                         Button { Task { await submitComment() } } label: { Text(busy ? "…" : "등록") }.buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk).disabled(busy || comment.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
                 } else if d.viewer.loggedIn {
-                    Button("댓글을 쓰려면 닉네임 등록이 필요해요 →") { router.tab = .me }.font(.system(size: 13)).foregroundStyle(FC.accent)
+                    Button("댓글을 쓰려면 닉네임 등록이 필요해요 →") { router.tab = .me }.fcFont(13).foregroundStyle(FC.accent)
                 } else {
-                    Button("로그인하고 의견 남기기") { showLogin = true }.font(.system(size: 13)).foregroundStyle(FC.accent)
+                    Button("로그인하고 의견 남기기") { showLogin = true }.fcFont(13).foregroundStyle(FC.accent)
                 }
             }
         }
@@ -243,7 +277,7 @@ struct BattleBlock: View {
             }
             let a = votes?.a ?? 0, b = votes?.b ?? 0, total = max(1, a + b)
             GeometryReader { g in HStack(spacing: 2) { Rectangle().fill(FC.accent).frame(width: g.size.width * CGFloat(a) / CGFloat(total)); Rectangle().fill(FC.lose) } }.frame(height: 10).clipShape(Capsule())
-            HStack { Text("A \(a)표").font(.scoreboard(12)).foregroundStyle(FC.accent); Spacer(); Text("B \(b)표").font(.scoreboard(12)).foregroundStyle(FC.lose) }
+            HStack { Text("A \(a)표").fcScoreboard(12).foregroundStyle(FC.accent); Spacer(); Text("B \(b)표").fcScoreboard(12).foregroundStyle(FC.lose) }
             HStack(spacing: 8) {
                 Button("A에 투표") { Task { await vote("A") } }.buttonStyle(.bordered).tint(FC.accent).disabled(myPick != nil)
                 Button("B에 투표") { Task { await vote("B") } }.buttonStyle(.bordered).tint(FC.lose).disabled(myPick != nil)
@@ -252,7 +286,7 @@ struct BattleBlock: View {
         .task { votes = try? await APIClient.shared.get("/api/community/battle", query: ["postId": postId]) }
     }
     private func side(_ t: String, _ id: String, _ c: Color) -> some View {
-        Button { router.push(.squad(id)) } label: { VStack { Text(t).font(.scoreboard(13)).foregroundStyle(c); Text("스쿼드 보기").font(.system(size: 12)).foregroundStyle(FC.muted) }.frame(maxWidth: .infinity).padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10)) }.buttonStyle(.plain)
+        Button { router.push(.squad(id)) } label: { VStack { Text(t).fcScoreboard(13).foregroundStyle(c); Text("스쿼드 보기").fcFont(12).foregroundStyle(FC.muted) }.frame(maxWidth: .infinity).padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10)) }.buttonStyle(.plain)
     }
     private func vote(_ pick: String) async {
         let device = UIDevice.current.identifierForVendor?.uuidString ?? "anon"
@@ -288,7 +322,7 @@ struct ComposeView: View {
                     Picker("유형", selection: Binding(get: { type?.type ?? "" }, set: { v in type = types.first { $0.type == v }; if body_.isEmpty { body_ = type?.template ?? "" } })) {
                         ForEach(types) { t in Text("\(t.emoji) \(t.label)").tag(t.type) }
                     }
-                    if let t = type { Text(t.blurb).font(.system(size: 12)).foregroundStyle(FC.muted) }
+                    if let t = type { Text(t.blurb).fcFont(12).foregroundStyle(FC.muted) }
                 }
                 Section("제목 · 내용") {
                     TextField("제목 (60자)", text: $title)
@@ -305,7 +339,7 @@ struct ComposeView: View {
                         }
                     }
                 }
-                Section { Text("욕설·비하·도배·거래 유도 글은 신고 누적 시 숨김 처리되며 반복 시 이용이 제한돼요.").font(.system(size: 12)).foregroundStyle(FC.muted) }
+                Section { Text("욕설·비하·도배·거래 유도 글은 신고 누적 시 숨김 처리되며 반복 시 이용이 제한돼요.").fcFont(12).foregroundStyle(FC.muted) }
             }
             .navigationTitle("글쓰기").navigationBarTitleDisplayMode(.inline)
             .toolbar {

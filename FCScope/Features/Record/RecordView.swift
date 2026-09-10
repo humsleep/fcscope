@@ -109,6 +109,7 @@ final class RecordViewModel {
 }
 
 struct RecordView: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let nickname: String
     @State private var vm: RecordViewModel
     @State private var prefs = LocalPrefs.shared
@@ -129,7 +130,7 @@ struct RecordView: View {
                             // 2단계 조회: 프로필이 먼저 도착 → 히어로부터 표시
                             quickHero(p)
                             Text("최근 30경기를 불러오는 중이에요. 처음 조회하는 구단주는 조금 걸려요.")
-                                .font(.system(size: 12)).foregroundStyle(FC.muted)
+                                .fcFont(12).foregroundStyle(FC.muted)
                         } else {
                             Skeleton(height: 120)
                         }
@@ -167,14 +168,14 @@ struct RecordView: View {
         Panel {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(p.nickname).font(.system(size: 26, weight: .bold)).foregroundStyle(FC.ink)
-                    (Text("LV.").foregroundStyle(FC.muted) + Text("\(p.level)").foregroundStyle(FC.accent)).font(.scoreboard(14, weight: .semibold))
+                    Text(p.nickname).fcFont(26, weight: .bold).foregroundStyle(FC.ink)
+                    (Text("LV.").foregroundStyle(FC.muted) + Text("\(p.level)").foregroundStyle(FC.accent)).font(.fcScoreboard(14, typeSize, weight: .semibold)).lineLimit(1).fixedSize()
                 }
                 ForEach(p.divisions) { d in
                     HStack(spacing: 6) {
-                        Text(d.matchTypeName).font(.system(size: 13)).foregroundStyle(FC.muted)
+                        Text(d.matchTypeName).fcFont(13).foregroundStyle(FC.muted)
                         if let icon = d.iconUrl { RemoteImage(url: icon, size: 20) }
-                        Text(d.divisionName).font(.system(size: 13, weight: .bold)).foregroundStyle(FC.gold)
+                        Text(d.divisionName).fcFont(13, weight: .bold).foregroundStyle(FC.gold)
                     }
                 }
             }
@@ -214,19 +215,19 @@ struct RecordView: View {
         Panel {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(o.profile.nickname).font(.system(size: 26, weight: .bold)).foregroundStyle(FC.ink)
-                    (Text("LV.").foregroundStyle(FC.muted) + Text("\(o.profile.level)").foregroundStyle(FC.accent)).font(.scoreboard(14, weight: .semibold))
+                    Text(o.profile.nickname).fcFont(26, weight: .bold).foregroundStyle(FC.ink).lineLimit(2).minimumScaleFactor(0.7)
+                    (Text("LV.").foregroundStyle(FC.muted) + Text("\(o.profile.level)").foregroundStyle(FC.accent)).font(.fcScoreboard(14, typeSize, weight: .semibold)).lineLimit(1).fixedSize()
                     Spacer()
                     if prefs.myNickname?.caseInsensitiveCompare(o.profile.nickname) != .orderedSame {
-                        Button("내 구단으로") { prefs.myNickname = o.profile.nickname; Haptic.success() }.font(.system(size: 12, weight: .semibold)).foregroundStyle(FC.accent)
+                        Button("내 구단으로") { prefs.myNickname = o.profile.nickname; Haptic.success() }.fcFont(12, weight: .semibold).foregroundStyle(FC.accent)
                     } else { Chip(text: "내 구단", color: FC.accentInk, bg: FC.accent) }
                 }
                 ForEach(o.profile.divisions) { d in
                     HStack(spacing: 6) {
-                        Text(d.matchTypeName).font(.system(size: 13)).foregroundStyle(FC.muted)
+                        Text(d.matchTypeName).fcFont(13).foregroundStyle(FC.muted)
                         if let icon = d.iconUrl { RemoteImage(url: icon, size: 20) }
-                        Text(d.divisionName).font(.system(size: 13, weight: .bold)).foregroundStyle(FC.gold)
-                        Text("(\(d.date))").font(.system(size: 12)).foregroundStyle(FC.muted)
+                        Text(d.divisionName).fcFont(13, weight: .bold).foregroundStyle(FC.gold)
+                        Text("(\(d.date))").fcFont(12).foregroundStyle(FC.muted)
                     }
                 }
                 if let rankSpec = ShareCardSpec.rank(o) { ShareCardButton(spec: rankSpec, label: "🏆 계급 인증 카드", compact: true) }
@@ -243,7 +244,7 @@ struct RecordView: View {
             HStack(spacing: 6) {
                 ForEach(o.matchTabs) { t in
                     Button { Task { await vm.changeType(t.type) } } label: {
-                        Text(t.label).font(.scoreboard(13, weight: .semibold))
+                        Text(t.label).fcScoreboard(13, weight: .semibold)
                             .padding(.horizontal, 12).padding(.vertical, 8)
                             .background(t.type == vm.matchType ? FC.accent : FC.surface2, in: RoundedRectangle(cornerRadius: 10))
                             .foregroundStyle(t.type == vm.matchType ? FC.accentInk : FC.muted)
@@ -264,6 +265,7 @@ struct RecordView: View {
 // MARK: - 경기 기록
 
 struct MatchesSection: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let o: UserOverview
     let nickname: String
     @Environment(AppRouter.self) private var router
@@ -271,10 +273,10 @@ struct MatchesSection: View {
 
     var body: some View {
         if o.matches.isEmpty {
-            Panel { Text(o.listOk ? "최근 경기 기록이 없습니다." : "넥슨 조회가 일시적으로 원활하지 않아요. 잠시 후 당겨서 새로고침해 주세요.").font(.system(size: 14)).foregroundStyle(FC.muted).frame(maxWidth: .infinity) }
+            Panel { Text(o.listOk ? "최근 경기 기록이 없습니다." : "넥슨 조회가 일시적으로 원활하지 않아요. 잠시 후 당겨서 새로고침해 주세요.").fcFont(14).foregroundStyle(FC.muted).frame(maxWidth: .infinity) }
         } else {
             if o.loaded < o.requested {
-                Text("⚠️ 최근 \(o.requested)경기 중 \(o.loaded)경기만 불러와 \(o.loaded)경기 기준으로 계산했어요.").font(.system(size: 13)).foregroundStyle(FC.muted)
+                Text("⚠️ 최근 \(o.requested)경기 중 \(o.loaded)경기만 불러와 \(o.loaded)경기 기준으로 계산했어요.").fcFont(13).foregroundStyle(FC.muted)
                     .padding(10).background(FC.gold.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
             }
             if o.week.games >= 3 { weekly(o.week) }
@@ -313,22 +315,22 @@ struct MatchesSection: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top, spacing: 24) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("FC Scope 스코어").font(.system(size: 12)).foregroundStyle(FC.muted)
-                        (Text(String(format: "%.1f", o.score)) + Text("/10").font(.scoreboard(14)).foregroundStyle(FC.muted)).font(.scoreboard(34)).foregroundStyle(FC.tone(o.tier.tone))
-                        Text(o.tier.label).font(.scoreboard(11)).foregroundStyle(FC.tone(o.tier.tone))
+                        Text("FC Scope 스코어").fcFont(12).foregroundStyle(FC.muted)
+                        (Text(String(format: "%.1f", o.score)) + Text("/10").font(.fcScoreboard(14, typeSize)).foregroundStyle(FC.muted)).font(.fcScoreboard(34, typeSize)).foregroundStyle(FC.tone(o.tier.tone))
+                        Text(o.tier.label).fcScoreboard(11).foregroundStyle(FC.tone(o.tier.tone))
                     }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("최근 \(o.summary.played)경기 승률").font(.system(size: 12)).foregroundStyle(FC.muted)
-                        Text("\(o.summary.winRate)%").font(.scoreboard(34)).foregroundStyle(FC.accent)
-                        Text("\(o.summary.win)승 \(o.summary.draw)무 \(o.summary.lose)패").font(.scoreboard(11)).foregroundStyle(FC.muted)
+                        Text("최근 \(o.summary.played)경기 승률").fcFont(12).foregroundStyle(FC.muted)
+                        Text("\(o.summary.winRate)%").fcScoreboard(34).foregroundStyle(FC.accent)
+                        Text("\(o.summary.win)승 \(o.summary.draw)무 \(o.summary.lose)패").fcScoreboard(11).foregroundStyle(FC.muted)
                     }
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("최근 10경기 폼").font(.system(size: 12)).foregroundStyle(FC.muted)
+                    Text("최근 10경기 폼").fcFont(12).foregroundStyle(FC.muted)
                     HStack(spacing: 4) { ForEach(o.matches.prefix(10)) { ResultBadge(result: $0.result, size: 24) } }
                 }
                 RatingSparkline(values: o.matches.reversed().map { $0.me.rating })
-                Text("FC Scope 스코어는 승패·득실차·인게임 평점·점유율을 종합한 퍼포먼스 점수(10점 만점)예요.").font(.system(size: 11)).foregroundStyle(FC.muted)
+                Text("FC Scope 스코어는 승패·득실차·인게임 평점·점유율을 종합한 퍼포먼스 점수(10점 만점)예요.").fcFont(11).foregroundStyle(FC.muted)
             }
         }
     }
@@ -336,13 +338,13 @@ struct MatchesSection: View {
     private func weekly(_ w: WeeklyRecap) -> some View {
         Panel(padding: 12, highlight: FC.accent.opacity(0.3)) {
             HStack(spacing: 10) {
-                Text("📅").font(.system(size: 24))
+                Text("📅").fcFont(24)
                 VStack(alignment: .leading, spacing: 2) {
                     SectionLabel("이번 주 성적표 · 최근 7일 \(w.games)경기")
                     HStack(spacing: 6) {
-                        Text("\(w.win)승 \(w.draw)무 \(w.lose)패").font(.system(size: 16, weight: .bold)).foregroundStyle(w.winRate >= 50 ? FC.win : FC.lose)
-                        Text("승률 \(w.winRate)% · 평균 \(String(format: "%.1f", w.avgScore))").font(.system(size: 12)).foregroundStyle(FC.muted)
-                        if w.bestStreak >= 2 { Text("🔥\(w.bestStreak)연승").font(.system(size: 12, weight: .bold)).foregroundStyle(FC.win) }
+                        Text("\(w.win)승 \(w.draw)무 \(w.lose)패").fcFont(16, weight: .bold).foregroundStyle(w.winRate >= 50 ? FC.win : FC.lose)
+                        Text("승률 \(w.winRate)% · 평균 \(String(format: "%.1f", w.avgScore))").fcFont(12).foregroundStyle(FC.muted)
+                        if w.bestStreak >= 2 { Text("🔥\(w.bestStreak)연승").fcFont(12, weight: .bold).foregroundStyle(FC.win) }
                     }
                 }
                 Spacer()
@@ -354,10 +356,10 @@ struct MatchesSection: View {
     private func streakBanner(_ s: StreakInfo) -> some View {
         Panel(padding: 12, highlight: (s.color == "lose" ? FC.lose : FC.win).opacity(0.4)) {
             HStack(spacing: 10) {
-                Text(s.color == "lose" ? "🥶" : "🔥").font(.system(size: 24))
+                Text(s.color == "lose" ? "🥶" : "🔥").fcFont(24)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(s.text).font(.scoreboard(18)).foregroundStyle(FC.tone(s.color))
-                    Text(s.color == "lose" ? "반등을 노려보자" : "이 기세 이어가자 — 폼 카드로 자랑하기").font(.system(size: 12)).foregroundStyle(FC.muted)
+                    Text(s.text).fcScoreboard(18).foregroundStyle(FC.tone(s.color))
+                    Text(s.color == "lose" ? "반등을 노려보자" : "이 기세 이어가자 — 폼 카드로 자랑하기").fcFont(12).foregroundStyle(FC.muted)
                 }
                 Spacer()
                 ShareCardButton(spec: .streak(o), label: "폼 카드", compact: true)
@@ -369,10 +371,10 @@ struct MatchesSection: View {
         Button { router.push(.user(r.nickname)) } label: {
             Panel(padding: 12, highlight: FC.lose.opacity(0.4)) {
                 HStack(spacing: 10) {
-                    Text("🎯").font(.system(size: 24))
+                    Text("🎯").fcFont(24)
                     VStack(alignment: .leading, spacing: 2) {
                         SectionLabel("천적 복수전", color: FC.lose)
-                        Text("\(r.nickname) 에게 \(r.win)승 \(r.lose)패 — 아직 \(r.lose - r.win)점 뒤").font(.system(size: 14, weight: .bold)).foregroundStyle(FC.ink)
+                        Text("\(r.nickname) 에게 \(r.win)승 \(r.lose)패 — 아직 \(r.lose - r.win)점 뒤").fcFont(14, weight: .bold).foregroundStyle(FC.ink)
                     }
                     Spacer()
                     ShareCardButton(spec: .rival(o, rival: r), label: "저격 카드", compact: true)
@@ -388,10 +390,10 @@ struct MatchesSection: View {
                 ForEach(rs) { r in
                     Button { router.push(.user(r.nickname)) } label: {
                         HStack {
-                            Text(r.nickname).font(.system(size: 14, weight: .semibold)).foregroundStyle(FC.ink).lineLimit(1)
+                            Text(r.nickname).fcFont(14, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1)
                             Spacer()
-                            Text("\(r.win)승 \(r.draw)무 \(r.lose)패").font(.scoreboard(13)).foregroundStyle(r.win > r.lose ? FC.win : r.win < r.lose ? FC.lose : FC.muted)
-                            Text("\(r.games)경기").font(.system(size: 12)).foregroundStyle(FC.muted)
+                            Text("\(r.win)승 \(r.draw)무 \(r.lose)패").fcScoreboard(13).foregroundStyle(r.win > r.lose ? FC.win : r.win < r.lose ? FC.lose : FC.muted)
+                            Text("\(r.games)경기").fcFont(12).foregroundStyle(FC.muted)
                         }
                     }.buttonStyle(.plain)
                 }

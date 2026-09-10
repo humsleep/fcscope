@@ -44,7 +44,82 @@ extension UIColor {
     }
 }
 
+// MARK: - 글자 크기 (Dynamic Type)
+
+/// 사용자의 "글자 크기" 설정에 따른 배율.
+///
+/// iOS 는 사용자가 설정에서 글자 크기를 바꾸면 앱이 따라오길 기대한다. 고정 pt 로 찍으면
+/// 크게 설정한 사용자에게는 그대로 작게 보인다. 이 앱은 스탯이 빽빽해서 특히 문제가 된다.
+///
+/// 배율은 Apple 의 body 텍스트 스타일(기본 17pt)이 각 단계에서 갖는 크기 비율을 그대로 쓴다.
+/// 다만 접근성 단계(AX1~AX5, 최대 3.1배)를 그대로 따르면 표·차트가 무너지므로 **1.6배에서 멈춘다**
+/// (AX1 수준). 완전한 접근성 대응은 화면별 레이아웃 재설계가 따로 필요하다.
+enum TypeScale {
+    static let maxFactor: CGFloat = 1.6
+
+    static func factor(_ size: DynamicTypeSize) -> CGFloat {
+        let raw: CGFloat
+        switch size {
+        case .xSmall: raw = 0.82
+        case .small: raw = 0.88
+        case .medium: raw = 0.94
+        case .large: raw = 1.0
+        case .xLarge: raw = 1.12
+        case .xxLarge: raw = 1.24
+        case .xxxLarge: raw = 1.35
+        default: raw = maxFactor   // accessibility1 이상
+        }
+        return min(raw, maxFactor)
+    }
+}
+
+/// 시스템 폰트 + Dynamic Type. `.font(.system(size:weight:))` 대신 쓴다.
+private struct FCSystemFont: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    let size: CGFloat
+    let weight: Font.Weight
+    func body(content: Content) -> some View {
+        content.font(.system(size: size * TypeScale.factor(typeSize), weight: weight))
+    }
+}
+
+/// Chakra Petch(전광판) + Dynamic Type.
+private struct FCScoreboardFont: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    let size: CGFloat
+    let weight: Font.Weight
+    func body(content: Content) -> some View {
+        content.font(.scoreboard(size * TypeScale.factor(typeSize), weight: weight))
+    }
+}
+
+extension Font {
+    /// `Text + Text` 연결 안처럼 **Font 값 자체**가 필요한 곳에서 쓴다.
+    /// (뷰 모디파이어는 `some View` 를 돌려줘서 Text 연결이 깨진다.)
+    /// 호출부에서 `@Environment(\.dynamicTypeSize)` 를 받아 넘긴다.
+    static func fcScoreboard(_ size: CGFloat, _ typeSize: DynamicTypeSize, weight: Font.Weight = .bold) -> Font {
+        .scoreboard(size * TypeScale.factor(typeSize), weight: weight)
+    }
+
+    /// 위와 같은 목적의 시스템 폰트 버전.
+    static func fcFont(_ size: CGFloat, _ typeSize: DynamicTypeSize, weight: Font.Weight = .regular) -> Font {
+        .system(size: size * TypeScale.factor(typeSize), weight: weight)
+    }
+}
+
+extension View {
+    /// 본문 폰트 — 사용자의 글자 크기 설정을 따른다.
+    func fcFont(_ size: CGFloat, weight: Font.Weight = .regular) -> some View {
+        modifier(FCSystemFont(size: size, weight: weight))
+    }
+    /// 전광판 폰트 — 사용자의 글자 크기 설정을 따른다.
+    func fcScoreboard(_ size: CGFloat, weight: Font.Weight = .bold) -> some View {
+        modifier(FCScoreboardFont(size: size, weight: weight))
+    }
+}
+
 /// 전광판 숫자·섹션 라벨용 Chakra Petch (한글엔 사용하지 않는다).
+/// **고정 크기가 필요한 곳(공유 카드 렌더 등)에서만 직접 쓴다.** 화면에는 `fcScoreboard(_:)` 를 쓴다.
 extension Font {
     static func scoreboard(_ size: CGFloat, weight: Font.Weight = .bold) -> Font {
         let name: String
@@ -77,7 +152,7 @@ struct SectionLabel: View {
     var color: Color = FC.muted
     init(_ text: String, color: Color = FC.muted) { self.text = text; self.color = color }
     var body: some View {
-        Text(text).font(.scoreboard(12, weight: .semibold)).kerning(2.5).foregroundStyle(color)
+        Text(text).fcScoreboard(12, weight: .semibold).kerning(2.5).foregroundStyle(color)
     }
 }
 
@@ -86,7 +161,7 @@ struct Chip: View {
     var color: Color = FC.muted
     var bg: Color = FC.surface2
     var body: some View {
-        Text(text).font(.system(size: 12, weight: .semibold)).foregroundStyle(color)
+        Text(text).fcFont(12, weight: .semibold).foregroundStyle(color)
             .padding(.horizontal, 8).padding(.vertical, 4)
             .background(bg, in: Capsule())
     }
@@ -99,8 +174,8 @@ struct StatTile: View {
     var body: some View {
         Panel(padding: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.system(size: 12)).foregroundStyle(FC.muted)
-                Text(value).font(.scoreboard(20)).foregroundStyle(color)
+                Text(label).fcFont(12).foregroundStyle(FC.muted)
+                Text(value).fcScoreboard(20).foregroundStyle(color)
             }
         }
     }
@@ -112,7 +187,7 @@ struct ErrorState: View {
     var retry: (() -> Void)? = nil
     var body: some View {
         VStack(spacing: 10) {
-            Text("4:04").font(.scoreboard(44)).foregroundStyle(FC.surface2)
+            Text("4:04").fcScoreboard(44).foregroundStyle(FC.surface2)
             Text(title).font(.headline).foregroundStyle(FC.ink)
             if let message { Text(message).font(.subheadline).foregroundStyle(FC.muted).multilineTextAlignment(.center) }
             if let retry {

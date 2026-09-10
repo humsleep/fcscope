@@ -109,7 +109,7 @@ struct SquadBuilderView: View {
                     Button { showPresets = true } label: { chipButton("🏟 팀 프리셋") }
                     Button { importNick = LocalPrefs.shared.myNickname ?? ""; showImport = true } label: { chipButton("⬇️ 최근 선발") }
                     Spacer()
-                    Text("\(model.filled)/11").font(.scoreboard(14)).foregroundStyle(model.filled == 11 ? FC.accent : FC.muted)
+                    Text("\(model.filled)/11").fcScoreboard(14).foregroundStyle(model.filled == 11 ? FC.accent : FC.muted)
                 }
                 PitchView(model: model)
                 TextField("스쿼드 이름", text: Binding(get: { model.name }, set: { model.name = $0 })).textFieldStyle(.roundedBorder)
@@ -125,12 +125,12 @@ struct SquadBuilderView: View {
                             HStack {
                                 ShareLink(item: AppConfig.absolute("/squad/\(id)")) { Label("링크 공유", systemImage: "link") }.buttonStyle(.bordered)
                                 ShareCardButton(squad: SquadCardData(name: model.name, formationId: model.formation.id, slots: model.slots, shareCode: id), label: "스쿼드 카드")
-                                Button { router.push(.squad(id)) } label: { Text("보기 →").font(.scoreboard(13)).foregroundStyle(FC.accent) }
+                                Button { router.push(.squad(id)) } label: { Text("보기 →").fcScoreboard(13).foregroundStyle(FC.accent) }
                             }
                         }
                     }
                 }
-                Text("슬롯을 탭해 선수를 검색·배치하고, 배치된 선수를 탭하면 교체·제거할 수 있어요. 같은 선수는 시즌이 달라도 한 명만.").font(.system(size: 12)).foregroundStyle(FC.muted)
+                Text("슬롯을 탭해 선수를 검색·배치하고, 배치된 선수를 탭하면 교체·제거할 수 있어요. 같은 선수는 시즌이 달라도 한 명만.").fcFont(12).foregroundStyle(FC.muted)
             }.padding(16)
         }
         .fcScreen().navigationTitle("스쿼드 빌더")
@@ -162,7 +162,7 @@ struct SquadBuilderView: View {
         }
     }
     private func chipButton(_ t: String) -> some View {
-        Text(t).font(.system(size: 13, weight: .semibold)).foregroundStyle(FC.ink).padding(.horizontal, 10).padding(.vertical, 8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
+        Text(t).fcFont(13, weight: .semibold).foregroundStyle(FC.ink).padding(.horizontal, 10).padding(.vertical, 8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -190,12 +190,12 @@ struct PitchView: View {
                         VStack(spacing: 2) {
                             ZStack {
                                 if let f = filled { PlayerImage(spid: f.spid, size: 44, radius: 22) }
-                                else { Circle().fill(Color.white.opacity(0.12)).frame(width: 44, height: 44).overlay(Text("+").font(.system(size: 18, weight: .bold)).foregroundStyle(.white.opacity(0.7))) }
+                                else { Circle().fill(Color.white.opacity(0.12)).frame(width: 44, height: 44).overlay(Text("+").fcFont(18, weight: .bold).foregroundStyle(.white.opacity(0.7))) }
                                 Circle().stroke(filled == nil ? Color.white.opacity(0.3) : FC.accent, lineWidth: 2).frame(width: 44, height: 44)
                             }
-                            Text(filled?.name ?? s.pos).font(.system(size: 10, weight: .bold)).foregroundStyle(.white).lineLimit(1).frame(width: 64)
+                            Text(filled?.name ?? s.pos).fcFont(10, weight: .bold).foregroundStyle(.white).lineLimit(1).frame(width: 64)
                                 .padding(.horizontal, 2).background(Color.black.opacity(0.45), in: Capsule())
-                            if let f = filled, let season = f.season, !season.isEmpty { Text(season).font(.system(size: 8, weight: .semibold)).foregroundStyle(FC.gold) }
+                            if let f = filled, let season = f.season, !season.isEmpty { Text(season).fcFont(8, weight: .semibold).foregroundStyle(FC.gold) }
                         }
                     }
                     .buttonStyle(.plain)
@@ -258,7 +258,7 @@ struct PlayerSearchSheet: View {
                     .task(id: q) { await search(q) }
                     .task { await PlayerIndex.shared.load() }
                 if q.trimmingCharacters(in: .whitespaces).count >= 2 && hits.isEmpty && !searching {
-                    Text("검색 결과가 없어요. 한글 이름으로 검색해 보세요.").font(.system(size: 13)).foregroundStyle(FC.muted).padding(.horizontal)
+                    Text("검색 결과가 없어요. 한글 이름으로 검색해 보세요.").fcFont(13).foregroundStyle(FC.muted).padding(.horizontal)
                 }
                 List {
                     if let current = model.slots[slot.id] {
@@ -266,7 +266,7 @@ struct PlayerSearchSheet: View {
                     }
                     ForEach(hits) { h in
                         Button { if h.seasons.count > 1 { pick = h } else { model.assign(h, to: slot); dismiss() } } label: {
-                            HStack { PlayerImage(spid: h.spid, size: 36, radius: 8); VStack(alignment: .leading) { Text(h.name).foregroundStyle(FC.ink); Text("\(h.season) 외 \(max(0, h.seasons.count - 1))개 시즌").font(.system(size: 11)).foregroundStyle(FC.muted) } }
+                            HStack { PlayerImage(spid: h.spid, size: 36, radius: 8); VStack(alignment: .leading) { Text(h.name).foregroundStyle(FC.ink); Text("\(h.season) 외 \(max(0, h.seasons.count - 1))개 시즌").fcFont(11).foregroundStyle(FC.muted) } }
                         }
                     }
                 }
@@ -310,8 +310,8 @@ struct SquadDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 if loaded {
-                    Text(model.name).font(.system(size: 20, weight: .bold)).foregroundStyle(FC.ink)
-                    Text("\(model.formation.name) · \(model.filled)명").font(.system(size: 13)).foregroundStyle(FC.muted)
+                    Text(model.name).fcFont(20, weight: .bold).foregroundStyle(FC.ink)
+                    Text("\(model.formation.name) · \(model.filled)명").fcFont(13).foregroundStyle(FC.muted)
                     PitchView(model: model, readOnly: true)
                     HStack {
                         Button { router.pendingSquadImport = .load(squadId); router.tab = .squad } label: { Text("빌더에서 수정").frame(maxWidth: .infinity) }.buttonStyle(.bordered)

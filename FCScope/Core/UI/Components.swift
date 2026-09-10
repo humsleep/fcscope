@@ -116,15 +116,15 @@ struct VerdictStamp: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
-                Text(verdict.icon).font(.scoreboard(large ? 18 : 13))
-                Text(verdict.grade).font(.scoreboard(large ? 22 : 14)).kerning(1)
-                Text(verdict.label).font(.system(size: large ? 13 : 11, weight: .semibold)).foregroundStyle(FC.muted)
+                Text(verdict.icon).fcScoreboard(large ? 18 : 13)
+                Text(verdict.grade).fcScoreboard(large ? 22 : 14).kerning(1)
+                Text(verdict.label).fcFont(large ? 13 : 11, weight: .semibold).foregroundStyle(FC.muted)
             }
             .foregroundStyle(FC.tone(verdict.color))
             .padding(.horizontal, 10).padding(.vertical, 5)
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(FC.tone(verdict.color), lineWidth: 2))
             .rotationEffect(.degrees(-3))
-            if showLiner { Text(verdict.oneLiner).font(.system(size: 13)).foregroundStyle(FC.muted) }
+            if showLiner { Text(verdict.oneLiner).fcFont(13).foregroundStyle(FC.muted) }
         }
     }
 }
@@ -134,7 +134,7 @@ struct ResultBadge: View {
     let result: String
     var size: CGFloat = 26
     var body: some View {
-        Text(result).font(.scoreboard(size * 0.5)).foregroundStyle(FC.resultColor(result))
+        Text(result).fcScoreboard(size * 0.5).foregroundStyle(FC.resultColor(result))
             .frame(width: size, height: size)
             .background(FC.resultColor(result).opacity(0.15), in: RoundedRectangle(cornerRadius: 6))
     }
@@ -182,7 +182,7 @@ struct ShareCardButton: View {
         } label: {
             HStack(spacing: 6) {
                 if busy { ProgressView().controlSize(.small) } else { Image(systemName: "square.and.arrow.up") }
-                Text(busy ? "만드는 중…" : label).font(.system(size: compact ? 12 : 14, weight: .bold))
+                Text(busy ? "만드는 중…" : label).fcFont(compact ? 12 : 14, weight: .bold)
             }
             .padding(.horizontal, compact ? 10 : 14).padding(.vertical, compact ? 7 : 10)
             .background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
@@ -243,7 +243,7 @@ struct ShareCardSheet: View {
             }
             .buttonStyle(.bordered)
             Text("앱에서 직접 만든 이미지예요. 서버를 거치지 않아 즉시 생성됩니다.")
-                .font(.system(size: 11)).foregroundStyle(FC.muted)
+                .fcFont(11).foregroundStyle(FC.muted)
         }
         .padding(20)
         .presentationDetents([.large])
@@ -269,23 +269,23 @@ struct MatchRow: View {
             ResultBadge(result: m.result, size: 30)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
-                    Text("\(m.me.goals)").font(.scoreboard(16)).foregroundStyle(FC.ink)
+                    Text("\(m.me.goals)").fcScoreboard(16).foregroundStyle(FC.ink)
                     Text(":").foregroundStyle(FC.muted)
-                    Text(m.opponent.map { "\($0.goals)" } ?? "-").font(.scoreboard(16)).foregroundStyle(FC.muted)
-                    Text("vs \(m.opponent?.nickname ?? "상대 없음")").font(.system(size: 14, weight: .semibold)).foregroundStyle(FC.ink).lineLimit(1)
+                    Text(m.opponent.map { "\($0.goals)" } ?? "-").fcScoreboard(16).foregroundStyle(FC.muted)
+                    Text("vs \(m.opponent?.nickname ?? "상대 없음")").fcFont(14, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1)
                 }
                 HStack(spacing: 6) {
-                    Text(DateFmt.short(m.matchDate)).font(.system(size: 12)).foregroundStyle(FC.muted)
+                    Text(DateFmt.short(m.matchDate)).fcFont(12).foregroundStyle(FC.muted)
                     if m.forfeit { Chip(text: "몰수", color: FC.lose, bg: FC.lose.opacity(0.15)) }
-                    Text("점유 \(m.me.possession)%").font(.system(size: 12)).foregroundStyle(FC.muted)
+                    Text("점유 \(m.me.possession)%").fcFont(12).foregroundStyle(FC.muted)
                 }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text(String(format: "%.1f", m.score)).font(.scoreboard(16)).foregroundStyle(m.score >= 6.5 ? FC.accent : m.score < 5 ? FC.lose : FC.ink)
-                Text("평점 \(String(format: "%.1f", m.me.rating))").font(.system(size: 11)).foregroundStyle(FC.muted)
+                Text(String(format: "%.1f", m.score)).fcScoreboard(16).foregroundStyle(m.score >= 6.5 ? FC.accent : m.score < 5 ? FC.lose : FC.ink)
+                Text("평점 \(String(format: "%.1f", m.me.rating))").fcFont(11).foregroundStyle(FC.muted)
             }
-            Image(systemName: "chevron.right").font(.system(size: 12)).foregroundStyle(FC.muted)
+            Image(systemName: "chevron.right").fcFont(12).foregroundStyle(FC.muted)
         }
         .padding(12)
         .background(FC.surface, in: RoundedRectangle(cornerRadius: 12))
@@ -320,12 +320,20 @@ enum DateFmt {
 struct RuleBadge: View {
     let rule: Rule
     var prefix: String = ""
+    /// 글자를 키우면 제목 칩(fixedSize)이 폭을 다 먹어 설명이 한 글자씩 흐르는 기둥이 된다.
+    /// 접근성 크기에서는 가로 배치를 포기하고 세로로 쌓는다.
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Text("\(prefix)\(rule.title)").font(.scoreboard(12, weight: .semibold)).foregroundStyle(FC.tone(rule.tone))
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 8))
+        layout {
+            Text("\(prefix)\(rule.title)").fcScoreboard(12, weight: .semibold).foregroundStyle(FC.tone(rule.tone))
                 .padding(.horizontal, 8).padding(.vertical, 4).background(FC.tone(rule.tone).opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
                 .fixedSize()
-            Text(rule.desc).font(.system(size: 13)).foregroundStyle(FC.muted)
+            Text(rule.desc).fcFont(13).foregroundStyle(FC.muted)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }

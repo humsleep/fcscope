@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MatchReportView: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let matchId: String
     let me: String?
     @State private var state: Loadable<MatchDetailResponse> = .idle
@@ -39,14 +40,14 @@ struct MatchReportView: View {
                 VStack(spacing: 10) {
                     HStack(spacing: 12) {
                         teamName(m.me, me: true)
-                        (Text("\(m.me.goals)").foregroundStyle(FC.ink) + Text(" : ").font(.scoreboard(18)).foregroundStyle(FC.muted) + Text(m.opponent.map { "\($0.goals)" } ?? "-").foregroundStyle(FC.muted)).font(.scoreboard(36))
+                        (Text("\(m.me.goals)").foregroundStyle(FC.ink) + Text(" : ").font(.fcScoreboard(18, typeSize)).foregroundStyle(FC.muted) + Text(m.opponent.map { "\($0.goals)" } ?? "-").foregroundStyle(FC.muted)).font(.fcScoreboard(36, typeSize))
                         if let o = m.opponent { teamName(o, me: false) } else { Spacer() }
                     }
-                    if m.me.forfeit { Text("몰수 경기").font(.system(size: 12)).foregroundStyle(FC.lose) }
+                    if m.me.forfeit { Text("몰수 경기").fcFont(12).foregroundStyle(FC.lose) }
                     VerdictStamp(verdict: m.verdict, large: true, showLiner: true)
                     VStack(spacing: 3) {
                         GeometryReader { g in HStack(spacing: 0) { Rectangle().fill(FC.accent).frame(width: g.size.width * CGFloat(m.me.possession) / 100); Rectangle().fill(FC.lose.opacity(0.7)) } }.frame(height: 8).clipShape(Capsule())
-                        HStack { Text("\(m.me.possession)%").foregroundStyle(FC.accent); Spacer(); Text("점유율").foregroundStyle(FC.muted); Spacer(); Text("\(100 - m.me.possession)%").foregroundStyle(FC.lose) }.font(.scoreboard(12, weight: .semibold))
+                        HStack { Text("\(m.me.possession)%").foregroundStyle(FC.accent); Spacer(); Text("점유율").foregroundStyle(FC.muted); Spacer(); Text("\(100 - m.me.possession)%").foregroundStyle(FC.lose) }.fcScoreboard(12, weight: .semibold)
                     }
                 }
             }
@@ -54,15 +55,15 @@ struct MatchReportView: View {
                 SectionLabel("SHOT MAP")
                 shotBlock(m.me, tone: FC.accent)
                 if let o = m.opponent { shotBlock(o, tone: FC.lose) }
-                Text("● 채움=골 · ○ 외곽선=노골 · 금색=골대 · 점을 누르면 시간·선수").font(.system(size: 11)).foregroundStyle(FC.muted)
+                Text("● 채움=골 · ○ 외곽선=노골 · 금색=골대 · 점을 누르면 시간·선수").fcFont(11).foregroundStyle(FC.muted)
             }
             if let p = m.potm {
                 Panel(padding: 12) {
                     HStack(spacing: 12) {
                         PlayerImage(spid: p.spId, size: 56, radius: 12)
-                        VStack(alignment: .leading, spacing: 2) { SectionLabel("PLAYER OF THE MATCH", color: FC.gold); Text(p.name).font(.system(size: 15, weight: .bold)).foregroundStyle(FC.ink); Text("\(p.positionLabel) · \(p.side)").font(.system(size: 12)).foregroundStyle(FC.muted) }
+                        VStack(alignment: .leading, spacing: 2) { SectionLabel("PLAYER OF THE MATCH", color: FC.gold); Text(p.name).fcFont(15, weight: .bold).foregroundStyle(FC.ink); Text("\(p.positionLabel) · \(p.side)").fcFont(12).foregroundStyle(FC.muted) }
                         Spacer()
-                        Text(String(format: "%.1f", p.rating)).font(.scoreboard(28)).foregroundStyle(FC.gold)
+                        Text(String(format: "%.1f", p.rating)).fcScoreboard(28).foregroundStyle(FC.gold)
                     }
                 }
             }
@@ -87,7 +88,7 @@ struct MatchReportView: View {
                 if let o = m.opponent { ratings(o) }
             }
             HStack {
-                Button { router.push(.user(m.me.nickname)) } label: { Text("← \(m.me.nickname) 전적으로").font(.system(size: 13)).foregroundStyle(FC.muted) }
+                Button { router.push(.user(m.me.nickname)) } label: { Text("← \(m.me.nickname) 전적으로").fcFont(13).foregroundStyle(FC.muted) }
                 Spacer()
                 ShareCardButton(spec: .match(m), label: "매치 카드")
             }
@@ -95,30 +96,30 @@ struct MatchReportView: View {
     }
 
     private func teamName(_ s: MatchSide, me: Bool) -> some View {
-        Button { router.push(.user(s.nickname)) } label: { Text(s.nickname).font(.system(size: 14, weight: .bold)).foregroundStyle(me ? FC.accent : FC.ink).lineLimit(1).frame(maxWidth: .infinity) }.buttonStyle(.plain)
+        Button { router.push(.user(s.nickname)) } label: { Text(s.nickname).fcFont(14, weight: .bold).foregroundStyle(me ? FC.accent : FC.ink).lineLimit(1).frame(maxWidth: .infinity) }.buttonStyle(.plain)
     }
     private func shotBlock(_ s: MatchSide, tone: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) { Circle().fill(tone).frame(width: 8, height: 8); Text("\(s.nickname) — 슛 \(s.stats.shots) (유효 \(s.stats.effectiveShots))").font(.system(size: 12, weight: .medium)).foregroundStyle(FC.ink) }
+            HStack(spacing: 4) { Circle().fill(tone).frame(width: 8, height: 8); Text("\(s.nickname) — 슛 \(s.stats.shots) (유효 \(s.stats.effectiveShots))").fcFont(12, weight: .medium).foregroundStyle(FC.ink) }
             ShotMapView(shots: s.shots, tone: tone)
         }
     }
     private func stat(_ label: String, _ a: String, _ b: String) -> some View {
-        HStack { Text(a).font(.scoreboard(13, weight: .semibold)).foregroundStyle(FC.accent).frame(width: 80, alignment: .leading); Spacer(); Text(label).font(.system(size: 12)).foregroundStyle(FC.muted); Spacer(); Text(b).font(.scoreboard(13, weight: .semibold)).foregroundStyle(FC.lose).frame(width: 80, alignment: .trailing) }
+        HStack { Text(a).fcScoreboard(13, weight: .semibold).foregroundStyle(FC.accent).frame(width: 80, alignment: .leading); Spacer(); Text(label).fcFont(12).foregroundStyle(FC.muted); Spacer(); Text(b).fcScoreboard(13, weight: .semibold).foregroundStyle(FC.lose).frame(width: 80, alignment: .trailing) }
     }
     private func ratings(_ s: MatchSide) -> some View {
         Panel(padding: 10) {
             VStack(spacing: 6) {
-                Text(s.nickname).font(.system(size: 12, weight: .semibold)).foregroundStyle(FC.muted).frame(maxWidth: .infinity, alignment: .leading)
-                if s.players.isEmpty { Text("선수 기록 없음").font(.system(size: 12)).foregroundStyle(FC.muted) }
+                Text(s.nickname).fcFont(12, weight: .semibold).foregroundStyle(FC.muted).frame(maxWidth: .infinity, alignment: .leading)
+                if s.players.isEmpty { Text("선수 기록 없음").fcFont(12).foregroundStyle(FC.muted) }
                 ForEach(s.players) { p in
                     Button { router.push(.player(p.spId)) } label: {
                         HStack(spacing: 8) {
                             PlayerImage(spid: p.spId, size: 30, radius: 8)
-                            Text(p.positionLabel).font(.scoreboard(12, weight: .semibold)).foregroundStyle(FC.muted).frame(width: 36, alignment: .leading)
-                            (Text(p.name) + Text(p.goals > 0 ? " ⚽\(p.goals)" : "").foregroundStyle(FC.accent) + Text(p.assists > 0 ? " A\(p.assists)" : "").foregroundStyle(FC.muted)).font(.system(size: 13)).foregroundStyle(FC.ink).lineLimit(1)
+                            Text(p.positionLabel).fcScoreboard(12, weight: .semibold).foregroundStyle(FC.muted).frame(width: 36, alignment: .leading)
+                            (Text(p.name) + Text(p.goals > 0 ? " ⚽\(p.goals)" : "").foregroundStyle(FC.accent) + Text(p.assists > 0 ? " A\(p.assists)" : "").foregroundStyle(FC.muted)).font(.fcFont(13, typeSize)).foregroundStyle(FC.ink).lineLimit(1)
                             Spacer()
-                            Text(String(format: "%.1f", p.rating)).font(.scoreboard(13)).foregroundStyle(p.rating >= 7.5 ? FC.gold : p.rating < 6 ? FC.lose : FC.ink)
+                            Text(String(format: "%.1f", p.rating)).fcScoreboard(13).foregroundStyle(p.rating >= 7.5 ? FC.gold : p.rating < 6 ? FC.lose : FC.ink)
                         }
                     }.buttonStyle(.plain)
                 }
@@ -167,7 +168,7 @@ struct ShotMapView: View {
             .aspectRatio(1.35, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 10))
             if let s = selected {
-                Text("\(s.minute.map { "\($0)' " } ?? "")\(s.player ?? "") — \(s.isGoal ? "골" : s.hitPost ? "골대" : "노골")\(s.inPenalty == true ? " · 박스 안" : "")").font(.system(size: 12, weight: .semibold)).foregroundStyle(FC.ink)
+                Text("\(s.minute.map { "\($0)' " } ?? "")\(s.player ?? "") — \(s.isGoal ? "골" : s.hitPost ? "골대" : "노골")\(s.inPenalty == true ? " · 박스 안" : "")").fcFont(12, weight: .semibold).foregroundStyle(FC.ink)
             }
         }
     }

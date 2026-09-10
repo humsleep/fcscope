@@ -67,8 +67,8 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 6) {
             SectionLabel("EA SPORTS FC ONLINE DATA LAB", color: FC.accent)
             (Text("감이 아니라, ") + Text("데이터").foregroundStyle(FC.accent) + Text("로."))
-                .font(.system(size: 28, weight: .bold)).foregroundStyle(FC.ink)
-            Text("전적·슛맵·선수 성적표·플레이스타일·이적시장을 구단주명 하나로.").font(.system(size: 14)).foregroundStyle(FC.muted)
+                .fcFont(28, weight: .bold).foregroundStyle(FC.ink)
+            Text("전적·슛맵·선수 성적표·플레이스타일을 구단주명 하나로.").fcFont(14).foregroundStyle(FC.muted)
         }
     }
 
@@ -80,8 +80,8 @@ struct HomeView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         SectionLabel("처음이신가요?", color: FC.gold)
-                        Text("예시 리포트 먼저 보기").font(.system(size: 17, weight: .bold)).foregroundStyle(FC.ink)
-                        Text("실제 구단주 \(nick) 의 전적·슛맵·진단을 그대로 볼 수 있어요.").font(.system(size: 13)).foregroundStyle(FC.muted)
+                        Text("예시 리포트 먼저 보기").fcFont(17, weight: .bold).foregroundStyle(FC.ink)
+                        Text("실제 구단주 \(nick) 의 전적·슛맵·진단을 그대로 볼 수 있어요.").fcFont(13).foregroundStyle(FC.muted)
                     }
                     Spacer()
                     Image(systemName: "chevron.right").foregroundStyle(FC.muted)
@@ -97,18 +97,18 @@ struct HomeView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         SectionLabel("내 구단")
-                        Text(nick).font(.system(size: 18, weight: .bold)).foregroundStyle(FC.ink)
+                        Text(nick).fcFont(18, weight: .bold).foregroundStyle(FC.ink)
                         if let s = prefs.snapshot(for: nick) {
                             HStack(spacing: 8) {
-                                Text("승률 \(s.winRate)%").font(.scoreboard(14)).foregroundStyle(FC.accent)
+                                Text("승률 \(s.winRate)%").fcScoreboard(14).foregroundStyle(FC.accent)
                                 if let p = s.prevWinRate, p != s.winRate {
-                                    Text(s.winRate > p ? "▲\(s.winRate - p)%p" : "▼\(p - s.winRate)%p").font(.scoreboard(12)).foregroundStyle(s.winRate > p ? FC.win : FC.lose)
+                                    Text(s.winRate > p ? "▲\(s.winRate - p)%p" : "▼\(p - s.winRate)%p").fcScoreboard(12).foregroundStyle(s.winRate > p ? FC.win : FC.lose)
                                 }
-                                if s.streak >= 2 { Text("🔥\(s.streak)연승").font(.system(size: 12, weight: .bold)).foregroundStyle(FC.gold) }
-                                if s.streak <= -2 { Text("🥶\(-s.streak)연패").font(.system(size: 12, weight: .bold)).foregroundStyle(FC.lose) }
+                                if s.streak >= 2 { Text("🔥\(s.streak)연승").fcFont(12, weight: .bold).foregroundStyle(FC.gold) }
+                                if s.streak <= -2 { Text("🥶\(-s.streak)연패").fcFont(12, weight: .bold).foregroundStyle(FC.lose) }
                             }
                         } else {
-                            Text("탭해서 최근 폼 확인").font(.system(size: 13)).foregroundStyle(FC.muted)
+                            Text("탭해서 최근 폼 확인").fcFont(13).foregroundStyle(FC.muted)
                         }
                     }
                     Spacer()
@@ -127,16 +127,16 @@ struct HomeView: View {
                     ForEach(prefs.favorites, id: \.self) { n in
                         Button { router.push(.user(n)) } label: {
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(n).font(.system(size: 14, weight: .semibold)).foregroundStyle(FC.ink).lineLimit(1)
+                                Text(n).fcFont(14, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1)
                                 if let s = prefs.snapshot(for: n) {
                                     HStack(spacing: 4) {
-                                        Text("\(s.winRate)%").font(.scoreboard(13)).foregroundStyle(FC.accent)
+                                        Text("\(s.winRate)%").fcScoreboard(13).foregroundStyle(FC.accent)
                                         if let p = s.prevWinRate, p != s.winRate {
-                                            Text(s.winRate > p ? "▲" : "▼").font(.scoreboard(11)).foregroundStyle(s.winRate > p ? FC.win : FC.lose)
+                                            Text(s.winRate > p ? "▲" : "▼").fcScoreboard(11).foregroundStyle(s.winRate > p ? FC.win : FC.lose)
                                         }
-                                        if s.streak >= 2 { Text("🔥\(s.streak)").font(.system(size: 11)) }
+                                        if s.streak >= 2 { Text("🔥\(s.streak)").fcFont(11) }
                                     }
-                                } else { Text("폼 미확인").font(.system(size: 11)).foregroundStyle(FC.muted) }
+                                } else { Text("폼 미확인").fcFont(11).foregroundStyle(FC.muted) }
                             }
                             .padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
                         }.buttonStyle(.plain)
@@ -153,11 +153,11 @@ struct HomeView: View {
                     PlayerImage(spid: m.spId, size: 44)
                     VStack(alignment: .leading, spacing: 2) {
                         SectionLabel("⚡ 오늘의 급상승", color: FC.win)
-                        Text(m.name).font(.system(size: 15, weight: .bold)).foregroundStyle(FC.ink)
-                        Text("\(m.positionLabel) · \(m.lineTitle ?? m.line)").font(.system(size: 12)).foregroundStyle(FC.muted)
+                        Text(m.name).fcFont(15, weight: .bold).foregroundStyle(FC.ink)
+                        Text("\(m.positionLabel) · \(m.lineTitle ?? m.line)").fcFont(12).foregroundStyle(FC.muted)
                     }
                     Spacer()
-                    Text(m.isNew ? "NEW" : "▲\(m.deltaValue ?? 0)").font(.scoreboard(14)).foregroundStyle(m.isNew ? FC.gold : FC.win)
+                    Text(m.isNew ? "NEW" : "▲\(m.deltaValue ?? 0)").fcScoreboard(14).foregroundStyle(m.isNew ? FC.gold : FC.win)
                         .padding(.horizontal, 8).padding(.vertical, 5).background((m.isNew ? FC.gold : FC.win).opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
                 }
             }
@@ -181,10 +181,10 @@ struct HomeView: View {
             ForEach(posts) { p in
                 Button { router.push(.post(p.id)) } label: {
                     HStack {
-                        Text(p.title).font(.system(size: 14, weight: .medium)).foregroundStyle(FC.ink).lineLimit(1)
+                        Text(p.title).fcFont(14, weight: .medium).foregroundStyle(FC.ink).lineLimit(1)
                         Spacer()
-                        if let c = p.commentCount, c > 0 { Text("💬\(c)").font(.system(size: 12)).foregroundStyle(FC.muted) }
-                        Text(DateFmt.relative(p.createdAt)).font(.system(size: 12)).foregroundStyle(FC.muted)
+                        if let c = p.commentCount, c > 0 { Text("💬\(c)").fcFont(12).foregroundStyle(FC.muted) }
+                        Text(DateFmt.relative(p.createdAt)).fcFont(12).foregroundStyle(FC.muted)
                     }
                     .padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
                 }.buttonStyle(.plain)
@@ -207,7 +207,7 @@ struct HomeView: View {
     private var featureGrid: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("여기서 할 수 있는 것")
-            feature("전적 · 분석 리포트", "슛맵부터 스쿼드 진단까지", "경기별 슛맵, 선수 성적표, 플레이스타일, 이적시장 내역을 한 번에.") { }
+            feature("전적 · 분석 리포트", "슛맵부터 스쿼드 진단까지", "경기별 슛맵, 선수 성적표, 플레이스타일을 한 번에.") { }
             feature("스쿼드 빌더", "스쿼드 만들고 공유", "포메이션에 선수 배치, 팀 프리셋, 최근 경기 선발 그대로 불러오기.") { router.tab = .squad }
             feature("랭커 픽 랭킹 · 선수 도감", "지금 랭커는 누굴 쓸까", "상위 랭커가 많이 쓴 카드를 포지션별로 매일 갱신.") { router.tab = .meta }
             feature("커뮤니티 · 배틀", "자랑하고, 모으고, 겨룬다", "스쿼드 자랑과 평가, 클럽원 모집, 투표로 겨루는 스쿼드 배틀.") { router.tab = .community }
@@ -217,9 +217,9 @@ struct HomeView: View {
         Button(action: action) {
             Panel(padding: 14) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(tag).font(.system(size: 12, weight: .bold)).foregroundStyle(FC.gold)
-                    Text(title).font(.system(size: 16, weight: .bold)).foregroundStyle(FC.ink)
-                    Text(desc).font(.system(size: 13)).foregroundStyle(FC.muted)
+                    Text(tag).fcFont(12, weight: .bold).foregroundStyle(FC.gold)
+                    Text(title).fcFont(16, weight: .bold).foregroundStyle(FC.ink)
+                    Text(desc).fcFont(13).foregroundStyle(FC.muted)
                 }
             }
         }.buttonStyle(.plain)
@@ -260,9 +260,9 @@ struct OnboardingView: View {
             TabView(selection: $page) {
                 onboardPage(icon: "chart.xyaxis.line", title: "감이 아니라, 데이터로.", desc: "구단주명 하나로 최근 30경기 승률·슛맵·선수 성적표·플레이스타일을 진단해요. 로그인 없이 바로.").tag(0)
                 VStack(spacing: 16) {
-                    Image(systemName: "person.text.rectangle").font(.system(size: 56)).foregroundStyle(FC.accent)
-                    Text("내 구단주명을 알려주세요").font(.system(size: 22, weight: .bold)).foregroundStyle(FC.ink)
-                    Text("홈에 내 폼 카드가 고정되고, 위젯·주간 성적표에 쓰여요. 나중에 바꿀 수 있어요.").font(.system(size: 14)).foregroundStyle(FC.muted).multilineTextAlignment(.center)
+                    Image(systemName: "person.text.rectangle").fcFont(56).foregroundStyle(FC.accent)
+                    Text("내 구단주명을 알려주세요").fcFont(22, weight: .bold).foregroundStyle(FC.ink)
+                    Text("홈에 내 폼 카드가 고정되고, 위젯·주간 성적표에 쓰여요. 나중에 바꿀 수 있어요.").fcFont(14).foregroundStyle(FC.muted).multilineTextAlignment(.center)
                     TextField("FC온라인 구단주명", text: $nick).textFieldStyle(.roundedBorder).padding(.horizontal, 32).autocorrectionDisabled()
                 }.tag(1)
                 onboardPage(icon: "bell.badge", title: "주간 성적표를 받아볼까요?", desc: "일요일 밤 이번 주 승률·연승 리캡, 금요일엔 랭커 메타 한 줄 요약만 보내요. 경기마다 알림하지 않아요.").tag(2)
@@ -278,9 +278,9 @@ struct OnboardingView: View {
     }
     private func onboardPage(icon: String, title: String, desc: String) -> some View {
         VStack(spacing: 16) {
-            Image(systemName: icon).font(.system(size: 56)).foregroundStyle(FC.accent)
-            Text(title).font(.system(size: 22, weight: .bold)).foregroundStyle(FC.ink)
-            Text(desc).font(.system(size: 14)).foregroundStyle(FC.muted).multilineTextAlignment(.center).padding(.horizontal, 32)
+            Image(systemName: icon).fcFont(56).foregroundStyle(FC.accent)
+            Text(title).fcFont(22, weight: .bold).foregroundStyle(FC.ink)
+            Text(desc).fcFont(14).foregroundStyle(FC.muted).multilineTextAlignment(.center).padding(.horizontal, 32)
         }
     }
     private func finish() {

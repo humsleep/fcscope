@@ -2,6 +2,7 @@ import SwiftUI
 import AuthenticationServices
 
 struct MyPageView: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var auth = AuthManager.shared
     @State private var prefs = LocalPrefs.shared
     @State private var profile: ProfileResponse?
@@ -19,19 +20,19 @@ struct MyPageView: View {
                     Panel(padding: 12) {
                         VStack(alignment: .leading, spacing: 6) {
                             SectionLabel("💬 새 댓글 \(n.total)")
-                            ForEach(n.items) { i in Button { router.push(.post(i.postId)) } label: { HStack { Text(i.title).font(.system(size: 14)).foregroundStyle(FC.ink).lineLimit(1); Spacer(); Text("+\(i.count)").font(.scoreboard(13)).foregroundStyle(FC.accent) } }.buttonStyle(.plain) }
+                            ForEach(n.items) { i in Button { router.push(.post(i.postId)) } label: { HStack { Text(i.title).fcFont(14).foregroundStyle(FC.ink).lineLimit(1); Spacer(); Text("+\(i.count)").fcScoreboard(13).foregroundStyle(FC.accent) } }.buttonStyle(.plain) }
                         }
                     }
                 }
                 myClubCard
                 if !prefs.favorites.isEmpty { favoritesCard }
                 if let sq = profile?.squads, !sq.isEmpty {
-                    Panel(padding: 12) { VStack(alignment: .leading, spacing: 6) { SectionLabel("내 스쿼드"); ForEach(sq) { s in Button { router.push(.squad(s.id)) } label: { HStack { Text(s.name).foregroundStyle(FC.ink); Spacer(); Text(s.formation).font(.scoreboard(12)).foregroundStyle(FC.muted) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(.plain) } } }
+                    Panel(padding: 12) { VStack(alignment: .leading, spacing: 6) { SectionLabel("내 스쿼드"); ForEach(sq) { s in Button { router.push(.squad(s.id)) } label: { HStack { Text(s.name).foregroundStyle(FC.ink); Spacer(); Text(s.formation).fcScoreboard(12).foregroundStyle(FC.muted) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(.plain) } } }
                 }
                 if let posts = profile?.posts, !posts.isEmpty {
                     Panel(padding: 12) { VStack(alignment: .leading, spacing: 6) { SectionLabel("내가 쓴 글"); ForEach(posts) { p in Button { router.push(.post(p.id)) } label: { HStack { Text(p.title).foregroundStyle(FC.ink).lineLimit(1); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(.plain) } } }
                 }
-                if prefs.streak.current >= 2 { Text("🔥 \(prefs.streak.current)일 연속 방문 (최고 \(prefs.streak.best)일)").font(.system(size: 13, weight: .semibold)).foregroundStyle(FC.gold) }
+                if prefs.streak.current >= 2 { Text("🔥 \(prefs.streak.current)일 연속 방문 (최고 \(prefs.streak.best)일)").fcFont(13, weight: .semibold).foregroundStyle(FC.gold) }
                 NavigationLink { SettingsView() } label: { Panel(padding: 12) { HStack { Label("설정 · 약관 · 계정", systemImage: "gearshape").foregroundStyle(FC.ink); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) } } }.buttonStyle(.plain)
             }.padding(16)
         }
@@ -52,12 +53,12 @@ struct MyPageView: View {
     private var accountCard: some View {
         Panel {
             if !auth.isLoggedIn {
-                HStack { Text("로그인하면 연동 구단주·내 글·댓글 알림을 한 곳에서 볼 수 있어요.").font(.system(size: 13)).foregroundStyle(FC.muted); Spacer(); Button("로그인") { showLogin = true }.buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk) }
+                HStack { Text("로그인하면 연동 구단주·내 글·댓글 알림을 한 곳에서 볼 수 있어요.").fcFont(13).foregroundStyle(FC.muted); Spacer(); Button("로그인") { showLogin = true }.buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk) }
             } else {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(profile?.profile?.nickname ?? "닉네임 미등록").font(.system(size: 18, weight: .bold)).foregroundStyle(FC.ink)
-                        if let v = profile?.profile?.verifiedNickname { Text("✓ 구단주 \(v)").font(.system(size: 13)).foregroundStyle(FC.accent) } else { Text("구단주명 미연동").font(.system(size: 13)).foregroundStyle(FC.muted) }
+                        Text(profile?.profile?.nickname ?? "닉네임 미등록").fcFont(18, weight: .bold).foregroundStyle(FC.ink)
+                        if let v = profile?.profile?.verifiedNickname { Text("✓ 구단주 \(v)").fcFont(13).foregroundStyle(FC.accent) } else { Text("구단주명 미연동").fcFont(13).foregroundStyle(FC.muted) }
                     }
                     Spacer()
                     Button(profile?.profile?.nickname == nil ? "닉네임 등록" : "프로필 설정") { showSetup = true }.buttonStyle(.bordered)
@@ -71,10 +72,10 @@ struct MyPageView: View {
             VStack(alignment: .leading, spacing: 4) {
                 SectionLabel("지난 방문 대비")
                 HStack(spacing: 20) {
-                    VStack(alignment: .leading) { Text("최근 \(s.played)경기 승률").font(.system(size: 12)).foregroundStyle(FC.muted); (Text("\(s.winRate)%").foregroundStyle(FC.accent) + Text(s.deltaWinRate.map { $0 > 0 ? " ▲\($0)%p" : $0 < 0 ? " ▼\(-$0)%p" : " ±0" } ?? "").font(.scoreboard(13)).foregroundStyle((s.deltaWinRate ?? 0) >= 0 ? FC.win : FC.lose)).font(.scoreboard(24)) }
-                    VStack(alignment: .leading) { Text("평균 평점").font(.system(size: 12)).foregroundStyle(FC.muted); Text(String(format: "%.2f", s.avgRating)).font(.scoreboard(24)).foregroundStyle(FC.gold) }
+                    VStack(alignment: .leading) { Text("최근 \(s.played)경기 승률").font(.fcFont(12, typeSize)).foregroundStyle(FC.muted); (Text("\(s.winRate)%").foregroundStyle(FC.accent) + Text(s.deltaWinRate.map { $0 > 0 ? " ▲\($0)%p" : $0 < 0 ? " ▼\(-$0)%p" : " ±0" } ?? "").font(.fcScoreboard(13, typeSize)).foregroundStyle((s.deltaWinRate ?? 0) >= 0 ? FC.win : FC.lose)).font(.fcScoreboard(24, typeSize)) }
+                    VStack(alignment: .leading) { Text("평균 평점").fcFont(12).foregroundStyle(FC.muted); Text(String(format: "%.2f", s.avgRating)).fcScoreboard(24).foregroundStyle(FC.gold) }
                 }
-                Text(s.prevDate.map { "\($0) 방문 대비" } ?? "내일 다시 방문하면 변화를 보여드려요.").font(.system(size: 11)).foregroundStyle(FC.muted)
+                Text(s.prevDate.map { "\($0) 방문 대비" } ?? "내일 다시 방문하면 변화를 보여드려요.").fcFont(11).foregroundStyle(FC.muted)
             }
         }
     }
@@ -84,7 +85,7 @@ struct MyPageView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     SectionLabel("내 구단 (기기)")
-                    if let n = prefs.myNickname { Text(n).font(.system(size: 16, weight: .bold)).foregroundStyle(FC.ink) } else { Text("전적 페이지에서 '내 구단으로'를 누르면 홈·위젯에 고정돼요.").font(.system(size: 13)).foregroundStyle(FC.muted) }
+                    if let n = prefs.myNickname { Text(n).fcFont(16, weight: .bold).foregroundStyle(FC.ink) } else { Text("전적 페이지에서 '내 구단으로'를 누르면 홈·위젯에 고정돼요.").fcFont(13).foregroundStyle(FC.muted) }
                 }
                 Spacer()
                 if let n = prefs.myNickname { Button("전적") { router.push(.user(n)) }.buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk) }
@@ -100,8 +101,8 @@ struct MyPageView: View {
                     HStack {
                         Button { router.push(.user(n)) } label: { Text(n).foregroundStyle(FC.ink) }.buttonStyle(.plain)
                         Spacer()
-                        if let s = prefs.snapshot(for: n) { Text("\(s.winRate)%").font(.scoreboard(12)).foregroundStyle(FC.accent) }
-                        Button { prefs.toggleFavorite(n) } label: { Image(systemName: "xmark").font(.system(size: 11)).foregroundStyle(FC.muted) }.accessibilityLabel("\(n) 즐겨찾기 해제")
+                        if let s = prefs.snapshot(for: n) { Text("\(s.winRate)%").fcScoreboard(12).foregroundStyle(FC.accent) }
+                        Button { prefs.toggleFavorite(n) } label: { Image(systemName: "xmark").fcFont(11).foregroundStyle(FC.muted) }.accessibilityLabel("\(n) 즐겨찾기 해제")
                     }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8))
                 }
             }
@@ -110,6 +111,7 @@ struct MyPageView: View {
 }
 
 struct LoginView: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     var reason: String?
     @Environment(\.dismiss) private var dismiss
     @State private var auth = AuthManager.shared
@@ -119,16 +121,16 @@ struct LoginView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
-                (Text("FC ").foregroundStyle(FC.accent) + Text("SCOPE").foregroundStyle(FC.ink)).font(.scoreboard(26))
-                if let r = reason { Text(r).font(.system(size: 14, weight: .semibold)).foregroundStyle(FC.accent) }
-                Text("클럽 모집·커뮤니티 참여에는 로그인이 필요해요. 전적 검색·진단·스쿼드는 로그인 없이 쓸 수 있어요.").font(.system(size: 13)).foregroundStyle(FC.muted).multilineTextAlignment(.center)
+                (Text("FC ").foregroundStyle(FC.accent) + Text("SCOPE").foregroundStyle(FC.ink)).font(.fcScoreboard(26, typeSize))
+                if let r = reason { Text(r).fcFont(14, weight: .semibold).foregroundStyle(FC.accent) }
+                Text("클럽 모집·커뮤니티 참여에는 로그인이 필요해요. 전적 검색·진단·스쿼드는 로그인 없이 쓸 수 있어요.").fcFont(13).foregroundStyle(FC.muted).multilineTextAlignment(.center)
                 if !auth.isConfigured {
-                    Text("로그인 준비 중이에요.").font(.system(size: 13)).foregroundStyle(FC.muted)
+                    Text("로그인 준비 중이에요.").fcFont(13).foregroundStyle(FC.muted)
                 } else {
                     Toggle(isOn: $agreed) {
-                        (Text("이용약관").underline() + Text("과 ") + Text("개인정보처리방침").underline() + Text("에 동의하며, 만 14세 이상입니다.")).font(.system(size: 13)).foregroundStyle(FC.muted)
+                        (Text("이용약관").underline() + Text("과 ") + Text("개인정보처리방침").underline() + Text("에 동의하며, 만 14세 이상입니다.")).font(.fcFont(13, typeSize)).foregroundStyle(FC.muted)
                     }.toggleStyle(.switch).tint(FC.accent)
-                    HStack(spacing: 12) { Link("이용약관", destination: AppConfig.termsURL); Link("개인정보처리방침", destination: AppConfig.privacyURL) }.font(.system(size: 12))
+                    HStack(spacing: 12) { Link("이용약관", destination: AppConfig.termsURL); Link("개인정보처리방침", destination: AppConfig.privacyURL) }.fcFont(12)
                     SignInWithAppleButton(.continue) { req in auth.prepareAppleRequest(req) } onCompletion: { result in
                         guard agreed else { error = "약관에 동의해 주세요."; return }
                         Task { do { try await auth.completeApple(result); dismiss() } catch { if !"\(error)".contains("1001") { self.error = error.localizedDescription } } }
@@ -138,8 +140,8 @@ struct LoginView: View {
                         HStack { Image(systemName: "g.circle.fill"); Text(busy ? "이동 중…" : "Google로 계속하기") }.frame(maxWidth: .infinity).frame(height: 48)
                     }.buttonStyle(.bordered).disabled(busy)
                 }
-                if let e = error { Text(e).font(.system(size: 13)).foregroundStyle(FC.lose) }
-                Text("로그인 시 서비스 이용에 필요한 최소 정보(이메일·프로필)만 사용합니다.").font(.system(size: 12)).foregroundStyle(FC.muted).multilineTextAlignment(.center)
+                if let e = error { Text(e).fcFont(13).foregroundStyle(FC.lose) }
+                Text("로그인 시 서비스 이용에 필요한 최소 정보(이메일·프로필)만 사용합니다.").fcFont(12).foregroundStyle(FC.muted).multilineTextAlignment(.center)
                 Spacer()
             }
             .padding(24).background(FC.bg.ignoresSafeArea())
@@ -168,9 +170,9 @@ struct ProfileSetupView: View {
                 Section("FC온라인 구단주명 연동 (선택)") {
                     TextField("구단주명", text: $fc)
                     Button("연동") { Task { await verify() } }.disabled(busy || fc.trimmingCharacters(in: .whitespaces).isEmpty)
-                    Text("연동은 구단주명이 게임에 존재함을 확인하는 기능이며, 계정 소유를 증명하지 않아요.").font(.system(size: 12)).foregroundStyle(FC.muted)
+                    Text("연동은 구단주명이 게임에 존재함을 확인하는 기능이며, 계정 소유를 증명하지 않아요.").fcFont(12).foregroundStyle(FC.muted)
                 }
-                if let m = msg { Text(m).font(.system(size: 13)).foregroundStyle(FC.accent) }
+                if let m = msg { Text(m).fcFont(13).foregroundStyle(FC.accent) }
             }
             .navigationTitle("프로필 설정").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("완료") { onDone(); dismiss() } } }
@@ -210,7 +212,7 @@ struct SettingsView: View {
             }
             Section("알림") {
                 Button("주간 성적표·메타 요약 알림 켜기") { Task { await PushManager.shared.requestPermission() } }
-                Text("일요일 밤 주간 리캡, 금요일 메타 한 줄, 내 글 새 댓글만 보내요.").font(.system(size: 12)).foregroundStyle(FC.muted)
+                Text("일요일 밤 주간 리캡, 금요일 메타 한 줄, 내 글 새 댓글만 보내요.").fcFont(12).foregroundStyle(FC.muted)
             }
             Section("약관 · 문의") {
                 Link("이용약관", destination: AppConfig.termsURL)
@@ -221,7 +223,7 @@ struct SettingsView: View {
                 Section("계정") {
                     Button("로그아웃") { Task { await auth.signOut() } }
                     Button("계정 삭제", role: .destructive) { confirmDelete = true }
-                    Text("닉네임·구단주 연동·내 글·댓글·전적 스냅샷이 즉시 삭제되며 되돌릴 수 없어요.").font(.system(size: 12)).foregroundStyle(FC.muted)
+                    Text("닉네임·구단주 연동·내 글·댓글·전적 스냅샷이 즉시 삭제되며 되돌릴 수 없어요.").fcFont(12).foregroundStyle(FC.muted)
                 }
             }
             Section("저장 공간") {
@@ -230,7 +232,7 @@ struct SettingsView: View {
                     Task { await ResponseCache.shared.clear(); await refreshCacheSize() }
                 }
                 Text("전적·픽 랭킹 응답을 기기에 저장해 재방문 시 즉시 표시하고 서버 조회를 줄여요.")
-                    .font(.system(size: 12)).foregroundStyle(FC.muted)
+                    .fcFont(12).foregroundStyle(FC.muted)
             }
             #if DEBUG
             Section("개발 — 카드 렌더 검증") {
@@ -262,7 +264,7 @@ struct SettingsView: View {
                 Button("온보딩 다시 보기") { prefs.onboardingDone = false }
             }
             #endif
-            Section { Text("FC Scope iOS v\(AppConfig.appVersion)\nFC Scope은 비공식 팬 서비스입니다. Data based on NEXON Open API. 게임 데이터의 저작권은 NEXON·EA에 있습니다.").font(.system(size: 12)).foregroundStyle(FC.muted) }
+            Section { Text("FC Scope iOS v\(AppConfig.appVersion)\nFC Scope은 비공식 팬 서비스입니다. Data based on NEXON Open API. 게임 데이터의 저작권은 NEXON·EA에 있습니다.").fcFont(12).foregroundStyle(FC.muted) }
         }
         .navigationTitle("설정")
         .task { await refreshCacheSize() }

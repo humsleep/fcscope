@@ -11,7 +11,7 @@ struct MetaView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 SectionLabel("RANKER PICKS", color: FC.accent)
-                Text("상위 랭커가 실제 경기에서 가장 많이 쓴 카드.\(state.value?.date.map { " (\($0) 스냅샷)" } ?? "")").font(.system(size: 13)).foregroundStyle(FC.muted)
+                Text("상위 랭커가 실제 경기에서 가장 많이 쓴 카드.\(state.value?.date.map { " (\($0) 스냅샷)" } ?? "")").fcFont(13).foregroundStyle(FC.muted)
                 Picker("", selection: $matchType) { Text("공식경기").tag(50); Text("감독모드").tag(52) }.pickerStyle(.segmented)
                     .onChange(of: matchType) { _, _ in Task { await load() } }
                 if !hits.isEmpty {
@@ -19,7 +19,7 @@ struct MetaView: View {
                         VStack(spacing: 0) {
                             ForEach(hits.prefix(8)) { h in
                                 Button { router.push(.player(h.spid)); query = ""; hits = [] } label: {
-                                    HStack { PlayerImage(spid: h.spid, size: 32, radius: 8); Text(h.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(FC.ink); Chip(text: h.season, color: FC.gold, bg: FC.gold.opacity(0.15)); Spacer(); Text("\(h.seasons.count)시즌").font(.system(size: 11)).foregroundStyle(FC.muted) }.padding(8)
+                                    HStack { PlayerImage(spid: h.spid, size: 32, radius: 8); Text(h.name).fcFont(14, weight: .semibold).foregroundStyle(FC.ink); Chip(text: h.season, color: FC.gold, bg: FC.gold.opacity(0.15)); Spacer(); Text("\(h.seasons.count)시즌").fcFont(11).foregroundStyle(FC.muted) }.padding(8)
                                 }.buttonStyle(.plain)
                             }
                         }
@@ -30,11 +30,11 @@ struct MetaView: View {
                 case .failed(let e): ErrorState(title: "픽 랭킹을 불러오지 못했어요", message: e.localizedDescription, retry: { Task { await load() } })
                 case .loaded(let m):
                     if m.lines.isEmpty {
-                        Panel { VStack(spacing: 6) { Text("오늘의 랭킹을 준비하고 있어요 ⚽").font(.system(size: 15, weight: .semibold)).foregroundStyle(FC.ink); Text("전적 검색이 쌓일수록 랭커 픽 랭킹이 빨리 채워져요.").font(.system(size: 13)).foregroundStyle(FC.muted) }.frame(maxWidth: .infinity) }
+                        Panel { VStack(spacing: 6) { Text("오늘의 랭킹을 준비하고 있어요 ⚽").fcFont(15, weight: .semibold).foregroundStyle(FC.ink); Text("전적 검색이 쌓일수록 랭커 픽 랭킹이 빨리 채워져요.").fcFont(13).foregroundStyle(FC.muted) }.frame(maxWidth: .infinity) }
                     } else {
                         if let mv = m.mover { moverCard(mv) }
                         ForEach(m.lines) { line in lineBlock(line) }
-                        Text("표본: 각 카드의 n = 랭커 경기 수. n이 작으면 신뢰도가 낮아요.").font(.system(size: 11)).foregroundStyle(FC.muted)
+                        Text("표본: 각 카드의 n = 랭커 경기 수. n이 작으면 신뢰도가 낮아요.").fcFont(11).foregroundStyle(FC.muted)
                     }
                 }
                 AdSlot()
@@ -74,9 +74,9 @@ struct MetaView: View {
             Panel(padding: 12, highlight: FC.win.opacity(0.4)) {
                 HStack(spacing: 10) {
                     PlayerImage(spid: m.spId, size: 44)
-                    VStack(alignment: .leading, spacing: 2) { SectionLabel("⚡ 오늘의 급상승", color: FC.win); Text(m.name).font(.system(size: 15, weight: .bold)).foregroundStyle(FC.ink); Text("\(m.positionLabel) · \(m.lineTitle ?? m.line) · n=\(m.matchCount)").font(.system(size: 12)).foregroundStyle(FC.muted) }
+                    VStack(alignment: .leading, spacing: 2) { SectionLabel("⚡ 오늘의 급상승", color: FC.win); Text(m.name).fcFont(15, weight: .bold).foregroundStyle(FC.ink); Text("\(m.positionLabel) · \(m.lineTitle ?? m.line) · n=\(m.matchCount)").fcFont(12).foregroundStyle(FC.muted) }
                     Spacer()
-                    Text(m.isNew ? "NEW 진입" : "▲\(m.deltaValue ?? 0)").font(.scoreboard(14)).foregroundStyle(m.isNew ? FC.gold : FC.win).padding(.horizontal, 8).padding(.vertical, 5).background((m.isNew ? FC.gold : FC.win).opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
+                    Text(m.isNew ? "NEW 진입" : "▲\(m.deltaValue ?? 0)").fcScoreboard(14).foregroundStyle(m.isNew ? FC.gold : FC.win).padding(.horizontal, 8).padding(.vertical, 5).background((m.isNew ? FC.gold : FC.win).opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
                 }
             }
         }.buttonStyle(.plain)
@@ -90,17 +90,17 @@ struct MetaView: View {
                 ForEach(Array(line.rows.enumerated()), id: \.element.id) { i, r in
                     Button { router.push(.player(r.spId)) } label: {
                         HStack(spacing: 8) {
-                            Text("\(i + 1)").font(.scoreboard(13)).foregroundStyle(i < 3 ? FC.gold : FC.muted).frame(width: 20)
+                            Text("\(i + 1)").fcScoreboard(13).foregroundStyle(i < 3 ? FC.gold : FC.muted).frame(width: 20)
                             PlayerImage(spid: r.spId, size: 34, radius: 8)
                             VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 4) { Text(r.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(FC.ink).lineLimit(1); if !r.season.isEmpty { Chip(text: r.season, color: FC.gold, bg: FC.gold.opacity(0.15)) } }
+                                HStack(spacing: 4) { Text(r.name).fcFont(13, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1); if !r.season.isEmpty { Chip(text: r.season, color: FC.gold, bg: FC.gold.opacity(0.15)) } }
                                 GeometryReader { g in ZStack(alignment: .leading) { Capsule().fill(FC.surface2); Capsule().fill(FC.accent).frame(width: g.size.width * CGFloat(r.matchCount) / CGFloat(maxCount)) } }.frame(height: 4)
                             }
                             Spacer()
                             VStack(alignment: .trailing, spacing: 2) {
-                                Text("n=\(r.matchCount)").font(.scoreboard(11)).foregroundStyle(FC.muted)
-                                if r.isNew { Text("NEW").font(.scoreboard(11)).foregroundStyle(FC.gold) }
-                                else if let d = r.deltaValue, d != 0 { Text(d > 0 ? "▲\(d)" : "▼\(-d)").font(.scoreboard(11)).foregroundStyle(d > 0 ? FC.win : FC.lose) }
+                                Text("n=\(r.matchCount)").fcScoreboard(11).foregroundStyle(FC.muted)
+                                if r.isNew { Text("NEW").fcScoreboard(11).foregroundStyle(FC.gold) }
+                                else if let d = r.deltaValue, d != 0 { Text(d > 0 ? "▲\(d)" : "▼\(-d)").fcScoreboard(11).foregroundStyle(d > 0 ? FC.win : FC.lose) }
                             }
                         }
                     }.buttonStyle(.plain)
@@ -125,19 +125,19 @@ struct PlayerDetailView: View {
                         HStack(spacing: 12) {
                             PlayerImage(spid: p.spid, size: 72, radius: 16)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(p.name).font(.system(size: 22, weight: .bold)).foregroundStyle(FC.ink)
+                                Text(p.name).fcFont(22, weight: .bold).foregroundStyle(FC.ink)
                                 if !p.season.isEmpty { Chip(text: p.season, color: FC.gold, bg: FC.gold.opacity(0.15)) }
-                                Text("랭커 실사용 \(p.ranker.totalMatches)경기\(p.ranker.date.map { " · \($0)" } ?? "")").font(.system(size: 12)).foregroundStyle(FC.muted)
+                                Text("랭커 실사용 \(p.ranker.totalMatches)경기\(p.ranker.date.map { " · \($0)" } ?? "")").fcFont(12).foregroundStyle(FC.muted)
                             }
                         }
                     }
                     if p.ranker.positions.isEmpty {
-                        Panel { Text("아직 랭커 실사용 데이터가 없어요. 스냅샷이 쌓이면 표시돼요.").font(.system(size: 13)).foregroundStyle(FC.muted) }
+                        Panel { Text("아직 랭커 실사용 데이터가 없어요. 스냅샷이 쌓이면 표시돼요.").fcFont(13).foregroundStyle(FC.muted) }
                     }
                     ForEach(p.ranker.positions) { ps in
                         Panel(padding: 12) {
                             VStack(alignment: .leading, spacing: 6) {
-                                HStack { Text(ps.positionLabel).font(.scoreboard(16)).foregroundStyle(FC.accent); Text("n=\(ps.matchCount)").font(.scoreboard(11)).foregroundStyle(FC.muted); Spacer(); if let st = ps.playstyle { Chip(text: "\(st.emoji) \(st.label)", color: FC.tone(st.tone), bg: FC.tone(st.tone).opacity(0.15)) } }
+                                HStack { Text(ps.positionLabel).fcScoreboard(16).foregroundStyle(FC.accent); Text("n=\(ps.matchCount)").fcScoreboard(11).foregroundStyle(FC.muted); Spacer(); if let st = ps.playstyle { Chip(text: "\(st.emoji) \(st.label)", color: FC.tone(st.tone), bg: FC.tone(st.tone).opacity(0.15)) } }
                                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
                                     mini("경기당 골", String(format: "%.2f", ps.goal)); mini("경기당 어시", String(format: "%.2f", ps.assist)); mini("슛/유효", String(format: "%.1f/%.1f", ps.shoot, ps.effectiveShoot))
                                     mini("패스 성공", ps.passRate.map { "\($0)%" } ?? "–"); mini("드리블 성공", ps.dribbleRate.map { "\($0)%" } ?? "–"); mini("태클+블록", String(format: "%.1f", ps.tackle + ps.block))
@@ -172,7 +172,7 @@ struct PlayerDetailView: View {
         catch { if state.value == nil { state = .failed(error) } }
     }
     private func mini(_ l: String, _ v: String) -> some View {
-        VStack(alignment: .leading, spacing: 1) { Text(l).font(.system(size: 10)).foregroundStyle(FC.muted); Text(v).font(.scoreboard(14)).foregroundStyle(FC.ink) }.frame(maxWidth: .infinity, alignment: .leading).padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8))
+        VStack(alignment: .leading, spacing: 1) { Text(l).fcFont(10).foregroundStyle(FC.muted); Text(v).fcScoreboard(14).foregroundStyle(FC.ink) }.frame(maxWidth: .infinity, alignment: .leading).padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8))
     }
 }
 
