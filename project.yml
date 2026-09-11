@@ -33,10 +33,12 @@ targets:
         excludes:
           - "Info.plist"
           - "FCScope.entitlements"
-    entitlements:
-      path: FCScope/FCScope.entitlements
+          - "FCScope.release.entitlements"
     settings:
       base:
+        # 푸시 환경(aps-environment)이 Debug/Release 에서 달라야 해 엔타이틀먼트를 나눈다.
+        # Debug=development(Xcode 직접 설치), Release=production(TestFlight·App Store).
+        CODE_SIGN_ENTITLEMENTS: FCScope/FCScope.entitlements
         PRODUCT_BUNDLE_IDENTIFIER: xyz.fcscope.app
         PRODUCT_NAME: FC Scope
         GENERATE_INFOPLIST_FILE: NO
@@ -47,6 +49,9 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SWIFT_STRICT_CONCURRENCY: minimal
         OTHER_LDFLAGS: "-ObjC"
+      configs:
+        Release:
+          CODE_SIGN_ENTITLEMENTS: FCScope/FCScope.release.entitlements
     dependencies:
       - package: Supabase
         product: Supabase

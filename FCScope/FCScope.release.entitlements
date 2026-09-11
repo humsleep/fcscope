@@ -18,8 +18,8 @@
 		<string>applinks:www.fcscope.xyz</string>
 		<string>applinks:fcscope.xyz</string>
 	</array>
-	<!-- 푸시. Debug 빌드용 — 배포용은 FCScope.release.entitlements 가 production 으로 덮는다. -->
+	<!-- 푸시. 배포(TestFlight·App Store)용. -->
 	<key>aps-environment</key>
-	<string>development</string>
+	<string>production</string>
 </dict>
 </plist>
