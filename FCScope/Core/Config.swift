@@ -44,26 +44,39 @@ enum AppConfig {
 
     /// 구글이 배포하는 테스트 ID 접두사 — 릴리스 빌드에 남아 있으면 광고를 띄우지 않는다.
     private static let googleTestPrefix = "ca-app-pub-3940256099942544"
+    private static let googleTestBanner = "ca-app-pub-3940256099942544/2934735716"
+
+    /// TestFlight 로 설치된 빌드인가. 영수증 파일 이름이 배포판과 다르다.
+    ///
+    /// TestFlight 는 Release 빌드라 그냥 두면 **실제 광고가 나간다**. 개발자가 테스트하며 누른
+    /// 광고는 무효 트래픽으로 집계되고, 반복되면 AdMob 계정이 정지된다(복구가 까다롭다).
+    /// 그래서 TestFlight 에서는 App Store 빌드와 같은 코드를 돌리되 광고만 테스트 단위로 바꾼다.
+    static var isTestFlight: Bool {
+        Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
+    }
+
+    /// 실제 광고를 내보내도 되는 빌드인가 — App Store 배포판만.
+    private static var servesRealAds: Bool {
+        #if DEBUG
+        return false
+        #else
+        return !isTestFlight
+        #endif
+    }
 
     /// 배너 광고 단위. nil 이면 광고를 아예 초기화하지 않는다.
     static var bannerAdUnit: String? {
-        #if DEBUG
-        return "\(googleTestPrefix)/2934735716" // 개발 빌드는 항상 구글 테스트 배너
-        #else
+        guard servesRealAds else { return googleTestBanner }
         guard let id = plist("FCAdMobBannerUnit"), !id.hasPrefix(googleTestPrefix) else { return nil }
         return id
-        #endif
     }
 
     /// Info.plist 의 AdMob 앱 ID가 실제 계정 값인지. 테스트 값이면 릴리스에서 광고를 끈다
     /// (수익 0 + AdMob 정책 위반 방지).
     static var admobConfigured: Bool {
-        #if DEBUG
-        return true
-        #else
+        guard servesRealAds else { return true }   // Debug·TestFlight 는 테스트 광고로 동작
         guard let appId = plist("GADApplicationIdentifier") else { return false }
         return !appId.hasPrefix(googleTestPrefix) && bannerAdUnit != nil
-        #endif
     }
 
     static func absolute(_ path: String) -> URL {
