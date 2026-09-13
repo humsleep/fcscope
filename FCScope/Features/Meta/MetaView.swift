@@ -40,7 +40,7 @@ struct MetaView: View {
                 AdSlot()
             }.padding(16)
         }
-        .fcScreen().navigationTitle("픽 랭킹")
+        .fcScreen().navigationTitle("픽 랭킹").navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, prompt: "선수 이름으로 도감 검색")
         .task(id: query) { await search(query) }
         .task { await load() }

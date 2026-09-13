@@ -89,7 +89,7 @@ struct CommunityView: View {
                 AdSlot()
             }.padding(16)
         }
-        .fcScreen().navigationTitle("커뮤니티")
+        .fcScreen().navigationTitle("커뮤니티").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { if auth.isLoggedIn { showCompose = true } else { showLogin = true } } label: { Image(systemName: "square.and.pencil") }.accessibilityLabel("글쓰기") } }
         .sheet(isPresented: $showCompose) { ComposeView(types: model.types, initialType: model.type) { Task { await model.load(reset: true) } } }
         .sheet(isPresented: $showLogin) { LoginView(reason: "글을 쓰려면 로그인이 필요해요") }

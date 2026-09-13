@@ -133,7 +133,7 @@ struct SquadBuilderView: View {
                 Text("슬롯을 탭해 선수를 검색·배치하고, 배치된 선수를 탭하면 교체·제거할 수 있어요. 같은 선수는 시즌이 달라도 한 명만.").fcFont(12).foregroundStyle(FC.muted)
             }.padding(16)
         }
-        .fcScreen().navigationTitle("스쿼드 빌더")
+        .fcScreen().navigationTitle("스쿼드 빌더").navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showFormations) { FormationPicker(model: model) }
         .sheet(isPresented: $showPresets) { PresetPicker(model: model) }
         .sheet(item: Binding(get: { model.selectedSlot }, set: { model.selectedSlot = $0 })) { slot in PlayerSearchSheet(model: model, slot: slot) }

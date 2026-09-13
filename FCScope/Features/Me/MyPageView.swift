@@ -36,7 +36,7 @@ struct MyPageView: View {
                 NavigationLink { SettingsView() } label: { Panel(padding: 12) { HStack { Label("설정 · 약관 · 계정", systemImage: "gearshape").foregroundStyle(FC.ink); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) } } }.buttonStyle(.plain)
             }.padding(16)
         }
-        .fcScreen().navigationTitle("내 정보")
+        .fcScreen().navigationTitle("내 정보").navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showLogin) { LoginView(reason: nil) }
         .sheet(isPresented: $showSetup) { ProfileSetupView(current: profile?.profile) { Task { await load() } } }
         .task(id: auth.user?.id) { await load() }
@@ -127,9 +127,27 @@ struct LoginView: View {
                 if !auth.isConfigured {
                     Text("로그인 준비 중이에요.").fcFont(13).foregroundStyle(FC.muted)
                 } else {
-                    Toggle(isOn: $agreed) {
-                        (Text("이용약관").underline() + Text("과 ") + Text("개인정보처리방침").underline() + Text("에 동의하며, 만 14세 이상입니다.")).font(.fcFont(13, typeSize)).foregroundStyle(FC.muted)
-                    }.toggleStyle(.switch).tint(FC.accent)
+                    // 스위치는 탭이 잘 먹지 않았다(드래그로만 켜짐). 동의는 설정이 아니라 행위이므로
+                    // 체크박스가 의미상으로도 맞고, 줄 전체가 탭 영역이라 훨씬 누르기 쉽다.
+                    Button {
+                        agreed.toggle()
+                        Haptic.light()
+                    } label: {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: agreed ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 22))
+                                .foregroundStyle(agreed ? FC.accent : FC.muted)
+                            (Text("이용약관").underline() + Text("과 ") + Text("개인정보처리방침").underline() + Text("에 동의하며, 만 14세 이상입니다."))
+                                .font(.fcFont(13, typeSize)).foregroundStyle(FC.muted)
+                                .multilineTextAlignment(.leading)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.vertical, 4)
+                        .contentShape(Rectangle())   // 글자 사이 빈 곳도 탭 영역
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("이용약관 및 개인정보처리방침 동의")
+                    .accessibilityAddTraits(agreed ? [.isSelected] : [])
                     HStack(spacing: 12) { Link("이용약관", destination: AppConfig.termsURL); Link("개인정보처리방침", destination: AppConfig.privacyURL) }.fcFont(12)
                     SignInWithAppleButton(.continue) { req in auth.prepareAppleRequest(req) } onCompletion: { result in
                         guard agreed else { error = "약관에 동의해 주세요."; return }

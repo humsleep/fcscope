@@ -43,7 +43,7 @@ struct HomeView: View {
             .padding(16)
         }
         .fcScreen()
-        .navigationTitle("전적")
+        .navigationTitle("전적").navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, prompt: "구단주명 검색")
         .onSubmit(of: .search) { search(query) }
         .searchSuggestions {
