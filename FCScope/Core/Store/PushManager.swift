@@ -58,15 +58,17 @@ enum BackgroundRefresh {
                 prefs.recordForm(nick: o.profile.nickname, winRate: o.summary.winRate, score: o.score, streak: o.perf.currentStreak)
             }
         }
-        WidgetBridge.reload()
+        // 위젯 갱신은 recordForm 이 내 구단주 값이 바뀐 경우에만 한다(급상승 위젯은 자체 6시간 타임라인).
     }
 }
 
-/// 위젯 타임라인 갱신 (Widgets 타깃 추가 시 WidgetCenter 호출로 교체)
+/// 위젯 타임라인 갱신 — 종류별로만 다시 그린다(reloadAllTimelines 는 모든 위젯의 갱신 예산을 쓴다).
 enum WidgetBridge {
-    static func reload() {
+    /// FCScopeWidgets.swift 의 StaticConfiguration kind 와 같아야 한다.
+    enum Kind: String { case myForm = "MyFormWidget", mover = "MoverWidget" }
+    static func reload(_ kind: Kind) {
         #if canImport(WidgetKit)
-        WidgetKitReloader.reload()
+        WidgetKitReloader.reload(kind: kind.rawValue)
         #endif
     }
 }
