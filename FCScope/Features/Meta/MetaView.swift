@@ -153,7 +153,13 @@ struct PlayerDetailView: View {
                             }
                         }
                     }
-                    Button { router.pendingSquadImport = nil; router.tab = .squad; NotificationCenter.default.post(name: .squadAddPlayer, object: PlayerHit(spid: p.spid, pid: p.pid ?? p.spid % 1_000_000, name: p.name, season: p.season, seasons: p.seasons)) } label: {
+                    Button {
+                        let hit = PlayerHit(spid: p.spid, pid: p.pid ?? p.spid % 1_000_000, name: p.name, season: p.season, seasons: p.seasons)
+                        // 랭커가 가장 많이 뛴 포지션의 라인에 넣는다 — 골키퍼가 공격 슬롯에 들어가지 않게.
+                        let main = p.ranker.positions.filter { $0.positionLabel != "SUB" }.max { $0.matchCount < $1.matchCount }?.positionLabel
+                        router.pendingSquadImport = .add(hit, line: main.map(Formation.lineOf))
+                        router.tab = .squad
+                    } label: {
                         Text("🛡️ 스쿼드 빌더에 배치").frame(maxWidth: .infinity)
                     }.buttonStyle(.bordered)
                 }.padding(16)
@@ -176,4 +182,3 @@ struct PlayerDetailView: View {
     }
 }
 
-extension Notification.Name { static let squadAddPlayer = Notification.Name("fcscope.squadAddPlayer") }

@@ -11,7 +11,13 @@ final class LocalPrefs {
 
     var recentSearches: [String] { didSet { save("recent", recentSearches) } }
     var favorites: [String] { didSet { save("favorites", favorites) } }
-    var myNickname: String? { didSet { Self.suite.set(myNickname, forKey: "myNickname") } }
+    /// 바뀌면 푸시 토큰을 다시 등록한다 — 서버는 등록 시점의 구단주명으로 주간 리캡 대상을 고른다(비어 있으면 제외).
+    var myNickname: String? {
+        didSet {
+            Self.suite.set(myNickname, forKey: "myNickname")
+            if oldValue != myNickname { Task { await PushManager.shared.registerIfAuthorized() } }
+        }
+    }
     var blockedUsers: [String] { didSet { save("blocked", blockedUsers) } }
     var onboardingDone: Bool { didSet { Self.suite.set(onboardingDone, forKey: "onboardingDone") } }
     var attAsked: Bool { didSet { Self.suite.set(attAsked, forKey: "attAsked") } }

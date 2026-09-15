@@ -52,7 +52,6 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
-		<string>remote-notification</string>
 	</array>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
@@ -70,6 +69,8 @@
 	</array>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>허용하면 관심사에 맞는 광고가 표시됩니다. 거부해도 앱의 모든 기능을 동일하게 이용할 수 있어요.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>공유 카드를 사진 앱에 저장하려면 권한이 필요해요.</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-4073994600346533~8238748907</string>
 	<key>FCSupabaseURL</key>

@@ -43,7 +43,7 @@ struct Formation: Identifiable, Hashable {
     /// 포지션 라벨 → 라인 (임포트 배치용)
     static func lineOf(_ pos: String) -> String {
         if pos == "GK" { return "GK" }
-        if ["CB","LB","RB","LWB","RWB","SW"].contains(pos) { return "DEF" }
+        if ["CB","LCB","RCB","LB","RB","LWB","RWB","SW"].contains(pos) { return "DEF" }
         if ["ST","CF","LW","RW","LF","RF","LS","RS"].contains(pos) { return "ATT" }
         return "MID"
     }

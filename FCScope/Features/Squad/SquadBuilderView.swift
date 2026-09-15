@@ -100,6 +100,9 @@ struct SquadBuilderView: View {
     @State private var showImport = false
     @State private var importNick = ""
     @State private var showSaved = false
+    @State private var showClear = false
+    /// 포지션을 몰라 자리를 직접 골라야 하는 선수
+    @State private var placing: PlayerHit?
 
     var body: some View {
         ScrollView {
@@ -116,7 +119,7 @@ struct SquadBuilderView: View {
                 HStack(spacing: 8) {
                     Button { Task { await model.save(); if model.savedId != nil { showSaved = true } } } label: { Text(model.busy ? "저장 중…" : "저장 · 공유 링크").frame(maxWidth: .infinity) }
                         .buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk).disabled(model.busy || model.filled == 0)
-                    Button(role: .destructive) { model.clear() } label: { Text("비우기") }.buttonStyle(.bordered)
+                    Button(role: .destructive) { showClear = true } label: { Text("비우기") }.buttonStyle(.bordered).disabled(model.filled == 0)
                 }
                 if let id = model.savedId {
                     Panel(padding: 12) {
@@ -145,21 +148,42 @@ struct SquadBuilderView: View {
         .alert("알림", isPresented: Binding(get: { model.message != nil }, set: { _ in model.message = nil })) { Button("확인") {} } message: { Text(model.message ?? "") }
         .onAppear { handlePending() }
         .onChange(of: router.pendingSquadImport) { _, _ in handlePending() }
-        .onReceive(NotificationCenter.default.publisher(for: .squadAddPlayer)) { n in
-            guard let hit = n.object as? PlayerHit else { return }
-            if let slot = model.formation.slots.first(where: { model.slots[$0.id] == nil && Formation.lineOf($0.pos) == guessLine(hit) }) ?? model.formation.slots.first(where: { model.slots[$0.id] == nil }) {
-                model.assign(hit, to: slot); model.message = "\(hit.name) 을(를) \(slot.pos) 에 배치했어요."
+        .confirmationDialog("배치한 선수를 모두 비울까요?", isPresented: $showClear, titleVisibility: .visible) {
+            Button("비우기", role: .destructive) { model.clear() }
+            Button("취소", role: .cancel) {}
+        } message: { Text("되돌릴 수 없어요.") }
+        .confirmationDialog("\(placing?.name ?? "선수")을(를) 어느 자리에 둘까요?", isPresented: Binding(get: { placing != nil }, set: { if !$0 { placing = nil } }), titleVisibility: .visible) {
+            if let hit = placing {
+                ForEach(model.formation.slots.filter { model.slots[$0.id] == nil }) { slot in
+                    Button(slot.pos) { model.assign(hit, to: slot); placing = nil }
+                }
             }
+            Button("취소", role: .cancel) { placing = nil }
         }
     }
-    private func guessLine(_ hit: PlayerHit) -> String { "ATT" }
     private func handlePending() {
         guard let p = router.pendingSquadImport else { return }
         router.pendingSquadImport = nil
         switch p {
         case .owner(let nick): Task { await model.importFromUser(nick) }
         case .load(let id): Task { await model.load(id: id) }
+        case .add(let hit, let line): place(hit, line: line)
         }
+    }
+    /// 선수 상세의 "스쿼드 빌더에 배치" — 주 포지션 라인의 빈 슬롯에 넣는다.
+    /// 포지션을 모르거나(랭커 기록 없음) 그 라인이 꽉 찼으면 추측하지 않고 자리를 고르게 한다 — 골키퍼가 공격수 자리에 들어가면 안 된다.
+    private func place(_ hit: PlayerHit, line: String?) {
+        let empty = model.formation.slots.filter { model.slots[$0.id] == nil }
+        guard !empty.isEmpty else {
+            model.message = "빈 자리가 없어요. 바꿀 선수를 탭해서 교체해 주세요."
+            return
+        }
+        guard let line, let slot = empty.first(where: { Formation.lineOf($0.pos) == line }) else {
+            placing = hit
+            return
+        }
+        model.assign(hit, to: slot)
+        model.message = "\(hit.name)을(를) \(slot.pos)에 배치했어요."
     }
     private func chipButton(_ t: String) -> some View {
         Text(t).fcFont(13, weight: .semibold).foregroundStyle(FC.ink).padding(.horizontal, 10).padding(.vertical, 8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))

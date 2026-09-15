@@ -77,6 +77,8 @@ targets:
       path: FCScopeWidgets/Info.plist
       properties:
         CFBundleDisplayName: FC Scope
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
         UIAppFonts: [ChakraPetch-Medium.ttf, ChakraPetch-SemiBold.ttf, ChakraPetch-Bold.ttf]

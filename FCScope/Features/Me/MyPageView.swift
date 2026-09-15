@@ -149,14 +149,17 @@ struct LoginView: View {
                     .accessibilityLabel("이용약관 및 개인정보처리방침 동의")
                     .accessibilityAddTraits(agreed ? [.isSelected] : [])
                     HStack(spacing: 12) { Link("이용약관", destination: AppConfig.termsURL); Link("개인정보처리방침", destination: AppConfig.privacyURL) }.fcFont(12)
+                    if !agreed { Text("위에 동의하면 로그인 버튼이 켜져요.").fcFont(12).foregroundStyle(FC.muted) }
                     SignInWithAppleButton(.continue) { req in auth.prepareAppleRequest(req) } onCompletion: { result in
                         guard agreed else { error = "약관에 동의해 주세요."; return }
                         Task { do { try await auth.completeApple(result); dismiss() } catch { if !"\(error)".contains("1001") { self.error = error.localizedDescription } } }
                     }
                     .signInWithAppleButtonStyle(.white).frame(height: 48).clipShape(RoundedRectangle(cornerRadius: 12))
+                    // 동의 전에 Apple 인증(Face ID)까지 다 끝낸 뒤 거절하면 "Apple 로그인이 안 된다"로 보인다.
+                    .disabled(!agreed).opacity(agreed ? 1 : 0.4)
                     Button { guard agreed else { error = "약관에 동의해 주세요."; return }; busy = true; Task { do { try await auth.signInWithGoogle(); dismiss() } catch { self.error = error.localizedDescription }; busy = false } } label: {
                         HStack { Image(systemName: "g.circle.fill"); Text(busy ? "이동 중…" : "Google로 계속하기") }.frame(maxWidth: .infinity).frame(height: 48)
-                    }.buttonStyle(.bordered).disabled(busy)
+                    }.buttonStyle(.bordered).disabled(busy || !agreed)
                 }
                 if let e = error { Text(e).fcFont(13).foregroundStyle(FC.lose) }
                 Text("로그인 시 서비스 이용에 필요한 최소 정보(이메일·프로필)만 사용합니다.").fcFont(12).foregroundStyle(FC.muted).multilineTextAlignment(.center)

@@ -140,6 +140,8 @@ struct PostDetailView: View {
     @State private var msg: String?
     @State private var showReport: (String, String)? = nil
     @State private var showLogin = false
+    @State private var confirmDeletePost = false
+    @State private var confirmDeleteComment: String?
     @Environment(AppRouter.self) private var router
 
     var body: some View {
@@ -154,6 +156,14 @@ struct PostDetailView: View {
         .task { await load() }
         .alert("알림", isPresented: Binding(get: { msg != nil }, set: { _ in msg = nil })) { Button("확인") {} } message: { Text(msg ?? "") }
         .sheet(isPresented: $showLogin) { LoginView(reason: "댓글을 쓰려면 로그인이 필요해요") }
+        .alert("글을 삭제할까요?", isPresented: $confirmDeletePost) {
+            Button("삭제", role: .destructive) { Task { await deletePost() } }
+            Button("취소", role: .cancel) {}
+        } message: { Text("댓글까지 함께 삭제되며 되돌릴 수 없어요.") }
+        .alert("댓글을 삭제할까요?", isPresented: Binding(get: { confirmDeleteComment != nil }, set: { if !$0 { confirmDeleteComment = nil } })) {
+            Button("삭제", role: .destructive) { if let id = confirmDeleteComment { Task { await deleteComment(id) } } }
+            Button("취소", role: .cancel) {}
+        } message: { Text("되돌릴 수 없어요.") }
         .confirmationDialog("신고 사유", isPresented: Binding(get: { showReport != nil }, set: { if !$0 { showReport = nil } }), titleVisibility: .visible) {
             ForEach([("spam", "스팸·도배·광고"), ("abuse", "욕설·비하·혐오"), ("illegal", "불법·음란·거래 유도"), ("other", "기타")], id: \.0) { r in
                 Button(r.1) { if let t = showReport { Task { await report(type: t.0, id: t.1, reason: r.0) } } }
@@ -189,7 +199,7 @@ struct PostDetailView: View {
                         Divider().background(FC.line)
                         HStack(spacing: 12) {
                             if d.viewer.isOwner {
-                                Button(role: .destructive) { Task { await deletePost() } } label: { Text("삭제").fcFont(13) }
+                                Button(role: .destructive) { confirmDeletePost = true } label: { Text("삭제").fcFont(13) }
                             } else {
                                 Button { showReport = ("post", p.id) } label: { Text("신고").fcFont(13).foregroundStyle(FC.muted) }
                                 Button { prefs.block(p.authorId); Haptic.warning() } label: { Text("차단").fcFont(13).foregroundStyle(FC.muted) }
@@ -225,7 +235,7 @@ struct PostDetailView: View {
                             Text(c.author.nickname).fcFont(13, weight: .semibold).foregroundStyle(FC.ink)
                             Text(DateFmt.relative(c.createdAt)).fcFont(11).foregroundStyle(FC.muted)
                             Spacer()
-                            if c.isOwn { Button("삭제") { Task { await deleteComment(c.id) } }.fcFont(12).foregroundStyle(FC.lose) }
+                            if c.isOwn { Button("삭제") { confirmDeleteComment = c.id }.fcFont(12).foregroundStyle(FC.lose) }
                             else { Button("신고") { showReport = ("comment", c.id) }.fcFont(12).foregroundStyle(FC.muted); Button("차단") { prefs.block(c.authorId) }.fcFont(12).foregroundStyle(FC.muted) }
                         }
                         Text(c.body).fcFont(14).foregroundStyle(FC.ink).padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
@@ -268,6 +278,7 @@ struct BattleBlock: View {
     @State private var votes: BattleVotes?
     /// 서버가 "내 투표"를 돌려주지 않으므로 이 화면에서만 기억한다(중복 투표는 서버가 upsert 로 막는다).
     @State private var myPick: String?
+    @State private var voteError: String?
     @Environment(AppRouter.self) private var router
     var body: some View {
         VStack(spacing: 8) {
@@ -281,6 +292,7 @@ struct BattleBlock: View {
                 Button("A에 투표") { Task { await vote("A") } }.buttonStyle(.bordered).tint(FC.accent).disabled(myPick != nil)
                 Button("B에 투표") { Task { await vote("B") } }.buttonStyle(.bordered).tint(FC.lose).disabled(myPick != nil)
             }
+            if let e = voteError { Text(e).fcFont(12).foregroundStyle(FC.lose) }
         }
         .task { votes = try? await APIClient.shared.get("/api/community/battle", query: ["postId": postId]) }
     }
@@ -289,9 +301,16 @@ struct BattleBlock: View {
     }
     private func vote(_ pick: String) async {
         let device = UIDevice.current.identifierForVendor?.uuidString ?? "anon"
-        votes = try? await APIClient.shared.send("/api/community/battle", method: "POST", json: ["postId": postId, "pick": pick, "voter": device])
-        myPick = pick
-        Haptic.success()
+        do {
+            let v: BattleVotes = try await APIClient.shared.send("/api/community/battle", method: "POST", json: ["postId": postId, "pick": pick, "voter": device])
+            votes = v
+            myPick = pick
+            voteError = nil
+            Haptic.success()
+        } catch {
+            voteError = "투표를 반영하지 못했어요. 잠시 후 다시 시도해 주세요."
+            Haptic.warning()
+        }
     }
 }
 

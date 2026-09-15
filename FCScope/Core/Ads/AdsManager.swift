@@ -4,7 +4,7 @@ import UserMessagingPlatform
 import AppTrackingTransparency
 import Observation
 
-/// AdMob 초기화 + UMP 동의 + ATT. 회의 결정: 첫 실행 3일간 광고 0, ATT 는 첫 검색 결과를 본 뒤에만 요청.
+/// AdMob 초기화 + UMP 동의 + ATT. 회의 결정: 첫 실행 3일간 배너 0, ATT 는 첫 검색 결과를 본 뒤에만 요청.
 @Observable
 @MainActor
 final class AdsManager {
@@ -13,6 +13,9 @@ final class AdsManager {
     private var consentFlowDone = false
 
     private static let firstLaunchKey = "fcscope.firstLaunchAt"
+    /// 동의 절차(UMP → ATT)를 한 번이라도 끝낸 기기인가. 끝낸 기기는 다음 실행부터 앱이 뜨자마자 SDK 를 시작한다 —
+    /// 그러지 않으면 실행마다 전적 화면을 한 번 열기 전까지 배너·전면 광고가 전혀 준비되지 않는다.
+    private static let consentAskedKey = "fcscope.ads.consentAsked"
     private static let gracePeriod: TimeInterval = 3 * 86_400
 
     private init() {
@@ -21,7 +24,7 @@ final class AdsManager {
         }
     }
 
-    /// 광고를 보여도 되는가.
+    /// 배너를 보여도 되는가.
     /// 조건: 실제 AdMob 계정 값이 설정됨(테스트 ID 아님) + 설치 후 3일 경과(회의 결정).
     var canShowAds: Bool {
         guard AppConfig.admobConfigured, AppConfig.bannerAdUnit != nil else { return false }
@@ -39,20 +42,28 @@ final class AdsManager {
         // 배너 노출 여부는 여전히 canShowAds(설치 3일 유예)가 결정한다.
         guard AppConfig.admobConfigured, !consentFlowDone else { return }
         consentFlowDone = true
-        let params = RequestParameters()
         do {
-            try await ConsentInformation.shared.requestConsentInfoUpdate(with: params)
-            if ConsentInformation.shared.formStatus == .available,
-               let root = UIApplication.shared.connectedScenes.compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController }).first {
+            try await ConsentInformation.shared.requestConsentInfoUpdate(with: RequestParameters())
+            if ConsentInformation.shared.formStatus == .available, let root = Self.topViewController() {
                 try await ConsentForm.loadAndPresentIfRequired(from: root)
             }
         } catch {
-            // 동의 정보 실패 → 비맞춤 광고로 진행
+            // 동의 정보 갱신 실패 — 아래 canRequestAds 가 지난 세션에 받아 둔 동의 상태로 판단한다.
         }
         if ATTrackingManager.trackingAuthorizationStatus == .notDetermined {
             _ = await ATTrackingManager.requestTrackingAuthorization()
         }
+        UserDefaults.standard.set(true, forKey: Self.consentAskedKey)
+        // EEA 에서 동의를 받지 못했으면 광고를 요청하지 않는다(AdMob 정책). 그 밖의 지역은 항상 true.
+        guard ConsentInformation.shared.canRequestAds else { return }
         await start()
+    }
+
+    /// 앱이 활성화될 때 호출 — 예전에 동의 절차를 끝낸 기기만 SDK 를 바로 시작한다.
+    /// 새로 설치한 기기는 가치를 보기 전에 시스템 팝업이 뜨지 않도록 첫 전적 화면을 기다린다.
+    func resumeIfConsentAsked() async {
+        guard UserDefaults.standard.bool(forKey: Self.consentAskedKey) else { return }
+        await requestConsentIfNeeded()
     }
 
     private func start() async {
@@ -65,24 +76,56 @@ final class AdsManager {
     // MARK: 전면 광고
 
     private var interstitial: InterstitialAd?
+    private var interstitialLoadedAt: Date?
+    private var loadingInterstitial = false
+    private var loadFailures = 0
     private var presenting: InterstitialDelegate?
+    /// 받아 둔 전면 광고는 1시간이 지나면 표시할 수 없다(Google). 여유를 두고 55분에 버린다.
+    private static let interstitialTTL: TimeInterval = 55 * 60
+
+    private var interstitialFresh: Bool {
+        guard interstitial != nil, let at = interstitialLoadedAt else { return false }
+        return Date().timeIntervalSince(at) < Self.interstitialTTL
+    }
 
     /// 미리 받아 둔다 — 검색 버튼을 누른 순간 받기 시작하면 사용자가 로딩을 기다리게 된다.
+    /// 실패하면 30초부터 두 배씩(최대 10분) 늦춰 몇 번만 다시 시도한다 — 광고 없음이 계속되면 요청을 아낀다.
     func preloadInterstitial() async {
-        guard ready, interstitial == nil, let unit = AppConfig.interstitialAdUnit else { return }
-        interstitial = try? await InterstitialAd.load(with: unit, request: Request())
+        guard ready, !loadingInterstitial, !interstitialFresh, let unit = AppConfig.interstitialAdUnit else { return }
+        interstitial = nil
+        interstitialLoadedAt = nil
+        loadingInterstitial = true
+        do {
+            interstitial = try await InterstitialAd.load(with: unit, request: Request())
+            interstitialLoadedAt = Date()
+            loadFailures = 0
+            loadingInterstitial = false
+        } catch {
+            loadingInterstitial = false
+            loadFailures += 1
+            guard loadFailures <= 5 else { return }
+            let delay = min(600, 30 * pow(2, Double(loadFailures - 1)))
+            Task {
+                try? await Task.sleep(for: .seconds(delay))
+                await self.preloadInterstitial()
+            }
+        }
     }
 
     /// 전면 광고를 띄우고 **닫힐 때까지 기다린다**. 준비된 광고가 없으면 즉시 돌아온다 —
-    /// 광고 로딩 실패가 검색을 막으면 안 된다.
+    /// 광고 로딩 실패가 검색을 막으면 안 된다. 다음 광고 로딩도 기다리지 않는다.
     func showInterstitialIfReady() async {
-        guard let ad = interstitial, let root = Self.topViewController() else {
+        guard interstitialFresh, let ad = interstitial,
+              let root = Self.topViewController(), root.view.window != nil, !root.isBeingDismissed else {
             Analytics.shared.track(.interstitial, ["result": "not_ready"])
-            await preloadInterstitial()
+            loadFailures = 0   // 사용자가 다시 광고 대상이 됐으니 멈춰 있던 재시도를 새로 시작한다
+            Task { await preloadInterstitial() }
             return
         }
         Analytics.shared.track(.interstitial, ["result": "shown"])
+        SearchGate.markAdShown()
         interstitial = nil
+        interstitialLoadedAt = nil
         await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
             let delegate = InterstitialDelegate { cont.resume() }
             presenting = delegate
@@ -90,7 +133,7 @@ final class AdsManager {
             ad.present(from: root)
         }
         presenting = nil
-        await preloadInterstitial()
+        Task { await preloadInterstitial() }
     }
 
     private static func topViewController() -> UIViewController? {
@@ -136,10 +179,12 @@ enum SearchGate {
         let count = d.integer(forKey: countKey) + 1
         d.set(count, forKey: countKey)
         guard count > freePerDay else { return false }
-        let last = d.double(forKey: lastAdKey)
-        guard now.timeIntervalSince1970 - last >= cooldown else { return false }
-        d.set(now.timeIntervalSince1970, forKey: lastAdKey)
-        return true
+        return now.timeIntervalSince1970 - d.double(forKey: lastAdKey) >= cooldown
+    }
+
+    /// 광고를 **실제로 띄웠을 때만** 쿨다운을 시작한다 — 준비가 안 돼 못 띄운 검색이 90초 무료 구간을 만들면 안 된다.
+    static func markAdShown(now: Date = Date()) {
+        UserDefaults.standard.set(now.timeIntervalSince1970, forKey: lastAdKey)
     }
 
     private static func dayString(_ date: Date) -> String {

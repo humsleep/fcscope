@@ -22,9 +22,16 @@ final class AppRouter {
     var metaPath = NavigationPath()
     var communityPath = NavigationPath()
     var mePath = NavigationPath()
-    /// 스쿼드 빌더에 넘길 임포트 요청 (닉네임 또는 공유 코드)
+    /// 스쿼드 빌더에 넘길 요청 (닉네임·공유 코드 임포트, 선수 1명 배치)
+    ///
+    /// 알림(NotificationCenter)으로 넘기면 스쿼드 탭을 아직 한 번도 열지 않은 세션에서는 받을 뷰가 없어 버려진다.
+    /// 그래서 라우터에 남겨 두고 빌더가 나타날 때 꺼내 간다.
     var pendingSquadImport: SquadImport?
-    enum SquadImport: Hashable { case owner(String), load(String) }
+    enum SquadImport: Hashable {
+        case owner(String), load(String)
+        /// line: 선수가 주로 뛰는 라인(GK/DEF/MID/ATT). 모르면 nil → 빈 슬롯 아무 곳.
+        case add(PlayerHit, line: String?)
+    }
 
     func push(_ r: Route) {
         switch tab {
