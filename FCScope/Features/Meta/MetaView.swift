@@ -48,13 +48,15 @@ struct MetaView: View {
     }
 
     private func load() async {
-        let q = ["type": String(matchType)]
+        // 유형을 빠르게 바꾸면 늦게 온 이전 유형 응답이 덮어쓴다 — 요청 시점 유형과 다르면 버린다.
+        let type = matchType, q = ["type": String(matchType)]
         if let hit: (value: MetaResponse, isFresh: Bool) = await APIClient.shared.cachedValue("/api/v1/meta", query: q) {
+            guard type == matchType else { return }
             state = .loaded(hit.value)
             if hit.isFresh { return }
         } else if state.value == nil { state = .loading }
-        do { state = .loaded(try await APIClient.shared.getAndCache("/api/v1/meta", query: q, auth: false)) }
-        catch { if state.value == nil { state = .failed(error) } }
+        do { let r: MetaResponse = try await APIClient.shared.getAndCache("/api/v1/meta", query: q, auth: false); guard type == matchType else { return }; state = .loaded(r) }
+        catch { if type == matchType, state.value == nil { state = .failed(error) } }
     }
     /// 번들 인덱스 로컬 검색 (서버 왕복 0). 인덱스 미탑재 시에만 서버 폴백.
     private func search(_ q: String) async {
