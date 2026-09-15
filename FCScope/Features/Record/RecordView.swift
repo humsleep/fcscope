@@ -148,6 +148,11 @@ struct RecordView: View {
         _vm = State(initialValue: RecordViewModel(nickname: nickname))
     }
 
+    /// 없는 구단주·오류 화면에서 즐겨찾기 별이 보이면 "없는 구단주를 저장"하게 된다.
+    private var overviewFailed: Bool { if case .failed = vm.overview { return true }; return false }
+    /// 섹션 오류의 "다시 시도" — 실패 상태엔 값이 없어 loadSection 이 그대로 재조회한다(GET).
+    private func retrySection() { Task { await vm.loadSection() } }
+
     var body: some View {
         Group {
             switch vm.overview {
@@ -177,14 +182,16 @@ struct RecordView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 4) {
-                    Button {
-                        Haptic.light()
-                        if !prefs.isFavorite(nickname) { Analytics.shared.track(.favoriteAdd) }
-                        prefs.toggleFavorite(nickname)
-                    } label: {
-                        Image(systemName: prefs.isFavorite(nickname) ? "star.fill" : "star").foregroundStyle(FC.gold)
+                    if !overviewFailed {
+                        Button {
+                            Haptic.light()
+                            if !prefs.isFavorite(nickname) { Analytics.shared.track(.favoriteAdd) }
+                            prefs.toggleFavorite(nickname)
+                        } label: {
+                            Image(systemName: prefs.isFavorite(nickname) ? "star.fill" : "star").foregroundStyle(FC.gold)
+                        }
+                        .accessibilityLabel(prefs.isFavorite(nickname) ? "즐겨찾기 해제" : "즐겨찾기 추가")
                     }
-                    .accessibilityLabel(prefs.isFavorite(nickname) ? "즐겨찾기 해제" : "즐겨찾기 추가")
                     if let o = vm.overview.value {
                         ShareLink(item: AppConfig.absolute("/user/\(o.profile.nickname.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? nickname)")) { Image(systemName: "link") }.accessibilityLabel("전적 링크 공유")
                     }
@@ -218,7 +225,8 @@ struct RecordView: View {
         let api = err as? APIError
         return ErrorState(
             title: api?.isUserNotFound == true ? "‘\(nickname)’ 구단주를 찾을 수 없어요" : (api?.code == "maintenance" || api?.code == "paused" || api?.code == "not_configured") ? "잠시 조회를 쉬고 있어요" : "전적을 불러오지 못했어요",
-            message: api?.isUserNotFound == true ? "닉네임 철자를 확인해 주세요. 닉네임을 방금 바꿨다면 반영까지 시간이 걸려요." : err.localizedDescription,
+            message: api?.isUserNotFound == true ? "구단주명을 확인해 주세요. 구단주명을 방금 바꿨다면 반영까지 시간이 걸려요." : err.localizedDescription,
+            error: err,
             retry: { Task { await vm.load(force: true) } }
         )
     }
@@ -235,9 +243,9 @@ struct RecordView: View {
                 if let mt = o.diagnosis.type { badge("⚽", mt) { vm.section = .report; Task { await vm.loadSection() } } }
                 switch vm.section {
                 case .matches: MatchesSection(o: o, nickname: o.profile.nickname)
-                case .report: ReportSection(state: vm.report)
-                case .players: PlayersSection(state: vm.players, nickname: o.profile.nickname)
-                case .style: PlaystyleSection(state: vm.playstyle)
+                case .report: ReportSection(state: vm.report, retry: retrySection)
+                case .players: PlayersSection(state: vm.players, nickname: o.profile.nickname, retry: retrySection)
+                case .style: PlaystyleSection(state: vm.playstyle, retry: retrySection)
                 }
                 HStack { Spacer(); ShareCardButton(spec: .user(o), label: "전적 카드 저장 · 공유"); Spacer() }.padding(.top, 8)
             }
@@ -253,7 +261,12 @@ struct RecordView: View {
                     (Text("LV.").foregroundStyle(FC.muted) + Text("\(o.profile.level)").foregroundStyle(FC.accent)).font(.fcScoreboard(14, typeSize, weight: .semibold)).lineLimit(1).fixedSize()
                     Spacer()
                     if prefs.myNickname?.caseInsensitiveCompare(o.profile.nickname) != .orderedSame {
-                        Button("내 구단으로") { prefs.myNickname = o.profile.nickname; Haptic.success() }.fcFont(12, weight: .semibold).foregroundStyle(FC.accent)
+                        // 12pt 글자만 한 탭 영역이라 잘 안 눌렸다 — 레이아웃은 그대로, 탭 영역만 44pt.
+                        Button { prefs.myNickname = o.profile.nickname; Haptic.success() } label: {
+                            Text("내 구단으로").fcFont(12, weight: .semibold).foregroundStyle(FC.accent).lineLimit(1).fixedSize()
+                                .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain).padding(.vertical, -12)
                     } else { Chip(text: "내 구단", color: FC.accentInk, bg: FC.accent) }
                 }
                 ForEach(o.profile.divisions) { d in
@@ -300,7 +313,8 @@ struct RecordView: View {
                     Task { await vm.loadSection() }
                 } label: {
                     HStack(spacing: 5) {
-                        Image(systemName: sec.icon).font(.system(size: 12, weight: .semibold))
+                        // 고정 12pt 아이콘은 글자만 커지고 아이콘은 그대로라 칩 안에서 어색했다 — 같은 배율로 키운다.
+                        Image(systemName: sec.icon).font(.system(size: 12 * TypeScale.factor(typeSize), weight: .semibold))
                         Text(sec.short).fcFont(13, weight: .semibold)
                     }
                     .padding(.horizontal, 12).padding(.vertical, 9)
@@ -326,7 +340,7 @@ struct MatchesSection: View {
 
     var body: some View {
         if o.matches.isEmpty {
-            Panel { Text(o.listOk ? "최근 경기 기록이 없습니다." : "넥슨 조회가 일시적으로 원활하지 않아요. 잠시 후 당겨서 새로고침해 주세요.").fcFont(14).foregroundStyle(FC.muted).frame(maxWidth: .infinity) }
+            Panel { Text(o.listOk ? "최근 경기 기록이 없어요." : "넥슨 조회가 일시적으로 원활하지 않아요. 잠시 후 당겨서 새로고침해 주세요.").fcFont(14).foregroundStyle(FC.muted).frame(maxWidth: .infinity) }
         } else {
             if o.loaded < o.requested {
                 Text("⚠️ 최근 \(o.requested)경기 중 \(o.loaded)경기만 불러와 \(o.loaded)경기 기준으로 계산했어요.").fcFont(13).foregroundStyle(FC.muted)
@@ -336,16 +350,18 @@ struct MatchesSection: View {
             if o.streak.highlight { streakBanner(o.streak) }
             if let n = o.nemesis { revenge(n) }
             scoreboard
-            HStack(spacing: 8) {
+            // 접근성 크기에서는 세 칸이 너무 좁아 숫자가 과하게 줄어든다 — 세로로 쌓는다.
+            let tiles = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+            tiles {
                 StatTile(label: "득점 / 실점", value: "\(o.summary.goalsFor) / \(o.summary.goalsAgainst)")
                 StatTile(label: "경기당 득점", value: String(format: "%.1f", Double(o.summary.goalsFor) / Double(max(1, o.summary.played))))
                 StatTile(label: "평균 점유율", value: "\(o.summary.avgPossession)%")
             }
-            if o.diagnosis.type != nil || !o.diagnosis.notes.isEmpty {
+            // 유형 배지(롤러코스터 등)는 섹션 선택 칩 바로 아래에 이미 있다 — 두 번 보이지 않게 여기선 보조 노트만.
+            if !o.diagnosis.notes.isEmpty {
                 Panel {
                     VStack(alignment: .leading, spacing: 8) {
                         SectionLabel("경기 성향 진단")
-                        if let t = o.diagnosis.type { RuleBadge(rule: t) }
                         ForEach(o.diagnosis.notes) { RuleBadge(rule: $0) }
                     }
                 }
@@ -353,9 +369,9 @@ struct MatchesSection: View {
             if !o.rivals.isEmpty { rivals(o.rivals) }
             LazyVStack(spacing: 6) {
                 ForEach(o.matches) { m in
-                    Button { router.push(.match(id: m.matchId, me: o.profile.ouid)) } label: { MatchRow(m: m) }.buttonStyle(.plain)
+                    Button { router.push(.match(id: m.matchId, me: o.profile.ouid, fromRecord: true)) } label: { MatchRow(m: m) }.buttonStyle(.plain)
                         .contextMenu {
-                            Button { router.push(.match(id: m.matchId, me: o.profile.ouid)) } label: { Label("슛맵 · 매치 리포트", systemImage: "soccerball") }
+                            Button { router.push(.match(id: m.matchId, me: o.profile.ouid, fromRecord: true)) } label: { Label("슛맵 · 매치 리포트", systemImage: "soccerball") }
                             if let opp = m.opponent { Button { router.push(.user(opp.nickname)) } label: { Label("\(opp.nickname) 전적 보기", systemImage: "person") } }
                         }
                 }
@@ -389,24 +405,29 @@ struct MatchesSection: View {
     }
 
     private func weekly(_ w: WeeklyRecap) -> some View {
-        Panel(padding: 12, highlight: FC.accent.opacity(0.3)) {
-            HStack(spacing: 10) {
-                Text("📅").fcFont(24)
-                // 승·무·패와 보조 지표를 한 줄에 몰아넣으니 글자를 키우자마자 "12승 7 / 무 9패"
-                // 처럼 숫자 중간에서 줄바꿈됐다. 두 줄로 나눠 각자 한 줄을 갖게 한다.
-                VStack(alignment: .leading, spacing: 3) {
-                    SectionLabel("이번 주 · 최근 7일 \(w.games)경기")
-                    Text("\(w.win)승 \(w.draw)무 \(w.lose)패")
-                        .fcFont(16, weight: .bold).foregroundStyle(w.winRate >= 50 ? FC.win : FC.lose)
+        // 접근성 크기에서는 오른쪽 카드 버튼이 폭을 먹어 기록이 잘렸다 — 버튼을 아래 줄로 내린다.
+        let stacked = typeSize.isAccessibilitySize
+        return Panel(padding: 12, highlight: FC.accent.opacity(0.3)) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Text("📅").fcFont(24)
+                    // 승·무·패와 보조 지표를 한 줄에 몰아넣으니 글자를 키우자마자 "12승 7 / 무 9패"
+                    // 처럼 숫자 중간에서 줄바꿈됐다. 두 줄로 나눠 각자 한 줄을 갖게 한다.
+                    VStack(alignment: .leading, spacing: 3) {
+                        SectionLabel("이번 주 · 최근 7일 \(w.games)경기")
+                        Text("\(w.win)승 \(w.draw)무 \(w.lose)패")
+                            .fcFont(16, weight: .bold).foregroundStyle(w.winRate >= 50 ? FC.win : FC.lose)
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                        HStack(spacing: 6) {
+                            Text("승률 \(w.winRate)% · 평균 \(String(format: "%.1f", w.avgScore))").fcFont(12).foregroundStyle(FC.muted)
+                            if w.bestStreak >= 2 { Text("🔥\(w.bestStreak)연승").fcFont(12, weight: .bold).foregroundStyle(FC.win) }
+                        }
                         .lineLimit(1).minimumScaleFactor(0.8)
-                    HStack(spacing: 6) {
-                        Text("승률 \(w.winRate)% · 평균 \(String(format: "%.1f", w.avgScore))").fcFont(12).foregroundStyle(FC.muted)
-                        if w.bestStreak >= 2 { Text("🔥\(w.bestStreak)연승").fcFont(12, weight: .bold).foregroundStyle(FC.win) }
                     }
-                    .lineLimit(1).minimumScaleFactor(0.8)
+                    Spacer(minLength: 0)
+                    if !stacked { ShareCardButton(spec: .weekly(o), label: "주간 카드", compact: true) }
                 }
-                Spacer()
-                ShareCardButton(spec: .weekly(o), label: "주간 카드", compact: true)
+                if stacked { ShareCardButton(spec: .weekly(o), label: "주간 카드", compact: true) }
             }
         }
     }
@@ -418,7 +439,7 @@ struct MatchesSection: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(s.text).fcScoreboard(18).foregroundStyle(FC.tone(s.color))
                     // 문구가 길어 카드 버튼과 겹치며 어색하게 접혔다 — 짧게.
-                    Text(s.color == "lose" ? "반등을 노려보자" : "이 기세 이어가자").fcFont(12).foregroundStyle(FC.muted)
+                    Text(s.color == "lose" ? "반등을 노려봐요" : "이 기세를 이어가요").fcFont(12).foregroundStyle(FC.muted)
                 }
                 Spacer()
                 ShareCardButton(spec: .streak(o), label: "폼 카드", compact: true)
@@ -433,7 +454,7 @@ struct MatchesSection: View {
                     Text("🎯").fcFont(24)
                     VStack(alignment: .leading, spacing: 2) {
                         SectionLabel("천적 복수전", color: FC.lose)
-                        Text("\(r.nickname) 에게 \(r.win)승 \(r.lose)패 — 아직 \(r.lose - r.win)점 뒤").fcFont(14, weight: .bold).foregroundStyle(FC.ink)
+                        Text("\(r.nickname)에게 \(r.win)승 \(r.lose)패 — 아직 \(r.lose - r.win)점 뒤").fcFont(14, weight: .bold).foregroundStyle(FC.ink)
                     }
                     Spacer()
                     ShareCardButton(spec: .rival(o, rival: r), label: "저격 카드", compact: true)

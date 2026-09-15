@@ -6,10 +6,12 @@ import Charts
 struct ReportSection: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     let state: Loadable<ReportResponse>
+    /// 섹션 오류에 재시도 버튼이 없어 탭을 바꿨다 돌아오거나 전체 새로고침을 해야 했다.
+    var retry: (() -> Void)? = nil
     var body: some View {
         switch state {
         case .idle, .loading: Skeleton(height: 260)
-        case .failed(let e): ErrorState(title: "리포트를 불러오지 못했어요", message: e.localizedDescription)
+        case .failed(let e): ErrorState(title: "리포트를 불러오지 못했어요", message: e.localizedDescription, error: e, retry: retry)
         case .loaded(let r):
             if r.report.played == 0 {
                 Panel { Text("이 매치 유형에는 분석할 경기가 없어요.").fcFont(14).foregroundStyle(FC.muted) }
@@ -17,7 +19,7 @@ struct ReportSection: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Panel {
                         VStack(alignment: .leading, spacing: 8) {
-                            SectionLabel("ANALYSIS REPORT", color: FC.accent)
+                            SectionLabel("분석 리포트", color: FC.accent)
                             HStack(alignment: .lastTextBaseline, spacing: 20) {
                                 VStack(alignment: .leading) { Text("최근 \(r.report.played)경기 득실").fcFont(12).foregroundStyle(FC.muted)
                                     (Text("\(r.report.goalsFor)").foregroundStyle(FC.accent) + Text(" : ").foregroundStyle(FC.muted) + Text("\(r.report.goalsAgainst)").foregroundStyle(FC.lose)).font(.fcScoreboard(24, typeSize)) }
@@ -93,11 +95,12 @@ struct PlayersSection: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     let state: Loadable<PlayersResponse>
     let nickname: String
+    var retry: (() -> Void)? = nil
     @Environment(AppRouter.self) private var router
     var body: some View {
         switch state {
         case .idle, .loading: Skeleton(height: 260)
-        case .failed(let e): ErrorState(title: "성적표를 불러오지 못했어요", message: e.localizedDescription)
+        case .failed(let e): ErrorState(title: "성적표를 불러오지 못했어요", message: e.localizedDescription, error: e, retry: retry)
         case .loaded(let p):
             if p.players.isEmpty {
                 Panel { Text(p.sampleGames == 0 ? "이 매치 유형에는 최근 경기 기록이 없어요." : "선수 성적표를 만들 표본이 부족해요 (\(p.minGames)경기 이상 출전 선수 없음).").fcFont(14).foregroundStyle(FC.muted) }
@@ -196,16 +199,17 @@ struct PlayersSection: View {
 
 struct PlaystyleSection: View {
     let state: Loadable<PlaystyleResponse>
+    var retry: (() -> Void)? = nil
     var body: some View {
         switch state {
         case .idle, .loading: Skeleton(height: 260)
-        case .failed(let e): ErrorState(title: "플레이스타일을 불러오지 못했어요", message: e.localizedDescription)
+        case .failed(let e): ErrorState(title: "플레이스타일을 불러오지 못했어요", message: e.localizedDescription, error: e, retry: retry)
         case .loaded(let p):
             let r = p.result
             VStack(alignment: .leading, spacing: 12) {
                 Panel(highlight: FC.accent.opacity(0.4)) {
                     VStack(alignment: .leading, spacing: 6) {
-                        HStack { SectionLabel("PLAYSTYLE · BETA", color: FC.accent); Spacer(); Chip(text: r.confidence == "ok" ? "신뢰도 보통" : r.confidence == "low" ? "신뢰도 낮음" : "데이터 부족") }
+                        HStack { SectionLabel("플레이스타일 · 베타", color: FC.accent); Spacer(); Chip(text: r.confidence == "ok" ? "신뢰도 보통" : r.confidence == "low" ? "신뢰도 낮음" : "데이터 부족") }
                         Text(r.archetype.name).fcFont(24, weight: .bold).foregroundStyle(FC.ink)
                         Text(r.archetype.tagline).fcFont(14).foregroundStyle(FC.muted)
                         HStack(spacing: 6) { Text("강점").fcFont(12, weight: .bold).foregroundStyle(FC.win); Text(r.archetype.baseStrength).fcFont(13).foregroundStyle(FC.ink) }
