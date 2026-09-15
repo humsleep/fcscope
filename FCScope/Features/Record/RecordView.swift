@@ -10,7 +10,27 @@ final class RecordViewModel {
     var players: Loadable<PlayersResponse> = .idle
     var playstyle: Loadable<PlaystyleResponse> = .idle
     var section: Section = .matches
-    enum Section: String, CaseIterable, Identifiable { case matches = "경기 기록", report = "종합 리포트", players = "선수 성적표", style = "플레이스타일"; var id: String { rawValue } }
+    enum Section: String, CaseIterable, Identifiable {
+        case matches = "경기 기록", report = "종합 리포트", players = "선수 성적표", style = "플레이스타일"
+        var id: String { rawValue }
+        /// 칩에 쓰는 짧은 라벨 — 긴 라벨은 폭을 먹어 네 개가 한눈에 안 들어온다.
+        var short: String {
+            switch self {
+            case .matches: "경기"
+            case .report: "리포트"
+            case .players: "선수"
+            case .style: "스타일"
+            }
+        }
+        var icon: String {
+            switch self {
+            case .matches: "list.bullet"
+            case .report: "chart.bar.fill"
+            case .players: "person.2.fill"
+            case .style: "scope"
+            }
+        }
+    }
 
     /// 콜드 조회 선행 프로필 — 경기 30건을 기다리는 동안 히어로를 먼저 그린다.
     var quickProfile: UserProfile?
@@ -196,9 +216,11 @@ struct RecordView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 hero(o)
-                if let mt = o.diagnosis.type { badge("⚽", mt) { vm.section = .report; Task { await vm.loadSection() } } }
+                // 선택 컨트롤을 먼저 — 진단 배지가 사이에 있으면 컨트롤이 화면 아래로 밀려
+                // "탭이 있는 줄 모르는" 상태가 된다. 배지는 보조 정보라 아래로 내린다.
                 typeTabs(o)
                 sectionPicker
+                if let mt = o.diagnosis.type { badge("⚽", mt) { vm.section = .report; Task { await vm.loadSection() } } }
                 switch vm.section {
                 case .matches: MatchesSection(o: o, nickname: o.profile.nickname)
                 case .report: ReportSection(state: vm.report)
@@ -239,26 +261,45 @@ struct RecordView: View {
         Button(action: action) { Panel(padding: 12) { RuleBadge(rule: r, prefix: "\(emoji) ") } }.buttonStyle(.plain)
     }
 
+    /// 매치 유형 — "어떤 경기를 볼지"를 정하는 최상위 필터.
+    /// 가로 스크롤 칩이었는데 화면 밖 항목을 놓치기 쉬웠다. 항목이 3개뿐이라
+    /// 세그먼트 컨트롤이 한 줄에 다 들어가고, iOS 에서 배타 선택의 표준 컨트롤이다.
     private func typeTabs(_ o: UserOverview) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(o.matchTabs) { t in
-                    Button { Task { await vm.changeType(t.type) } } label: {
-                        Text(t.label).fcScoreboard(13, weight: .semibold)
-                            .padding(.horizontal, 12).padding(.vertical, 8)
-                            .background(t.type == vm.matchType ? FC.accent : FC.surface2, in: RoundedRectangle(cornerRadius: 10))
-                            .foregroundStyle(t.type == vm.matchType ? FC.accentInk : FC.muted)
-                    }
-                }
-            }
-        }
-    }
-
-    private var sectionPicker: some View {
-        Picker("섹션", selection: Binding(get: { vm.section }, set: { vm.section = $0; Task { await vm.loadSection() } })) {
-            ForEach(RecordViewModel.Section.allCases) { s in Text(s.rawValue).tag(s) }
+        Picker("매치 유형", selection: Binding(
+            get: { vm.matchType },
+            // $0 를 중첩 클로저 안에서 쓰면 Binding 의 2인자 오버로드로 해석된다 — 이름을 준다.
+            set: { newType in Task { await vm.changeType(newType) } }
+        )) {
+            ForEach(o.matchTabs) { t in Text(t.label).tag(t.type) }
         }
         .pickerStyle(.segmented)
+    }
+
+    /// 보기 전환 — 같은 데이터를 네 가지 시선으로 본다.
+    /// 세그먼트 컨트롤에 네 개의 긴 한글 라벨을 넣으니 글자가 뭉개져 안 보였다.
+    /// 짧은 라벨 + 선택 상태가 분명한 칩으로 바꾸고, 줄바꿈으로 전부 노출한다.
+    private var sectionPicker: some View {
+        FlowLayout(spacing: 6, lineSpacing: 6) {
+            ForEach(RecordViewModel.Section.allCases) { sec in
+                Button {
+                    guard vm.section != sec else { return }
+                    vm.section = sec
+                    Haptic.light()
+                    Task { await vm.loadSection() }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: sec.icon).font(.system(size: 12, weight: .semibold))
+                        Text(sec.short).fcFont(13, weight: .semibold)
+                    }
+                    .padding(.horizontal, 12).padding(.vertical, 9)
+                    .background(vm.section == sec ? FC.accent : FC.surface2, in: Capsule())
+                    .foregroundStyle(vm.section == sec ? FC.accentInk : FC.ink)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(sec.rawValue)
+                .accessibilityAddTraits(vm.section == sec ? [.isSelected] : [])
+            }
+        }
     }
 }
 
@@ -339,13 +380,18 @@ struct MatchesSection: View {
         Panel(padding: 12, highlight: FC.accent.opacity(0.3)) {
             HStack(spacing: 10) {
                 Text("📅").fcFont(24)
-                VStack(alignment: .leading, spacing: 2) {
-                    SectionLabel("이번 주 성적표 · 최근 7일 \(w.games)경기")
+                // 승·무·패와 보조 지표를 한 줄에 몰아넣으니 글자를 키우자마자 "12승 7 / 무 9패"
+                // 처럼 숫자 중간에서 줄바꿈됐다. 두 줄로 나눠 각자 한 줄을 갖게 한다.
+                VStack(alignment: .leading, spacing: 3) {
+                    SectionLabel("이번 주 · 최근 7일 \(w.games)경기")
+                    Text("\(w.win)승 \(w.draw)무 \(w.lose)패")
+                        .fcFont(16, weight: .bold).foregroundStyle(w.winRate >= 50 ? FC.win : FC.lose)
+                        .lineLimit(1).minimumScaleFactor(0.8)
                     HStack(spacing: 6) {
-                        Text("\(w.win)승 \(w.draw)무 \(w.lose)패").fcFont(16, weight: .bold).foregroundStyle(w.winRate >= 50 ? FC.win : FC.lose)
                         Text("승률 \(w.winRate)% · 평균 \(String(format: "%.1f", w.avgScore))").fcFont(12).foregroundStyle(FC.muted)
                         if w.bestStreak >= 2 { Text("🔥\(w.bestStreak)연승").fcFont(12, weight: .bold).foregroundStyle(FC.win) }
                     }
+                    .lineLimit(1).minimumScaleFactor(0.8)
                 }
                 Spacer()
                 ShareCardButton(spec: .weekly(o), label: "주간 카드", compact: true)
@@ -359,7 +405,8 @@ struct MatchesSection: View {
                 Text(s.color == "lose" ? "🥶" : "🔥").fcFont(24)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(s.text).fcScoreboard(18).foregroundStyle(FC.tone(s.color))
-                    Text(s.color == "lose" ? "반등을 노려보자" : "이 기세 이어가자 — 폼 카드로 자랑하기").fcFont(12).foregroundStyle(FC.muted)
+                    // 문구가 길어 카드 버튼과 겹치며 어색하게 접혔다 — 짧게.
+                    Text(s.color == "lose" ? "반등을 노려보자" : "이 기세 이어가자").fcFont(12).foregroundStyle(FC.muted)
                 }
                 Spacer()
                 ShareCardButton(spec: .streak(o), label: "폼 카드", compact: true)

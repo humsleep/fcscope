@@ -60,11 +60,10 @@ struct CommunityView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        tab(nil, "전체")
-                        ForEach(model.types) { t in tab(t.type, "\(t.emoji) \(t.label)") }
-                    }
+                // 글 종류는 전체를 한눈에 봐야 고를 수 있다 — 가로 스크롤 금지, 줄바꿈.
+                FlowLayout(spacing: 6, lineSpacing: 6) {
+                    tab(nil, "전체")
+                    ForEach(model.types) { t in tab(t.type, "\(t.emoji) \(t.label)") }
                 }
                 switch model.state {
                 case .idle, .loading: Skeleton(height: 300)

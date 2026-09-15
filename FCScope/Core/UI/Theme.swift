@@ -57,6 +57,19 @@ extension UIColor {
 enum TypeScale {
     static let maxFactor: CGFloat = 1.6
 
+    /// 가독성 보정 — 앱 전체 본문이 iOS 기준으로 너무 작았다.
+    ///
+    /// 실측 분포: 12pt 63곳 · 13pt 45곳 · 11pt 22곳. iOS 에서 12pt 는 `caption`,
+    /// 13pt 는 `footnote` 이고 **본문(body)은 17pt** 다. 즉 앱의 "본문"이 시스템
+    /// 기준 캡션 크기였다. 10pt·8pt 는 Apple 최소 권장(11pt) 아래다.
+    ///
+    /// 각 호출부의 숫자를 일일이 바꾸면 화면 간 비율이 깨지므로, 상대 크기는 그대로 두고
+    /// 여기서 한 번만 키운다. 큰 전광판 숫자(20pt 이상)는 이미 충분해 손대지 않는다.
+    static func readable(_ size: CGFloat) -> CGFloat {
+        guard size < 20 else { return size }
+        return max(12, size * 1.15)
+    }
+
     static func factor(_ size: DynamicTypeSize) -> CGFloat {
         let raw: CGFloat
         switch size {
@@ -79,7 +92,7 @@ private struct FCSystemFont: ViewModifier {
     let size: CGFloat
     let weight: Font.Weight
     func body(content: Content) -> some View {
-        content.font(.system(size: size * TypeScale.factor(typeSize), weight: weight))
+        content.font(.system(size: TypeScale.readable(size) * TypeScale.factor(typeSize), weight: weight))
     }
 }
 
@@ -89,7 +102,7 @@ private struct FCScoreboardFont: ViewModifier {
     let size: CGFloat
     let weight: Font.Weight
     func body(content: Content) -> some View {
-        content.font(.scoreboard(size * TypeScale.factor(typeSize), weight: weight))
+        content.font(.scoreboard(TypeScale.readable(size) * TypeScale.factor(typeSize), weight: weight))
     }
 }
 
@@ -98,12 +111,12 @@ extension Font {
     /// (뷰 모디파이어는 `some View` 를 돌려줘서 Text 연결이 깨진다.)
     /// 호출부에서 `@Environment(\.dynamicTypeSize)` 를 받아 넘긴다.
     static func fcScoreboard(_ size: CGFloat, _ typeSize: DynamicTypeSize, weight: Font.Weight = .bold) -> Font {
-        .scoreboard(size * TypeScale.factor(typeSize), weight: weight)
+        .scoreboard(TypeScale.readable(size) * TypeScale.factor(typeSize), weight: weight)
     }
 
     /// 위와 같은 목적의 시스템 폰트 버전.
     static func fcFont(_ size: CGFloat, _ typeSize: DynamicTypeSize, weight: Font.Weight = .regular) -> Font {
-        .system(size: size * TypeScale.factor(typeSize), weight: weight)
+        .system(size: TypeScale.readable(size) * TypeScale.factor(typeSize), weight: weight)
     }
 }
 

@@ -19,7 +19,11 @@ final class AuthManager {
     private init() {
         // 값이 하나라도 비면 로그인 없이 동작(전적·스쿼드·픽 랭킹은 비로그인 기능).
         if let url = AppConfig.supabaseURL, let key = AppConfig.supabaseAnonKey {
+            #if DEBUG
+            client = SupabaseClient(supabaseURL: url, supabaseKey: key, options: .init(global: .init(logger: SupabaseDebugLogger())))
+            #else
             client = SupabaseClient(supabaseURL: url, supabaseKey: key)
+            #endif
         } else {
             client = nil
         }
@@ -109,3 +113,12 @@ final class AuthManager {
         }
     }
 }
+
+#if DEBUG
+/// 개발 빌드 전용 — supabase-swift 내부 동작(PKCE 코드 교환 등)을 콘솔로 본다.
+struct SupabaseDebugLogger: SupabaseLogger {
+    func log(message: SupabaseLogMessage) {
+        print("[supabase] \(message)")
+    }
+}
+#endif

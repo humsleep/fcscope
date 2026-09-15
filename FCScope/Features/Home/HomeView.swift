@@ -122,8 +122,7 @@ struct HomeView: View {
     private var favoritesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("⭐ 즐겨찾기 구단주")
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+            FlowLayout(spacing: 8, lineSpacing: 8) {
                     ForEach(prefs.favorites, id: \.self) { n in
                         Button { router.push(.user(n)) } label: {
                             VStack(alignment: .leading, spacing: 3) {
@@ -141,7 +140,6 @@ struct HomeView: View {
                             .padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
                         }.buttonStyle(.plain)
                     }
-                }
             }
         }
     }
@@ -223,30 +221,6 @@ struct HomeView: View {
                 }
             }
         }.buttonStyle(.plain)
-    }
-}
-
-/// 간단한 줄바꿈 레이아웃 (칩)
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 6
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width ?? 300
-        var x: CGFloat = 0, y: CGFloat = 0, rowH: CGFloat = 0
-        for s in subviews {
-            let sz = s.sizeThatFits(.unspecified)
-            if x + sz.width > width, x > 0 { x = 0; y += rowH + spacing; rowH = 0 }
-            x += sz.width + spacing; rowH = max(rowH, sz.height)
-        }
-        return CGSize(width: width, height: y + rowH)
-    }
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var x: CGFloat = bounds.minX, y: CGFloat = bounds.minY, rowH: CGFloat = 0
-        for s in subviews {
-            let sz = s.sizeThatFits(.unspecified)
-            if x + sz.width > bounds.maxX, x > bounds.minX { x = bounds.minX; y += rowH + spacing; rowH = 0 }
-            s.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(sz))
-            x += sz.width + spacing; rowH = max(rowH, sz.height)
-        }
     }
 }
 
