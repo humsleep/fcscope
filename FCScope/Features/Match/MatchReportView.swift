@@ -4,14 +4,16 @@ struct MatchReportView: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     let matchId: String
     let me: String?
+    var fromRecord = false
     @State private var state: Loadable<MatchDetailResponse> = .idle
     @Environment(AppRouter.self) private var router
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         ScrollView {
             switch state {
             case .idle, .loading: VStack(spacing: 10) { Skeleton(height: 140); Skeleton(height: 260) }.padding(16)
-            case .failed(let e): ErrorState(title: (e as? APIError)?.code == "not_found" ? "매치를 찾을 수 없어요" : "매치 정보를 불러올 수 없어요", message: e.localizedDescription, retry: { Task { await load() } })
+            case .failed(let e): ErrorState(title: (e as? APIError)?.code == "not_found" ? "매치를 찾을 수 없어요" : "매치 정보를 불러올 수 없어요", message: e.localizedDescription, error: e, retry: { Task { await load() } })
             case .loaded(let m): content(m)
             }
         }
@@ -26,14 +28,13 @@ struct MatchReportView: View {
         if let hit: (value: MatchDetailResponse, isFresh: Bool) = await APIClient.shared.cachedValue(p, query: q) {
             state = .loaded(hit.value)
             Analytics.shared.track(.matchView, ["cached": true])
-            Haptic.medium()
+            // 로드 완료 햅틱은 제거 — 사용자 행동이 아닌 네트워크 타이밍에 울리는 진동은 의미가 없다(HIG).
             return
         }
         state = .loading
         do {
             state = .loaded(try await APIClient.shared.getAndCache(p, query: q, auth: false))
             Analytics.shared.track(.matchView, ["cached": false])
-            Haptic.medium()
         }
         catch { state = .failed(error) }
     }
@@ -57,7 +58,7 @@ struct MatchReportView: View {
                 }
             }
             VStack(alignment: .leading, spacing: 8) {
-                SectionLabel("SHOT MAP")
+                SectionLabel("슛맵")
                 // 범례: 왼쪽 = 상대(왼쪽 골대 공격), 오른쪽 = 나(오른쪽 골대 공격)
                 HStack(spacing: 6) {
                     if let o = m.opponent { shotLegend(o, tone: FC.lose) }
@@ -84,7 +85,7 @@ struct MatchReportView: View {
             }
             if let o = m.opponent {
                 VStack(alignment: .leading, spacing: 8) {
-                    SectionLabel("TEAM STATS")
+                    SectionLabel("팀 스탯")
                     Panel(padding: 12) {
                         VStack(spacing: 8) {
                             stat("슛 (유효)", "\(m.me.stats.shots) (\(m.me.stats.effectiveShots))", "\(o.stats.shots) (\(o.stats.effectiveShots))")
@@ -98,12 +99,14 @@ struct MatchReportView: View {
                 }
             }
             VStack(alignment: .leading, spacing: 8) {
-                SectionLabel("RATINGS")
+                SectionLabel("선수 평점")
                 ratings(m.me)
                 if let o = m.opponent { ratings(o) }
             }
             HStack {
-                Button { router.push(.user(m.me.nickname)) } label: { Text("← \(m.me.nickname) 전적으로").fcFont(13).foregroundStyle(FC.muted) }
+                // 전적 → 경기 → "전적으로"가 같은 전적을 또 쌓아 뒤로가기를 두 번 눌러야 했다.
+                // 바로 앞 화면이 그 전적이면 뒤로 가고, 딥링크 등으로 들어왔을 때만 새로 연다.
+                Button { if fromRecord { dismiss() } else { router.push(.user(m.me.nickname)) } } label: { Text("← \(m.me.nickname) 전적으로").fcFont(13).foregroundStyle(FC.muted).frame(minHeight: 44).contentShape(Rectangle()) }.buttonStyle(.plain)
                 Spacer()
                 ShareCardButton(match: m, label: "매치 카드")
             }
@@ -176,6 +179,7 @@ struct ShotMapView: View {
             GeometryReader { g in
                 ZStack {
                     Canvas { ctx, size in Self.drawPitch(ctx, size, ground: FC.surface2, line: FC.line) }
+                        .accessibilityHidden(true)
                     // 내 슛 — 오른쪽 골대를 공격
                     ForEach(mine) { s in
                         dot(s, tone: myTone, isMine: true)
@@ -226,6 +230,15 @@ struct ShotMapView: View {
                 if selected?.id == s.id && selectedIsMine == isMine { selected = nil }
                 else { selected = s; selectedIsMine = isMine }
             }
+            // 점은 탭 전용이라 VoiceOver 로는 슛 정보를 전혀 알 수 없었다 — 슛마다 낭독 요소를 준다.
+            .accessibilityElement()
+            .accessibilityLabel("\(isMine ? "내" : "상대") \(Self.describe(s))")
+            .accessibilityAddTraits(.isButton)
+    }
+
+    /// 낭독용 슛 설명 — 예: "72분 손흥민 슛, 골, 박스 안"
+    static func describe(_ s: Shot) -> String {
+        "\(s.minute.map { "\($0)분 " } ?? "")\(s.player ?? "선수") 슛, \(s.isGoal ? "골" : s.hitPost ? "골대" : "노골")\(s.inPenalty == true ? ", 박스 안" : "")"
     }
 
     /// 가로로 긴 전체 운동장 — 양쪽 골대·페널티 박스, 가운데 하프라인과 센터서클.
