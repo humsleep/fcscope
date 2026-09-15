@@ -92,6 +92,10 @@ struct ReportSection: View {
 // MARK: - 선수 성적표
 
 struct PlayersSection: View {
+    /// 서버 band 코드(lib/squad-clinic.ts BAND_LABEL 과 같은 문구). 모르는 코드는 그대로 둔다(계약상 추가될 수 있음).
+    static func bandLabel(_ band: String) -> String {
+        ["top": "최상위 스쿼드", "strong": "상위권 스쿼드", "balanced": "안정권 스쿼드", "building": "성장형 스쿼드", "rebuild": "재정비 필요"][band] ?? band
+    }
     @Environment(\.dynamicTypeSize) private var typeSize
     let state: Loadable<PlayersResponse>
     let nickname: String
@@ -149,7 +153,7 @@ struct PlayersSection: View {
                 }
                 HStack(alignment: .lastTextBaseline) {
                     (Text("\(Int(c.overall))") + Text("/100").font(.fcScoreboard(14, typeSize)).foregroundStyle(FC.muted)).font(.fcScoreboard(34, typeSize)).foregroundStyle(FC.accent)
-                    Text(c.band).fcScoreboard(12).foregroundStyle(FC.gold)
+                    Text(Self.bandLabel(c.band)).fcFont(12, weight: .semibold).foregroundStyle(FC.gold)
                     Spacer()
                     Text("\(c.players)명 · \(c.sampleGames)경기 표본").fcFont(11).foregroundStyle(FC.muted)
                 }
