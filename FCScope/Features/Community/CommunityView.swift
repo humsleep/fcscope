@@ -55,6 +55,7 @@ struct CommunityView: View {
     @State private var auth = AuthManager.shared
     @State private var showCompose = false
     @State private var showLogin = false
+    @State private var needNickname = false
     @Environment(AppRouter.self) private var router
 
     var body: some View {
@@ -89,11 +90,26 @@ struct CommunityView: View {
             }.padding(16)
         }
         .fcScreen().navigationTitle("커뮤니티").navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { if auth.isLoggedIn { showCompose = true } else { showLogin = true } } label: { Image(systemName: "square.and.pencil") }.accessibilityLabel("글쓰기") } }
+        .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { Task { await openCompose() } } label: { Image(systemName: "square.and.pencil") }.accessibilityLabel("글쓰기") } }
         .sheet(isPresented: $showCompose) { ComposeView(types: model.types, initialType: model.type) { Task { await model.load(reset: true) } } }
         .sheet(isPresented: $showLogin) { LoginView(reason: "글을 쓰려면 로그인이 필요해요") }
+        .alert("닉네임을 먼저 등록해 주세요", isPresented: $needNickname) {
+            Button("내 정보로 이동") { router.tab = .me }
+            Button("취소", role: .cancel) {}
+        } message: { Text("커뮤니티에 글을 쓰려면 내 정보 탭에서 닉네임을 등록해야 해요.") }
         .task { await model.load() }
         .refreshable { await model.load(reset: true) }
+    }
+
+    /// 글을 다 쓴 뒤 서버가 403(닉네임 없음)으로 거절하지 않도록, 작성 화면을 열기 전에 닉네임부터 확인한다.
+    private func openCompose() async {
+        guard auth.isLoggedIn else { showLogin = true; return }
+        if let r: ProfileResponse = try? await APIClient.shared.get("/api/profile"),
+           (r.profile?.nickname ?? "").trimmingCharacters(in: .whitespaces).isEmpty {
+            needNickname = true
+            return
+        }
+        showCompose = true   // 확인 실패(네트워크)면 막지 않는다 — 서버가 최종 판단
     }
     private func tab(_ t: String?, _ label: String) -> some View {
         Button { model.type = t; Task { await model.load(reset: true) } } label: {
