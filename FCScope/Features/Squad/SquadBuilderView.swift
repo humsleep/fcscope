@@ -115,11 +115,18 @@ struct SquadBuilderView: View {
                     Text("\(model.filled)/11").fcScoreboard(14).foregroundStyle(model.filled == 11 ? FC.accent : FC.muted)
                 }
                 PitchView(model: model)
-                TextField("스쿼드 이름", text: Binding(get: { model.name }, set: { model.name = $0 })).textFieldStyle(.roundedBorder)
+                // .roundedBorder 는 다크 모드에서 새까만 상자로 떠 앱 표면색과 어긋났다 — 앱 표면색으로 직접 그린다.
+                TextField("스쿼드 이름", text: Binding(get: { model.name }, set: { model.name = $0 }))
+                    .textFieldStyle(.plain).fcFont(15).foregroundStyle(FC.ink)
+                    .padding(.horizontal, 12).padding(.vertical, 10)
+                    .background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
                 HStack(spacing: 8) {
+                    let canSave = !(model.busy || model.filled == 0)
+                    // 잉크색을 항상 덮어쓰면 비활성 상태의 회색 배경 위에서 흰 글자가 사라졌다 — 활성일 때만 적용.
                     Button { Task { await model.save(); if model.savedId != nil { showSaved = true } } } label: { Text(model.busy ? "저장 중…" : "저장 · 공유 링크").frame(maxWidth: .infinity) }
-                        .buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk).disabled(model.busy || model.filled == 0)
-                    Button(role: .destructive) { showClear = true } label: { Text("비우기") }.buttonStyle(.bordered).disabled(model.filled == 0)
+                        .buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(canSave ? FC.accentInk : Color.secondary).disabled(!canSave)
+                    // 앱 전체 tint(라임)가 destructive 역할보다 우선해 "비우기"가 긍정 버튼처럼 보였다.
+                    Button(role: .destructive) { showClear = true } label: { Text("비우기") }.buttonStyle(.bordered).tint(FC.lose).disabled(model.filled == 0)
                 }
                 if let id = model.savedId {
                     Panel(padding: 12) {
@@ -217,7 +224,8 @@ struct PitchView: View {
                                 else { Circle().fill(Color.white.opacity(0.12)).frame(width: 44, height: 44).overlay(Text("+").fcFont(18, weight: .bold).foregroundStyle(.white.opacity(0.7))) }
                                 Circle().stroke(filled == nil ? Color.white.opacity(0.3) : FC.accent, lineWidth: 2).frame(width: 44, height: 44)
                             }
-                            Text(filled?.name ?? s.pos).fcFont(10, weight: .bold).foregroundStyle(.white).lineLimit(1).frame(width: 64)
+                            // 64pt 폭에 전체 이름을 넣으면 "그레고르..." 처럼 잘려 누군지 몰랐다 — 마지막 단어(대개 성)만.
+                            Text(filled.map { Self.shortName($0.name) } ?? s.pos).fcFont(10, weight: .bold).foregroundStyle(.white).lineLimit(1).minimumScaleFactor(0.7).frame(width: 64)
                                 .padding(.horizontal, 2).background(Color.black.opacity(0.45), in: Capsule())
                             if let f = filled, let season = f.season, !season.isEmpty { Text(season).fcFont(8, weight: .semibold).foregroundStyle(FC.gold) }
                         }
@@ -229,6 +237,13 @@ struct PitchView: View {
             }
         }
         .aspectRatio(0.72, contentMode: .fit)
+        // 슬롯 좌표는 피치 비율 기준으로 고정이라 라벨이 커지면 옆 슬롯과 겹친다(AX5 에서 전부 겹침).
+        // 피치 안 글자는 xLarge 에서 멈춘다 — 이름 전체는 교체 시트·카드에서 볼 수 있다.
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
+    }
+
+    static func shortName(_ name: String) -> String {
+        name.split(separator: " ").last.map(String.init) ?? name
     }
 }
 
@@ -290,7 +305,7 @@ struct PlayerSearchSheet: View {
                     }
                     ForEach(hits) { h in
                         Button { if h.seasons.count > 1 { pick = h } else { model.assign(h, to: slot); dismiss() } } label: {
-                            HStack { PlayerImage(spid: h.spid, size: 36, radius: 8); VStack(alignment: .leading) { Text(h.name).foregroundStyle(FC.ink); Text("\(h.season) 외 \(max(0, h.seasons.count - 1))개 시즌").fcFont(11).foregroundStyle(FC.muted) } }
+                            HStack { PlayerImage(spid: h.spid, size: 36, radius: 8); VStack(alignment: .leading) { Text(h.name).foregroundStyle(FC.ink); Text(h.seasons.count > 1 ? "\(h.season) 외 \(h.seasons.count - 1)개 시즌" : h.season).fcFont(11).foregroundStyle(FC.muted) } }
                         }
                     }
                 }
