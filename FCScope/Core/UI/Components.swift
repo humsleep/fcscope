@@ -118,7 +118,10 @@ struct VerdictStamp: View {
             HStack(spacing: 6) {
                 Text(verdict.icon).fcScoreboard(large ? 18 : 13)
                 Text(verdict.grade).fcScoreboard(large ? 22 : 14).kerning(1)
-                Text(verdict.label).fcFont(large ? 13 : 11, weight: .semibold).foregroundStyle(FC.muted)
+                // 등급과 라벨이 같은 경기는 "승리 승리" 로 중복돼 보였다 — 다를 때만 붙인다
+                if verdict.label != verdict.grade {
+                    Text(verdict.label).fcFont(large ? 13 : 11, weight: .semibold).foregroundStyle(FC.muted)
+                }
             }
             .foregroundStyle(FC.tone(verdict.color))
             .padding(.horizontal, 10).padding(.vertical, 5)
@@ -144,6 +147,7 @@ struct ResultBadge: View {
 enum ShareCardSource {
     case spec(ShareCardSpec)
     case squad(SquadCardData)
+    case match(MatchDetailResponse)
 }
 
 struct SquadCardData {
@@ -175,6 +179,11 @@ struct ShareCardButton: View {
         self.label = label
         self.compact = compact
     }
+    init(match: MatchDetailResponse, label: String = "매치 카드", compact: Bool = false) {
+        self.source = .match(match)
+        self.label = label
+        self.compact = compact
+    }
 
     var body: some View {
         Button {
@@ -197,6 +206,7 @@ struct ShareCardButton: View {
         switch source {
         case .spec(let s): return s.filename
         case .squad(let s): return "fcscope-squad-\(s.shareCode ?? s.formationId)"
+        case .match(let m): return "fcscope-match-\(m.matchId)"
         }
     }
 
@@ -212,6 +222,12 @@ struct ShareCardButton: View {
             await ImageCache.prefetch(spids: data.slots.values.map(\.spid))
             image = ShareCardRenderer.render(
                 view: SquadCardView(data: data),
+                size: CGSize(width: ShareCardView.width, height: ShareCardView.height)
+            )
+        case .match(let m):
+            if let p = m.potm { await ImageCache.prefetch(spids: [p.spId]) }
+            image = ShareCardRenderer.render(
+                view: MatchCardView(m: m),
                 size: CGSize(width: ShareCardView.width, height: ShareCardView.height)
             )
         }

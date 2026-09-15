@@ -60,7 +60,10 @@ struct HomeView: View {
         guard !nick.isEmpty else { return }
         Haptic.light()
         query = ""
-        router.push(.user(nick))
+        Task {
+            if SearchGate.shouldShowAd() { await AdsManager.shared.showInterstitialIfReady() }
+            router.push(.user(nick))
+        }
     }
 
     private var hero: some View {

@@ -11,7 +11,7 @@ final class RecordViewModel {
     var playstyle: Loadable<PlaystyleResponse> = .idle
     var section: Section = .matches
     enum Section: String, CaseIterable, Identifiable {
-        case matches = "경기 기록", report = "종합 리포트", players = "선수 성적표", style = "플레이스타일"
+        case matches = "경기 기록", style = "플레이스타일", report = "종합 리포트", players = "선수 성적표"
         var id: String { rawValue }
         /// 칩에 쓰는 짧은 라벨 — 긴 라벨은 폭을 먹어 네 개가 한눈에 안 들어온다.
         var short: String {

@@ -28,15 +28,15 @@ struct SquadCardView: View {
                 Text(formation.name).font(.scoreboard(44)).foregroundStyle(CardPalette.gold)
             }
             Text(data.name)
-                .font(.system(size: 56, weight: .bold))
+                .font(.pretendard(56, .bold))
                 .foregroundStyle(CardPalette.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
                 .padding(.top, 18)
             HStack(spacing: 12) {
-                Text("\(filled)명 배치").font(.system(size: 30)).foregroundStyle(CardPalette.muted)
+                Text("\(filled)명 배치").font(.pretendard(30)).foregroundStyle(CardPalette.muted)
                 if let s = topSeason {
-                    Text(s).font(.system(size: 26, weight: .bold)).foregroundStyle(CardPalette.gold)
+                    Text(s).font(.pretendard(26, .bold)).foregroundStyle(CardPalette.gold)
                         .padding(.horizontal, 14).padding(.vertical, 6)
                         .background(CardPalette.gold.opacity(0.15), in: Capsule())
                 }
@@ -47,9 +47,9 @@ struct SquadCardView: View {
 
             Spacer(minLength: 0)
             HStack {
-                Text("내 스쿼드도 만들기 →").font(.system(size: 30)).foregroundStyle(CardPalette.muted)
+                Text("내 스쿼드도 만들기 →").font(.pretendard(30)).foregroundStyle(CardPalette.muted)
                 Spacer()
-                Text(AppConfig.shareHost).font(.system(size: 30, weight: .bold)).foregroundStyle(CardPalette.lime)
+                Text(AppConfig.shareHost).font(.pretendard(30, .bold)).foregroundStyle(CardPalette.lime)
             }
         }
         .padding(70)
@@ -97,13 +97,13 @@ struct SquadCardView: View {
             .clipShape(Circle())
 
             Text(player.map { short($0.name) } ?? slot.pos)
-                .font(.system(size: 26, weight: .bold))
+                .font(.pretendard(26, .bold))
                 .foregroundStyle(.white)
                 .lineLimit(1)
                 .padding(.horizontal, 10).padding(.vertical, 4)
                 .background(Color.black.opacity(0.5), in: Capsule())
             if let s = player?.season, !s.isEmpty {
-                Text(s).font(.system(size: 21, weight: .bold)).foregroundStyle(CardPalette.gold)
+                Text(s).font(.pretendard(21, .bold)).foregroundStyle(CardPalette.gold)
             }
         }
         .frame(width: 170)

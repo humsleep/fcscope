@@ -45,6 +45,14 @@ enum AppConfig {
     /// 구글이 배포하는 테스트 ID 접두사 — 릴리스 빌드에 남아 있으면 광고를 띄우지 않는다.
     private static let googleTestPrefix = "ca-app-pub-3940256099942544"
     private static let googleTestBanner = "ca-app-pub-3940256099942544/2934735716"
+    private static let googleTestInterstitial = "ca-app-pub-3940256099942544/4411468910"
+
+    /// 전면 광고 단위. Debug·TestFlight 는 구글 테스트 단위, 배포판은 Info.plist 값(비면 광고 없음).
+    static var interstitialAdUnit: String? {
+        guard servesRealAds else { return googleTestInterstitial }
+        guard let id = plist("FCAdMobInterstitialUnit"), !id.hasPrefix(googleTestPrefix) else { return nil }
+        return id
+    }
 
     /// TestFlight 로 설치된 빌드인가. 영수증 파일 이름이 배포판과 다르다.
     ///

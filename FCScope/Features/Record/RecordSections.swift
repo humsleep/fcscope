@@ -44,7 +44,7 @@ struct ReportSection: View {
                                     BarMark(x: .value("시간", b.label), y: .value("실점", b.againstGoals)).foregroundStyle(FC.lose).position(by: .value("구분", "실점"))
                                 }
                             }
-                            .chartXAxis { AxisMarks { AxisValueLabel().font(.system(size: 10)).foregroundStyle(FC.muted) } }
+                            .chartXAxis { AxisMarks { AxisValueLabel().font(.pretendard(10)).foregroundStyle(FC.muted) } }
                             .chartYAxis { AxisMarks { AxisGridLine().foregroundStyle(FC.line); AxisValueLabel().foregroundStyle(FC.muted) } }
                             .frame(height: 160)
                             HStack(spacing: 12) { legend(FC.accent, "득점"); legend(FC.lose, "실점") }
@@ -235,7 +235,7 @@ struct PlaystyleSection: View {
                     FlowLayout(spacing: 6) { ForEach(r.chips) { c in Chip(text: c.text, color: c.kind == "strength" ? FC.win : FC.lose, bg: (c.kind == "strength" ? FC.win : FC.lose).opacity(0.15)) } }
                 }
                 if !p.shots.isEmpty {
-                    Panel { VStack(alignment: .leading, spacing: 8) { SectionLabel("누적 슛맵 · 최근 경기 내 슛 \(p.shots.count)개"); ShotMapView(shots: p.shots, tone: FC.accent) } }
+                    Panel { VStack(alignment: .leading, spacing: 8) { SectionLabel("누적 슛맵 · 최근 경기 내 슛 \(p.shots.count)개"); ShotMapView(mine: p.shots, theirs: [], myTone: FC.accent, theirTone: FC.lose) } }
                 }
             }
         }

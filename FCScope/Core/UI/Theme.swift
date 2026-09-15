@@ -92,7 +92,7 @@ private struct FCSystemFont: ViewModifier {
     let size: CGFloat
     let weight: Font.Weight
     func body(content: Content) -> some View {
-        content.font(.system(size: TypeScale.readable(size) * TypeScale.factor(typeSize), weight: weight))
+        content.font(.pretendard(TypeScale.readable(size) * TypeScale.factor(typeSize), weight))
     }
 }
 
@@ -116,7 +116,7 @@ extension Font {
 
     /// 위와 같은 목적의 시스템 폰트 버전.
     static func fcFont(_ size: CGFloat, _ typeSize: DynamicTypeSize, weight: Font.Weight = .regular) -> Font {
-        .system(size: TypeScale.readable(size) * TypeScale.factor(typeSize), weight: weight)
+        .pretendard(TypeScale.readable(size) * TypeScale.factor(typeSize), weight)
     }
 }
 
@@ -141,7 +141,32 @@ extension Font {
         case .semibold: name = "ChakraPetch-SemiBold"
         default: name = "ChakraPetch-Bold"
         }
-        return .custom(name, size: size)
+        // Chakra Petch 에는 한글 글리프가 없다. 그냥 두면 한글이 시스템 고딕으로 튀어
+        // 한 줄 안에서 서체가 섞인다 → 한글은 Pretendard 가 이어받도록 cascade 를 건다.
+        // fixedSize 성격: 크기는 TypeScale 이 이미 계산했으므로 시스템이 다시 키우지 않는다.
+        guard let base = UIFont(name: name, size: size) else { return .pretendard(size, weight) }
+        let fallback = UIFontDescriptor(fontAttributes: [.name: PretendardName.for(weight)])
+        let desc = base.fontDescriptor.addingAttributes([.cascadeList: [fallback]])
+        return Font(UIFont(descriptor: desc, size: size) as CTFont)
+    }
+
+    /// Pretendard — 토스·당근 등 국내 서비스가 표준처럼 쓰는 본문 서체(SIL OFL 1.1).
+    /// 시스템 고딕(Apple SD Gothic Neo)보다 자간·숫자 폭이 고르고 작은 크기에서도 또렷하다.
+    /// `fixedSize` 인 이유: 크기는 TypeScale 이 Dynamic Type 까지 반영해 계산하므로,
+    /// `.custom(_:size:)` 를 쓰면 시스템이 한 번 더 키워 **이중으로 커진다**.
+    static func pretendard(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        .custom(PretendardName.for(weight), fixedSize: size)
+    }
+}
+
+enum PretendardName {
+    static func `for`(_ weight: Font.Weight) -> String {
+        switch weight {
+        case .medium: return "Pretendard-Medium"
+        case .semibold: return "Pretendard-SemiBold"
+        case .bold, .heavy, .black: return "Pretendard-Bold"
+        default: return "Pretendard-Regular"
+        }
     }
 }
 
@@ -165,7 +190,13 @@ struct SectionLabel: View {
     var color: Color = FC.muted
     init(_ text: String, color: Color = FC.muted) { self.text = text; self.color = color }
     var body: some View {
-        Text(text).fcScoreboard(12, weight: .semibold).kerning(2.5).foregroundStyle(color)
+        // 영문 라벨("SHOT MAP")은 전광판 서체 + 넓은 자간이 멋있지만, 한글에 자간 2.5 를 주면
+        // "이 번 주 성 적 표" 처럼 글자가 흩어져 읽기 어렵다. 한글이면 본문 서체·기본 자간으로.
+        if text.unicodeScalars.contains(where: { (0xAC00...0xD7A3).contains($0.value) }) {
+            Text(text).fcFont(12, weight: .semibold).foregroundStyle(color)
+        } else {
+            Text(text).fcScoreboard(12, weight: .semibold).kerning(2.5).foregroundStyle(color)
+        }
     }
 }
 

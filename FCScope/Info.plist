@@ -63,6 +63,10 @@
 		<string>ChakraPetch-Medium.ttf</string>
 		<string>ChakraPetch-SemiBold.ttf</string>
 		<string>ChakraPetch-Bold.ttf</string>
+		<string>Pretendard-Regular.otf</string>
+		<string>Pretendard-Medium.otf</string>
+		<string>Pretendard-SemiBold.otf</string>
+		<string>Pretendard-Bold.otf</string>
 	</array>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>허용하면 관심사에 맞는 광고가 표시됩니다. 거부해도 앱의 모든 기능을 동일하게 이용할 수 있어요.</string>
@@ -74,6 +78,8 @@
 	<string>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl3a2JuenZlbnN2c3FodWhmcXdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1OTg1NTIsImV4cCI6MjA5OTE3NDU1Mn0.3TvE4m2TAq5VNzvZvEvtSxl8PbglTbNFiUXOD90lntU</string>
 	<key>FCAdMobBannerUnit</key>
 	<string>ca-app-pub-4073994600346533/4442974125</string>
+	<key>FCAdMobInterstitialUnit</key>
+	<string></string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

@@ -69,7 +69,7 @@ extension Color {
 /// Chakra Petch 에는 한글 글리프가 없다 → ASCII·숫자일 때만 전광판 폰트, 아니면 시스템 볼드.
 private func cardFont(_ text: String, size: CGFloat) -> Font {
     let asciiOnly = text.unicodeScalars.allSatisfy { $0.isASCII }
-    return asciiOnly ? .scoreboard(size) : .system(size: size, weight: .bold)
+    return asciiOnly ? .scoreboard(size) : .pretendard(size, .bold)
 }
 
 struct ShareCardView: View {
@@ -109,7 +109,7 @@ struct ShareCardView: View {
                 Text("SCOPE").font(.scoreboard(44)).foregroundStyle(CardPalette.ink)
             }
             Text(spec.kicker)
-                .font(.system(size: 34, weight: .bold))
+                .font(.pretendard(34, .bold))
                 .kerning(6)
                 .foregroundStyle(CardPalette.muted)
         }
@@ -124,14 +124,14 @@ struct ShareCardView: View {
                 .minimumScaleFactor(0.35)
             if let subtitle = spec.subtitle {
                 Text(subtitle)
-                    .font(.system(size: 48, weight: .bold))
+                    .font(.pretendard(48, .bold))
                     .foregroundStyle(CardPalette.muted)
                     .lineLimit(2)
                     .minimumScaleFactor(0.6)
             }
             if let stamp = spec.stamp {
                 Text(stamp.text)
-                    .font(.system(size: 52, weight: .bold))
+                    .font(.pretendard(52, .bold))
                     .foregroundStyle(stamp.color)
                     .padding(.horizontal, 40)
                     .padding(.vertical, 20)
@@ -148,7 +148,7 @@ struct ShareCardView: View {
                 HStack(spacing: 20) {
                     ForEach(spec.badges.prefix(3)) { b in
                         VStack(alignment: .leading, spacing: 8) {
-                            Text(b.label).font(.system(size: 28)).foregroundStyle(CardPalette.muted).lineLimit(1)
+                            Text(b.label).font(.pretendard(28)).foregroundStyle(CardPalette.muted).lineLimit(1)
                             Text(b.value)
                                 .font(cardFont(b.value, size: 56))
                                 .foregroundStyle(b.color)
@@ -164,9 +164,9 @@ struct ShareCardView: View {
                 }
             }
             HStack {
-                Text("내 전적도 검색 →").font(.system(size: 30)).foregroundStyle(CardPalette.muted)
+                Text("내 전적도 검색 →").font(.pretendard(30)).foregroundStyle(CardPalette.muted)
                 Spacer()
-                Text(AppConfig.shareHost).font(.system(size: 30, weight: .bold)).foregroundStyle(CardPalette.lime)
+                Text(AppConfig.shareHost).font(.pretendard(30, .bold)).foregroundStyle(CardPalette.lime)
             }
         }
     }

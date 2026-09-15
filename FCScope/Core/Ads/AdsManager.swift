@@ -35,7 +35,9 @@ final class AdsManager {
 
     /// 첫 유의미 화면(전적 결과) 이후 호출 — UMP(EEA 만 폼) → ATT → SDK 시작
     func requestConsentIfNeeded() async {
-        guard canShowAds, !consentFlowDone else { return }
+        // SDK 시작은 유예 기간과 무관하게 한다 — 전면광고(검색 3회차부터)는 유예 기간을 따르지 않는다.
+        // 배너 노출 여부는 여전히 canShowAds(설치 3일 유예)가 결정한다.
+        guard AppConfig.admobConfigured, !consentFlowDone else { return }
         consentFlowDone = true
         let params = RequestParameters()
         do {
@@ -57,6 +59,92 @@ final class AdsManager {
         guard !ready else { return }
         await MobileAds.shared.start()
         ready = true
+        await preloadInterstitial()
+    }
+
+    // MARK: 전면 광고
+
+    private var interstitial: InterstitialAd?
+    private var presenting: InterstitialDelegate?
+
+    /// 미리 받아 둔다 — 검색 버튼을 누른 순간 받기 시작하면 사용자가 로딩을 기다리게 된다.
+    func preloadInterstitial() async {
+        guard ready, interstitial == nil, let unit = AppConfig.interstitialAdUnit else { return }
+        interstitial = try? await InterstitialAd.load(with: unit, request: Request())
+    }
+
+    /// 전면 광고를 띄우고 **닫힐 때까지 기다린다**. 준비된 광고가 없으면 즉시 돌아온다 —
+    /// 광고 로딩 실패가 검색을 막으면 안 된다.
+    func showInterstitialIfReady() async {
+        guard let ad = interstitial, let root = Self.topViewController() else {
+            await preloadInterstitial()
+            return
+        }
+        interstitial = nil
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            let delegate = InterstitialDelegate { cont.resume() }
+            presenting = delegate
+            ad.fullScreenContentDelegate = delegate
+            ad.present(from: root)
+        }
+        presenting = nil
+        await preloadInterstitial()
+    }
+
+    private static func topViewController() -> UIViewController? {
+        var vc = UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController }.first
+        while let next = vc?.presentedViewController { vc = next }
+        return vc
+    }
+}
+
+/// 전면 광고가 닫히거나 표시에 실패하면 한 번만 알린다.
+final class InterstitialDelegate: NSObject, FullScreenContentDelegate {
+    private var done: (() -> Void)?
+    init(_ done: @escaping () -> Void) { self.done = done }
+    private func finish() { done?(); done = nil }
+    func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) { finish() }
+    func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) { finish() }
+}
+
+/// 구단주명 검색 횟수 제한 — 하루 2회까지 무료, 3회차부터 전면 광고 후 검색.
+///
+/// - 날짜는 KST 기준으로 매일 초기화한다(평생 2회면 이틀째부터 모든 검색이 광고가 된다).
+/// - 연속으로 광고를 보지 않도록 직전 광고 후 90초 안의 검색은 광고 없이 통과시킨다.
+///   Google 정책도 전면 광고의 과도한 빈도를 금지하고, 몇 초 간격으로 광고가 뜨면 이탈한다.
+/// - 대상은 **검색창에 직접 입력한 검색**뿐이다. 즐겨찾기·최근 검색·칩을 누르는 건 탐색이라 제외.
+@MainActor
+enum SearchGate {
+    static let freePerDay = 2
+    static let cooldown: TimeInterval = 90
+
+    private static let dayKey = "fcscope.search.day"
+    private static let countKey = "fcscope.search.count"
+    private static let lastAdKey = "fcscope.search.lastAdAt"
+
+    /// 이번 검색 전에 광고를 보여야 하는가. 호출하면 검색 1회로 센다.
+    static func shouldShowAd(now: Date = Date()) -> Bool {
+        let d = UserDefaults.standard
+        let today = dayString(now)
+        if d.string(forKey: dayKey) != today {
+            d.set(today, forKey: dayKey)
+            d.set(0, forKey: countKey)
+        }
+        let count = d.integer(forKey: countKey) + 1
+        d.set(count, forKey: countKey)
+        guard count > freePerDay else { return false }
+        let last = d.double(forKey: lastAdKey)
+        guard now.timeIntervalSince1970 - last >= cooldown else { return false }
+        d.set(now.timeIntervalSince1970, forKey: lastAdKey)
+        return true
+    }
+
+    private static func dayString(_ date: Date) -> String {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        let c = cal.dateComponents([.year, .month, .day], from: date)
+        return "\(c.year ?? 0)-\(c.month ?? 0)-\(c.day ?? 0)"
     }
 }
 
