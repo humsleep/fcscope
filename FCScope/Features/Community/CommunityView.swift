@@ -68,10 +68,21 @@ struct CommunityView: View {
                 }
                 switch model.state {
                 case .idle, .loading: Skeleton(height: 300)
-                case .failed(let e): ErrorState(title: "커뮤니티를 불러오지 못했어요", message: e.localizedDescription, retry: { Task { await model.load(reset: true) } })
+                case .failed(let e): ErrorState(title: "커뮤니티를 불러오지 못했어요", message: e.localizedDescription, error: e, retry: { Task { await model.load(reset: true) } })
                 case .loaded:
                     let visible = model.posts.filter { !prefs.isBlocked($0.authorId) }
-                    if visible.isEmpty { Panel { Text("아직 글이 없어요. 첫 글을 남겨보세요!").fcFont(14).foregroundStyle(FC.muted).frame(maxWidth: .infinity) } }
+                    if visible.isEmpty {
+                        // 한 줄 문구 + 광고만 남아 고장난 화면처럼 보였다 — 시스템 빈 상태 + 바로 쓰기 동작.
+                        ContentUnavailableView {
+                            Label("아직 글이 없어요", systemImage: "text.bubble")
+                        } description: {
+                            Text("첫 글을 남겨 이야기를 시작해 보세요.")
+                        } actions: {
+                            Button("첫 글 쓰기") { Task { await openCompose() } }
+                                .buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk)
+                        }
+                        .padding(.top, 24)
+                    }
                     LazyVStack(spacing: 12) {
                         ForEach(visible) { p in
                             Button { router.push(.post(p.id)) } label: { PostRow(post: p) }.buttonStyle(.plain)
@@ -86,7 +97,8 @@ struct CommunityView: View {
                             .frame(maxWidth: .infinity).padding(.vertical, 12)
                     }
                 }
-                AdSlot()
+                // 빈 목록에서는 광고가 본문처럼 보인다 — 글이 있을 때만.
+                if !listEmpty { AdSlot() }
             }.padding(16)
         }
         .fcScreen().navigationTitle("커뮤니티").navigationBarTitleDisplayMode(.inline)
@@ -111,11 +123,17 @@ struct CommunityView: View {
         }
         showCompose = true   // 확인 실패(네트워크)면 막지 않는다 — 서버가 최종 판단
     }
+    private var listEmpty: Bool {
+        guard case .loaded = model.state else { return false }
+        return model.posts.allSatisfy { prefs.isBlocked($0.authorId) }
+    }
     private func tab(_ t: String?, _ label: String) -> some View {
         Button { model.type = t; Task { await model.load(reset: true) } } label: {
             Text(label).fcFont(13, weight: .semibold).padding(.horizontal, 10).padding(.vertical, 7)
                 .background(model.type == t ? FC.accent : FC.surface2, in: Capsule()).foregroundStyle(model.type == t ? FC.accentInk : FC.muted)
         }
+        // 선택 여부가 색으로만 표현돼 VoiceOver 는 어떤 필터가 켜졌는지 알 수 없었다.
+        .accessibilityAddTraits(model.type == t ? .isSelected : [])
     }
 }
 
@@ -164,7 +182,7 @@ struct PostDetailView: View {
         ScrollView {
             switch state {
             case .idle, .loading: VStack(spacing: 10) { Skeleton(height: 200); Skeleton(height: 120) }.padding(16)
-            case .failed(let e): ErrorState(title: "글을 찾을 수 없어요", message: e.localizedDescription)
+            case .failed(let e): ErrorState(title: "글을 불러오지 못했어요", message: e.localizedDescription, error: e, retry: { Task { await load() } })
             case .loaded(let d): content(d)
             }
         }
@@ -251,8 +269,21 @@ struct PostDetailView: View {
                             Text(c.author.nickname).fcFont(13, weight: .semibold).foregroundStyle(FC.ink)
                             Text(DateFmt.relative(c.createdAt)).fcFont(11).foregroundStyle(FC.muted)
                             Spacer()
-                            if c.isOwn { Button("삭제") { confirmDeleteComment = c.id }.fcFont(12).foregroundStyle(FC.lose) }
-                            else { Button("신고") { showReport = ("comment", c.id) }.fcFont(12).foregroundStyle(FC.muted); Button("차단") { prefs.block(c.authorId) }.fcFont(12).foregroundStyle(FC.muted) }
+                            // 12pt 텍스트 버튼(신고·차단)이 붙어 있어 탭 영역이 44pt 에 한참 못 미쳤고 오탭이 잦았다.
+                            // 삭제는 확인 알림이 있으니 그대로 두되 탭 영역만 넓히고, 신고·차단은 메뉴 하나로 모은다.
+                            if c.isOwn {
+                                Button("삭제") { confirmDeleteComment = c.id }.fcFont(12).foregroundStyle(FC.lose)
+                                    .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+                            } else {
+                                Menu {
+                                    Button { showReport = ("comment", c.id) } label: { Label("신고", systemImage: "exclamationmark.bubble") }
+                                    Button(role: .destructive) { prefs.block(c.authorId); Haptic.warning() } label: { Label("작성자 차단", systemImage: "hand.raised") }
+                                } label: {
+                                    Image(systemName: "ellipsis").fcFont(14, weight: .semibold).foregroundStyle(FC.muted)
+                                        .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+                                }
+                                .accessibilityLabel("\(c.author.nickname) 댓글 더보기")
+                            }
                         }
                         Text(c.body).fcFont(14).foregroundStyle(FC.ink).padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
                         if let s = c.squadId { Button("🧩 제안 스쿼드 보기 →") { router.push(.squad(s)) }.fcFont(12, weight: .semibold).foregroundStyle(FC.accent) }
