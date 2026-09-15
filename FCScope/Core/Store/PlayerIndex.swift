@@ -64,12 +64,12 @@ final class PlayerIndex {
         guard !loaded else { return }
         loaded = true
         let cacheURL = self.cacheURL
-        guard let parsed = await Task.detached(priority: .userInitiated) { () -> Parsed? in
+        guard let parsed = await Task.detached(priority: .userInitiated, operation: { () -> Parsed? in
             let bundleData = Bundle.main.url(forResource: "players", withExtension: "json").flatMap { try? Data(contentsOf: $0) }
             let cachedData = cacheURL.flatMap { try? Data(contentsOf: $0) }
             // 캐시가 번들보다 최신일 때만 채택 — 날짜만 먼저 보고 이긴 쪽만 전부 파싱한다.
             return Self.parseBest([cachedData, bundleData].compactMap { $0 })
-        }.value else { return }
+        }).value else { return }
         apply(parsed)
     }
 
@@ -166,7 +166,7 @@ final class PlayerIndex {
         else { return }
         if let url = cacheURL { try? data.write(to: url, options: .atomic) }
         // 갱신분 매핑도 5만 행이다 — 메인에서 하지 않는다.
-        guard let parsed = await Task.detached(priority: .utility) { Self.parseBest([data]) }.value else { return }
+        guard let parsed = await Task.detached(priority: .utility, operation: { Self.parseBest([data]) }).value else { return }
         apply(parsed)
     }
 }
