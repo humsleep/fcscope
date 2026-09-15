@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Supabase
 import AuthenticationServices
 import CryptoKit
@@ -90,13 +91,34 @@ final class AuthManager {
         user = nil
     }
 
-    /// App Store 5.1.1(v) — 서버에서 auth.users 삭제(cascade) 후 로컬 세션 정리
+    /// App Store 5.1.1(v) — 서버에서 auth.users 삭제(cascade) 후 로컬 세션 정리.
+    ///
+    /// Apple 로그인 계정은 Apple 토큰도 폐기해야 한다. 앱은 refresh token 을 갖고 있지 않으므로
+    /// 삭제 직전 Apple 재인증으로 authorizationCode(5분·1회용)를 받아 서버에 넘기고, 서버가 교환·폐기한다.
+    /// 재인증 시트를 사용자가 취소하면 삭제도 멈춘다(취소 = 삭제 의사 철회). 그 밖의 실패는 코드 없이 삭제를 진행한다 —
+    /// 삭제권이 토큰 폐기보다 우선이다.
     func deleteAccount() async throws {
-        let _: OkBody = try await APIClient.shared.send("/api/me/delete", method: "DELETE")
+        var body: [String: Any]?
+        if isAppleUser {
+            do {
+                if let code = try await AppleReauth.authorizationCode() { body = ["appleAuthorizationCode": code] }
+            } catch let e as ASAuthorizationError where e.code == .canceled {
+                throw AuthError.deleteCancelled
+            } catch {
+                // 재인증 실패 — 폐기 없이 삭제
+            }
+        }
+        let _: OkBody = try await APIClient.shared.send("/api/me/delete", method: "DELETE", json: body)
         Analytics.shared.track(.accountDelete)
         await Analytics.shared.flush()
         try? await client?.auth.signOut()
         user = nil
+    }
+
+    private var isAppleUser: Bool {
+        guard let user else { return false }
+        if case .string("apple") = user.appMetadata["provider"] { return true }
+        return user.identities?.contains { $0.provider == "apple" } ?? false
     }
 
     private static func randomNonce(length: Int = 32) -> String {
@@ -107,12 +129,50 @@ final class AuthManager {
     }
 
     enum AuthError: LocalizedError {
-        case notConfigured, appleFailed
+        case notConfigured, appleFailed, deleteCancelled
         var errorDescription: String? {
             switch self {
             case .notConfigured: return "로그인 준비 중이에요. 전적 검색·스쿼드·픽 랭킹은 로그인 없이 쓸 수 있어요."
             case .appleFailed: return "Apple 로그인에 실패했어요."
+            case .deleteCancelled: return "Apple 확인을 취소해 계정 삭제를 멈췄어요."
             }
+        }
+    }
+}
+
+/// 계정 삭제 직전 Apple 재인증 — authorizationCode 만 필요하므로 scope 없이 요청한다.
+@MainActor
+final class AppleReauth: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    private var continuation: CheckedContinuation<String?, Error>?
+    /// 컨트롤러는 delegate 를 약하게 잡는다 — 요청이 끝날 때까지 여기서 붙잡아 둔다.
+    private static var inFlight: AppleReauth?
+
+    static func authorizationCode() async throws -> String? {
+        let reauth = AppleReauth()
+        inFlight = reauth
+        defer { inFlight = nil }
+        return try await withCheckedThrowingContinuation { cont in
+            reauth.continuation = cont
+            let controller = ASAuthorizationController(authorizationRequests: [ASAuthorizationAppleIDProvider().createRequest()])
+            controller.delegate = reauth
+            controller.presentationContextProvider = reauth
+            controller.performRequests()
+        }
+    }
+
+    // ASAuthorizationController 는 delegate 를 메인 스레드에서 부른다.
+    nonisolated func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        let code = (authorization.credential as? ASAuthorizationAppleIDCredential)?.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
+        MainActor.assumeIsolated { continuation?.resume(returning: code); continuation = nil }
+    }
+
+    nonisolated func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        MainActor.assumeIsolated { continuation?.resume(throwing: error); continuation = nil }
+    }
+
+    nonisolated func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        MainActor.assumeIsolated {
+            UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first ?? ASPresentationAnchor()
         }
     }
 }
