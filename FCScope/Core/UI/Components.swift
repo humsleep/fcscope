@@ -267,7 +267,7 @@ struct ShareCardSheet: View {
                 Analytics.shared.track(.cardShare, ["type": Analytics.cardType(filename), "channel": "system"])
             })
             .buttonStyle(.bordered)
-            Text("앱에서 직접 만든 이미지예요. 서버를 거치지 않아 즉시 생성됩니다.")
+            Text("앱에서 직접 만든 이미지예요. 서버를 거치지 않아 바로 만들어져요.")
                 .fcFont(11).foregroundStyle(FC.muted)
         }
         .padding(20)
@@ -307,7 +307,11 @@ struct MatchRow: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text(String(format: "%.1f", m.score)).fcScoreboard(16).foregroundStyle(m.score >= 6.5 ? FC.accent : m.score < 5 ? FC.lose : FC.ink)
+                // 큰 숫자에 이름이 없어 바로 아래 "평점"과 같은 값으로 오해했다 — FC Scope 스코어임을 밝힌다.
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text("스코어").fcFont(10).foregroundStyle(FC.muted)
+                    Text(String(format: "%.1f", m.score)).fcScoreboard(16).foregroundStyle(m.score >= 6.5 ? FC.accent : m.score < 5 ? FC.lose : FC.ink)
+                }
                 Text("평점 \(String(format: "%.1f", m.me.rating))").fcFont(11).foregroundStyle(FC.muted)
             }
             Image(systemName: "chevron.right").fcFont(12).foregroundStyle(FC.muted)
@@ -361,6 +365,15 @@ struct RuleBadge: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
+}
+
+/// "4:04" 장식은 진짜 없는 대상일 때만 — 502·오프라인은 다른 장식(ErrorState 참고).
+extension APIError: ErrorDecorating {
+    var decorationIsNotFound: Bool {
+        if case .server(let code, _, let status, _) = self { return status == 404 || code.hasSuffix("not_found") }
+        return false
+    }
+    var decorationIsNetwork: Bool { if case .network = self { return true }; return false }
 }
 
 /// 비동기 로드 상태 공용
