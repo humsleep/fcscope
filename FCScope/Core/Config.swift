@@ -54,23 +54,26 @@ enum AppConfig {
         return id
     }
 
-    /// TestFlight 로 설치된 빌드인가. 영수증 파일 이름이 배포판과 다르다.
+    /// 설치 경로. 광고 단위와 통계 env(서버 허용값 debug/testflight/appstore)가 모두 이것 하나로 정해진다.
     ///
-    /// TestFlight 는 Release 빌드라 그냥 두면 **실제 광고가 나간다**. 개발자가 테스트하며 누른
-    /// 광고는 무효 트래픽으로 집계되고, 반복되면 AdMob 계정이 정지된다(복구가 까다롭다).
-    /// 그래서 TestFlight 에서는 App Store 빌드와 같은 코드를 돌리되 광고만 테스트 단위로 바꾼다.
-    static var isTestFlight: Bool {
-        Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
-    }
+    /// TestFlight·Xcode 직접 설치·Ad-hoc 은 Release 빌드일 수 있어 그냥 두면 **실제 광고가 나간다**.
+    /// 개발자가 테스트하며 누른 광고는 무효 트래픽으로 집계되고, 반복되면 AdMob 계정이 정지된다(복구가 까다롭다).
+    /// - `embedded.mobileprovision` 이 있으면 개발·Ad-hoc 서명 설치다(App Store·TestFlight 빌드에는 없다).
+    ///   이런 설치의 영수증 이름은 "receipt" 라, 예전의 sandboxReceipt 검사만으로는 App Store 판으로 오인했다.
+    /// - 영수증 이름이 sandboxReceipt 면 TestFlight.
+    enum Distribution: String { case debug, testflight, appstore }
+    static let distribution: Distribution = {
+        #if DEBUG || targetEnvironment(simulator)
+        return .debug
+        #else
+        if Bundle.main.path(forResource: "embedded", ofType: "mobileprovision") != nil { return .debug }
+        if Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt" { return .testflight }
+        return .appstore
+        #endif
+    }()
 
     /// 실제 광고를 내보내도 되는 빌드인가 — App Store 배포판만.
-    private static var servesRealAds: Bool {
-        #if DEBUG
-        return false
-        #else
-        return !isTestFlight
-        #endif
-    }
+    private static var servesRealAds: Bool { distribution == .appstore }
 
     /// 배너 광고 단위. nil 이면 광고를 아예 초기화하지 않는다.
     static var bannerAdUnit: String? {

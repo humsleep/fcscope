@@ -49,13 +49,7 @@ final class Analytics {
     }
 
     /// 통계는 appstore 만 센다. 개발·TestFlight 기록이 섞이면 초기 수치가 부풀려진다.
-    private var env: String {
-        #if DEBUG
-        return "debug"
-        #else
-        return AppConfig.isTestFlight ? "testflight" : "appstore"
-        #endif
-    }
+    private var env: String { AppConfig.distribution.rawValue }
 
     func track(_ event: Event, _ props: [String: Any] = [:]) {
         queue.append(["name": event.rawValue, "props": props, "at": Self.iso.string(from: Date())])
