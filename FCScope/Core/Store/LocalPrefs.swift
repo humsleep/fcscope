@@ -15,7 +15,8 @@ final class LocalPrefs {
     var myNickname: String? {
         didSet {
             Self.suite.set(myNickname, forKey: "myNickname")
-            if oldValue != myNickname { Task { await PushManager.shared.registerIfAuthorized() } }
+            // 위젯은 저장된 구단주명으로 그린다 — 바꾼 직후 3시간 동안 옛 구단주가 떠 있지 않게 즉시 갱신.
+            if oldValue != myNickname { Task { await PushManager.shared.registerIfAuthorized() }; WidgetBridge.reload(.myForm) }
         }
     }
     var blockedUsers: [String] { didSet { save("blocked", blockedUsers) } }
@@ -61,8 +62,13 @@ final class LocalPrefs {
     func recordForm(nick: String, winRate: Int, score: Double, streak: Int, form: [String] = []) {
         let key = nick.lowercased()
         let prev = formSnapshots[key]
-        formSnapshots[key] = FormSnapshot(winRate: winRate, score: score, streak: streak, updatedAt: Date(), prevWinRate: prev?.winRate, form: form.isEmpty ? prev?.form : form)
-        WidgetBridge.reload()
+        // 캐시 → 네트워크로 같은 값이 연달아 들어오면 prev 가 현재값으로 덮여 델타 배지가 사라졌다 — 승률이 바뀔 때만 한 칸 민다.
+        let next = FormSnapshot(winRate: winRate, score: score, streak: streak, updatedAt: Date(),
+                                prevWinRate: prev.flatMap { p -> Int? in p.winRate == winRate ? p.prevWinRate : p.winRate }, form: form.isEmpty ? prev?.form : form)
+        formSnapshots[key] = next
+        // 위젯은 내 구단주 폼만 그린다. 남의 전적을 볼 때마다 모든 위젯을 다시 돌리면 WidgetKit 갱신 예산만 태운다.
+        let changed = prev.map { $0.winRate != next.winRate || $0.score != next.score || $0.streak != next.streak || $0.form != next.form } ?? true
+        if changed, let mine = myNickname, mine.caseInsensitiveCompare(nick) == .orderedSame { WidgetBridge.reload(.myForm) }
     }
     func snapshot(for nick: String) -> FormSnapshot? { formSnapshots[nick.lowercased()] }
 

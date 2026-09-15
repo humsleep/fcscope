@@ -257,6 +257,17 @@ struct MatchPlayerRow: Decodable, Identifiable {
 
 // MARK: - meta / player
 
+/// 서버의 `delta` 는 세 가지 뜻이다: 숫자(순위 변동) · `null`(어제 없던 신규 진입) · 키 없음(비교 불가).
+/// 합성 Decodable 은 `Int??` 를 decodeIfPresent 로 풀어 `null` 을 바깥 nil(키 없음)로 뭉개 버린다 —
+/// 그래서 NEW 배지가 한 번도 안 뜨고 "▲0" 이 찍혔다. 키 존재 여부와 null 을 따로 본다.
+extension KeyedDecodingContainer {
+    func decodeNullable<T: Decodable>(_ type: T.Type, forKey key: Key) throws -> T?? {
+        guard contains(key) else { return nil }
+        if try decodeNil(forKey: key) { return .some(nil) }
+        return .some(try decode(T.self, forKey: key))
+    }
+}
+
 struct MetaResponse: Decodable {
     let matchType: Int
     let date: String?
@@ -272,6 +283,17 @@ struct Mover: Decodable, Identifiable {
     var id: String { "\(spId)-\(position)" }
     var isNew: Bool { if case .some(.none) = delta { return true }; return false }
     var deltaValue: Int? { if case .some(.some(let d)) = delta { return d }; return nil }
+
+    private enum CodingKeys: String, CodingKey { case spId, position, line, matchCount, delta, name, season, positionLabel, imageUrl, lineTitle }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        spId = try c.decode(Int.self, forKey: .spId); position = try c.decode(Int.self, forKey: .position)
+        line = try c.decode(String.self, forKey: .line); matchCount = try c.decode(Int.self, forKey: .matchCount)
+        delta = try c.decodeNullable(Int.self, forKey: .delta)
+        name = try c.decode(String.self, forKey: .name); season = try c.decode(String.self, forKey: .season)
+        positionLabel = try c.decode(String.self, forKey: .positionLabel); imageUrl = try c.decode(String.self, forKey: .imageUrl)
+        lineTitle = try c.decodeIfPresent(String.self, forKey: .lineTitle)
+    }
 }
 struct MetaLine: Decodable, Identifiable { let line: String; let title: String; let rows: [PickRow]; var id: String { line } }
 struct PickRow: Decodable, Identifiable {
@@ -281,6 +303,17 @@ struct PickRow: Decodable, Identifiable {
     var id: String { "\(spId)-\(position)" }
     var isNew: Bool { if case .some(.none) = delta { return true }; return false }
     var deltaValue: Int? { if case .some(.some(let d)) = delta { return d }; return nil }
+
+    private enum CodingKeys: String, CodingKey { case spId, position, matchCount, goalsPerMatch, passPct, delta, name, season, positionLabel, imageUrl }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        spId = try c.decode(Int.self, forKey: .spId); position = try c.decode(Int.self, forKey: .position)
+        matchCount = try c.decode(Int.self, forKey: .matchCount)
+        goalsPerMatch = try c.decode(Double.self, forKey: .goalsPerMatch); passPct = try c.decode(Double.self, forKey: .passPct)
+        delta = try c.decodeNullable(Int.self, forKey: .delta)
+        name = try c.decode(String.self, forKey: .name); season = try c.decode(String.self, forKey: .season)
+        positionLabel = try c.decode(String.self, forKey: .positionLabel); imageUrl = try c.decode(String.self, forKey: .imageUrl)
+    }
 }
 struct PlayerDetail: Decodable {
     let spid: Int

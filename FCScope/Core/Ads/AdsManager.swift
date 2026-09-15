@@ -198,24 +198,40 @@ enum SearchGate {
 /// 적응형 배너 (메타·커뮤니티 하단 전용 — 전적 화면엔 두지 않는다)
 struct BannerAdView: UIViewRepresentable {
     let width: CGFloat
+    /// 받은 광고의 실제 높이. 실패하면 0 — 고정 60pt 는 큰 적응형 배너를 잘랐고, 광고가 없을 때 빈 칸을 남겼다.
+    @Binding var height: CGFloat?
+    func makeCoordinator() -> Coordinator { Coordinator(height: $height) }
     func makeUIView(context: Context) -> BannerView {
-        let v = BannerView(adSize: currentOrientationAnchoredAdaptiveBanner(width: width))
+        let v = BannerView(adSize: largeAnchoredAdaptiveBanner(width: width))
         v.adUnitID = AppConfig.bannerAdUnit ?? ""
         v.rootViewController = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController }.first
+        v.delegate = context.coordinator
         v.load(Request())
         return v
     }
     func updateUIView(_ uiView: BannerView, context: Context) {}
+
+    final class Coordinator: NSObject, BannerViewDelegate {
+        private let height: Binding<CGFloat?>
+        init(height: Binding<CGFloat?>) { self.height = height }
+        func bannerViewDidReceiveAd(_ bannerView: BannerView) {
+            let h = max(bannerView.adSize.size.height, bannerView.frame.height)
+            height.wrappedValue = h > 0 ? h : nil
+        }
+        func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) { height.wrappedValue = 0 }
+    }
 }
 
 struct AdSlot: View {
     @State private var ads = AdsManager.shared
+    /// nil = 로딩 중(예상 높이만큼 자리 확보), 0 = 광고 없음(접힘)
+    @State private var height: CGFloat?
     var body: some View {
         if ads.ready && ads.canShowAds {
             GeometryReader { geo in
-                BannerAdView(width: geo.size.width)
+                BannerAdView(width: geo.size.width, height: $height)
             }
-            .frame(height: 60)
+            .frame(height: height ?? 60)
         }
     }
 }

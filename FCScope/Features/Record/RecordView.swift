@@ -50,7 +50,10 @@ final class RecordViewModel {
         최대 60초 걸리는 경기 30건을 기다리며 빈 화면을 보는 문제를 없앤다.
      */
     func load(force: Bool = false) async {
-        if !force, let hit: (value: UserOverview, isFresh: Bool) = await APIClient.shared.cachedValue(path, query: query) {
+        // 유형을 바꾸는 사이 늦게 온 이전 유형 응답이 새 유형 화면을 덮지 않도록, 요청 시점 유형과 대조한다.
+        let type = matchType, q = query
+        if !force, let hit: (value: UserOverview, isFresh: Bool) = await APIClient.shared.cachedValue(path, query: q) {
+            guard type == matchType else { return }
             apply(hit.value)
             loadedFromCache = true
             if hit.isFresh { return } // 2분 이내 → 네트워크 생략
@@ -59,9 +62,12 @@ final class RecordViewModel {
             await loadQuickProfile()
         }
         do {
-            apply(try await APIClient.shared.getAndCache(path, query: query, auth: false))
+            let o: UserOverview = try await APIClient.shared.getAndCache(path, query: q, auth: false)
+            guard type == matchType else { return }
+            apply(o)
             loadedFromCache = false
         } catch {
+            guard type == matchType else { return }
             if overview.value == nil { overview = .failed(error) }
         }
     }
@@ -85,47 +91,61 @@ final class RecordViewModel {
         }
         quickProfile = nil
         LocalPrefs.shared.addRecent(o.profile.nickname)
-        LocalPrefs.shared.recordForm(nick: o.profile.nickname, winRate: o.summary.winRate, score: o.score, streak: o.perf.currentStreak, form: o.matches.prefix(5).map(\.result))
+        // 폼 스냅샷(홈 내 구단·즐겨찾기 델타·위젯)은 공식경기 기준이다 — 감독모드 승률이 섞이면 델타가 튄다.
+        if o.matchType == 50 {
+            LocalPrefs.shared.recordForm(nick: o.profile.nickname, winRate: o.summary.winRate, score: o.score, streak: o.perf.currentStreak, form: o.matches.prefix(5).map(\.result))
+        }
         Task { await AdsManager.shared.requestConsentIfNeeded() }
     }
-    func changeType(_ t: Int) async {
+
+    private var typeTask: Task<Void, Never>?
+    /// 유형 전환 — 이전 유형의 진행 중 조회는 취소한다(응답이 늦게 와도 load 의 유형 대조가 한 번 더 막는다).
+    func selectType(_ t: Int) {
         guard t != matchType else { return }
         matchType = t
         report = .idle; players = .idle; playstyle = .idle
-        await load(force: true)
-        await loadSection()
+        typeTask?.cancel()
+        typeTask = Task {
+            await load(force: true)
+            guard !Task.isCancelled else { return }
+            await loadSection()
+        }
     }
     func loadSection() async {
         Analytics.shared.track(.sectionView, ["section": String(describing: section)])
+        let type = matchType, q = query
         switch section {
         case .matches: break
         case .report:
             if report.value != nil { return }
             let p = "/api/v1/user/\(enc)/report"
-            if let hit: (value: ReportResponse, isFresh: Bool) = await APIClient.shared.cachedValue(p, query: query) {
+            if let hit: (value: ReportResponse, isFresh: Bool) = await APIClient.shared.cachedValue(p, query: q) {
+                guard type == matchType else { return }
                 report = .loaded(hit.value)
                 if hit.isFresh { return }
             } else { report = .loading }
-            do { report = .loaded(try await APIClient.shared.getAndCache(p, query: query, auth: false)) }
-            catch { if report.value == nil { report = .failed(error) } }
+            do { let r: ReportResponse = try await APIClient.shared.getAndCache(p, query: q, auth: false); guard type == matchType else { return }; report = .loaded(r) }
+            catch { if type == matchType, report.value == nil { report = .failed(error) } }
         case .players:
             if players.value != nil { return }
             let p = "/api/v1/user/\(enc)/players"
-            if let hit: (value: PlayersResponse, isFresh: Bool) = await APIClient.shared.cachedValue(p, query: query) {
+            if let hit: (value: PlayersResponse, isFresh: Bool) = await APIClient.shared.cachedValue(p, query: q) {
+                guard type == matchType else { return }
                 players = .loaded(hit.value)
                 if hit.isFresh { return }
             } else { players = .loading }
-            do { players = .loaded(try await APIClient.shared.getAndCache(p, query: query, auth: false)) }
-            catch { if players.value == nil { players = .failed(error) } }
+            do { let r: PlayersResponse = try await APIClient.shared.getAndCache(p, query: q, auth: false); guard type == matchType else { return }; players = .loaded(r) }
+            catch { if type == matchType, players.value == nil { players = .failed(error) } }
         case .style:
             if playstyle.value != nil { return }
             let p = "/api/v1/user/\(enc)/playstyle"
-            if let hit: (value: PlaystyleResponse, isFresh: Bool) = await APIClient.shared.cachedValue(p, query: query) {
+            if let hit: (value: PlaystyleResponse, isFresh: Bool) = await APIClient.shared.cachedValue(p, query: q) {
+                guard type == matchType else { return }
                 playstyle = .loaded(hit.value)
                 if hit.isFresh { return }
             } else { playstyle = .loading }
-            do { playstyle = .loaded(try await APIClient.shared.getAndCache(p, query: query, auth: false)) }
-            catch { if playstyle.value == nil { playstyle = .failed(error) } }
+            do { let r: PlaystyleResponse = try await APIClient.shared.getAndCache(p, query: q, auth: false); guard type == matchType else { return }; playstyle = .loaded(r) }
+            catch { if type == matchType, playstyle.value == nil { playstyle = .failed(error) } }
         }
     }
     func refresh() async {
@@ -280,7 +300,7 @@ struct RecordView: View {
         Picker("매치 유형", selection: Binding(
             get: { vm.matchType },
             // $0 를 중첩 클로저 안에서 쓰면 Binding 의 2인자 오버로드로 해석된다 — 이름을 준다.
-            set: { newType in Task { await vm.changeType(newType) } }
+            set: { newType in vm.selectType(newType) }
         )) {
             ForEach(o.matchTabs) { t in Text(t.label).tag(t.type) }
         }

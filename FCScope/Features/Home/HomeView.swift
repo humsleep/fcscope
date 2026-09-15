@@ -24,6 +24,8 @@ struct HomeView: View {
     @State private var vm = HomeViewModel()
     @State private var prefs = LocalPrefs.shared
     @State private var query = ""
+    /// 검색창 활성 상태 — 제안 탭 후 닫고, "전적 · 분석 리포트" 카드에서 열 때 쓴다.
+    @State private var searchPresented = false
 
     var body: some View {
         ScrollView {
@@ -44,11 +46,17 @@ struct HomeView: View {
         }
         .fcScreen()
         .navigationTitle("전적").navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $query, prompt: "구단주명 검색")
+        .searchable(text: $query, isPresented: $searchPresented, prompt: "구단주명 검색")
         .onSubmit(of: .search) { search(query) }
         .searchSuggestions {
+            // .searchCompletion 은 onSubmit(of: .search) 를 태워 직접 입력 검색으로 셌다(SearchGate 광고 카운트).
+            // 최근 검색 제안은 칩과 같은 탐색이라 바로 이동한다.
             ForEach(prefs.recentSearches.filter { query.isEmpty || $0.localizedCaseInsensitiveContains(query) }, id: \.self) { n in
-                Text(n).searchCompletion(n)
+                Button {
+                    query = ""
+                    searchPresented = false
+                    router.push(.user(n))
+                } label: { Text(n) }
             }
         }
         .task { await vm.load() }
@@ -210,11 +218,17 @@ struct HomeView: View {
     private var featureGrid: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("여기서 할 수 있는 것")
-            feature("전적 · 분석 리포트", "슛맵부터 스쿼드 진단까지", "경기별 슛맵, 선수 성적표, 플레이스타일을 한 번에.") { }
+            feature("전적 · 분석 리포트", "슛맵부터 스쿼드 진단까지", "경기별 슛맵, 선수 성적표, 플레이스타일을 한 번에.") { openReportFeature() }
             feature("스쿼드 빌더", "스쿼드 만들고 공유", "포메이션에 선수 배치, 팀 프리셋, 최근 경기 선발 그대로 불러오기.") { router.tab = .squad }
             feature("랭커 픽 랭킹 · 선수 도감", "지금 랭커는 누굴 쓸까", "상위 랭커가 많이 쓴 카드를 포지션별로 매일 갱신.") { router.tab = .meta }
             feature("커뮤니티 · 배틀", "자랑하고, 모으고, 겨룬다", "스쿼드 자랑과 평가, 클럽원 모집, 투표로 겨루는 스쿼드 배틀.") { router.tab = .community }
         }
+    }
+    /// 누르면 아무 일도 없던 카드 — 내 구단 → 예시(데모) 리포트 → 검색창 순으로 연다.
+    private func openReportFeature() {
+        if let mine = prefs.myNickname { router.push(.user(mine)) }
+        else if let demo = vm.state.value?.demoNickname { router.push(.user(demo)) }
+        else { searchPresented = true }
     }
     private func feature(_ tag: String, _ title: String, _ desc: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {

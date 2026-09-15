@@ -132,7 +132,14 @@ struct MatchCardView: View {
 
     private func potm(_ p: MatchDetailResponse.Potm) -> some View {
         HStack(spacing: 28) {
-            PlayerImage(spid: p.spId, size: 96, radius: 20)
+            // ImageRenderer 는 .task 를 돌리지 않아 PlayerImage 는 늘 빈칸이었다 —
+            // ShareCardButton 이 렌더 전에 prefetch 를 끝내 두므로 캐시에서 바로 꺼낸다(SquadCardView 와 동일).
+            ZStack {
+                Color.white.opacity(0.10)
+                if let img = ImageCache.cached(spid: p.spId) { Image(uiImage: img).resizable().scaledToFill() }
+            }
+            .frame(width: 96, height: 96)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             VStack(alignment: .leading, spacing: 8) {
                 Text("POTM").font(.scoreboard(30)).kerning(3).foregroundStyle(CardPalette.gold)
                 // 한 줄: 구단주명 · 포지션 · 선수

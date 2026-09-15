@@ -1,4 +1,4 @@
 import WidgetKit
 enum WidgetKitReloader {
-    static func reload() { WidgetCenter.shared.reloadAllTimelines() }
+    static func reload(kind: String) { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
 }
