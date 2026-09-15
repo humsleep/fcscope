@@ -44,7 +44,13 @@ final class AppRouter {
         var parts: [String]
         if url.scheme == "fcscope" {
             guard let host = url.host else { return }
-            if host == "auth" { Task { _ = await AuthManager.shared.handleOpenURL(url) }; return }
+            // fcscope://auth/* 는 건드리지 않는다.
+            //
+            // signInWithOAuth 가 ASWebAuthenticationSession 을 직접 열고 콜백 교환까지 소유한다.
+            // 여기서 같은 URL 을 한 번 더 교환하면 PKCE code verifier 가 이미 소비된 뒤라
+            // "both auth code and code verifier should be non-empty" 로 실패한다.
+            // (세션이 활성인 동안 iOS 는 콜백을 세션에만 전달하므로 이 경로는 원래 타지 않는다.)
+            if host == "auth" { return }
             parts = [host] + url.pathComponents.filter { $0 != "/" }
         } else {
             guard let host = url.host, host.hasSuffix("fcscope.xyz") else { return }

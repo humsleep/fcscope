@@ -80,12 +80,6 @@ final class AuthManager {
         Haptic.success()
     }
 
-    /// 앱이 fcscope://auth/callback?code=… 로 열렸을 때 (Google PKCE 복귀)
-    func handleOpenURL(_ url: URL) async -> Bool {
-        guard url.scheme == "fcscope", url.host == "auth", let client else { return false }
-        do { try await client.auth.session(from: url); return true } catch { return false }
-    }
-
     func signOut() async {
         try? await client?.auth.signOut()
         user = nil
