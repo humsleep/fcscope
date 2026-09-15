@@ -25,11 +25,16 @@ struct MatchReportView: View {
         let q = me.map { ["me": $0] } ?? [:]
         if let hit: (value: MatchDetailResponse, isFresh: Bool) = await APIClient.shared.cachedValue(p, query: q) {
             state = .loaded(hit.value)
+            Analytics.shared.track(.matchView, ["cached": true])
             Haptic.medium()
             return
         }
         state = .loading
-        do { state = .loaded(try await APIClient.shared.getAndCache(p, query: q, auth: false)); Haptic.medium() }
+        do {
+            state = .loaded(try await APIClient.shared.getAndCache(p, query: q, auth: false))
+            Analytics.shared.track(.matchView, ["cached": false])
+            Haptic.medium()
+        }
         catch { state = .failed(error) }
     }
 

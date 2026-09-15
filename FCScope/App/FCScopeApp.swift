@@ -6,6 +6,7 @@ import UserNotifications
 struct FCScopeApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var router = AppRouter.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -15,6 +16,13 @@ struct FCScopeApp: App {
                 .onOpenURL { url in router.handle(url: url) }
                 .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
                     if let url = activity.webpageURL { router.handle(url: url) }
+                }
+                .onChange(of: scenePhase, initial: true) { _, phase in
+                    switch phase {
+                    case .active: Analytics.shared.appBecameActive()
+                    case .background: Analytics.shared.appWentBackground()
+                    default: break
+                    }
                 }
         }
     }

@@ -92,6 +92,8 @@ final class AuthManager {
     /// App Store 5.1.1(v) — 서버에서 auth.users 삭제(cascade) 후 로컬 세션 정리
     func deleteAccount() async throws {
         let _: OkBody = try await APIClient.shared.send("/api/me/delete", method: "DELETE")
+        Analytics.shared.track(.accountDelete)
+        await Analytics.shared.flush()
         try? await client?.auth.signOut()
         user = nil
     }

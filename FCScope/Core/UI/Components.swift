@@ -235,6 +235,7 @@ struct ShareCardButton: View {
             error = "이미지 생성에 실패했어요. 잠시 후 다시 시도해 주세요."
         } else {
             Haptic.success()
+            Analytics.shared.track(.cardCreate, ["type": Analytics.cardType(filename)])
             showSheet = true
         }
     }
@@ -249,7 +250,11 @@ struct ShareCardSheet: View {
             Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 420)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
             if InstagramShare.available {
-                Button { InstagramShare.shareStory(image); dismiss() } label: {
+                Button {
+                    Analytics.shared.track(.cardShare, ["type": Analytics.cardType(filename), "channel": "instagram"])
+                    InstagramShare.shareStory(image)
+                    dismiss()
+                } label: {
                     Label("인스타그램 스토리에 올리기", systemImage: "camera.circle.fill").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk)
@@ -257,6 +262,10 @@ struct ShareCardSheet: View {
             ShareLink(item: Image(uiImage: image), preview: SharePreview("FC Scope 카드", image: Image(uiImage: image))) {
                 Label("공유 · 저장", systemImage: "square.and.arrow.up").frame(maxWidth: .infinity)
             }
+            // ShareLink 는 완료 콜백이 없다 — 시트를 연 시점을 공유 의사로 센다.
+            .simultaneousGesture(TapGesture().onEnded {
+                Analytics.shared.track(.cardShare, ["type": Analytics.cardType(filename), "channel": "system"])
+            })
             .buttonStyle(.bordered)
             Text("앱에서 직접 만든 이미지예요. 서버를 거치지 않아 즉시 생성됩니다.")
                 .fcFont(11).foregroundStyle(FC.muted)

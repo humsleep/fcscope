@@ -77,9 +77,11 @@ final class AdsManager {
     /// 광고 로딩 실패가 검색을 막으면 안 된다.
     func showInterstitialIfReady() async {
         guard let ad = interstitial, let root = Self.topViewController() else {
+            Analytics.shared.track(.interstitial, ["result": "not_ready"])
             await preloadInterstitial()
             return
         }
+        Analytics.shared.track(.interstitial, ["result": "shown"])
         interstitial = nil
         await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
             let delegate = InterstitialDelegate { cont.resume() }

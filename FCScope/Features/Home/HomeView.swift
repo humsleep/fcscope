@@ -61,7 +61,9 @@ struct HomeView: View {
         Haptic.light()
         query = ""
         Task {
-            if SearchGate.shouldShowAd() { await AdsManager.shared.showInterstitialIfReady() }
+            let gated = SearchGate.shouldShowAd()
+            Analytics.shared.track(.search, ["gated": gated])
+            if gated { await AdsManager.shared.showInterstitialIfReady() }
             router.push(.user(nick))
         }
     }

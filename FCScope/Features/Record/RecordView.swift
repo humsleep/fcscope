@@ -74,8 +74,15 @@ final class RecordViewModel {
         }
     }
 
+    /// 캐시 → 네트워크로 apply 가 두 번 불리므로 조회 1회는 한 번만 센다.
+    private var viewTracked = false
+
     private func apply(_ o: UserOverview) {
         overview = .loaded(o)
+        if !viewTracked {
+            viewTracked = true
+            Analytics.shared.track(.recordView, ["match_type": matchType])
+        }
         quickProfile = nil
         LocalPrefs.shared.addRecent(o.profile.nickname)
         LocalPrefs.shared.recordForm(nick: o.profile.nickname, winRate: o.summary.winRate, score: o.score, streak: o.perf.currentStreak, form: o.matches.prefix(5).map(\.result))
@@ -89,6 +96,7 @@ final class RecordViewModel {
         await loadSection()
     }
     func loadSection() async {
+        Analytics.shared.track(.sectionView, ["section": String(describing: section)])
         switch section {
         case .matches: break
         case .report:
@@ -169,7 +177,11 @@ struct RecordView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 4) {
-                    Button { Haptic.light(); prefs.toggleFavorite(nickname) } label: {
+                    Button {
+                        Haptic.light()
+                        if !prefs.isFavorite(nickname) { Analytics.shared.track(.favoriteAdd) }
+                        prefs.toggleFavorite(nickname)
+                    } label: {
                         Image(systemName: prefs.isFavorite(nickname) ? "star.fill" : "star").foregroundStyle(FC.gold)
                     }
                     .accessibilityLabel(prefs.isFavorite(nickname) ? "즐겨찾기 해제" : "즐겨찾기 추가")
