@@ -37,10 +37,11 @@ final class AuthManager {
         defer { loading = false }
         guard let client else { return }
         if let session = try? await client.auth.session { user = session.user }
-        Task.detached { [weak self] in
-            guard let client = await self?.client else { return }
+        // 메인 액터를 물려받는 Task 로 구독한다 — detached + MainActor.run 은 캡처한 self 를
+        // 동시 실행 코드에서 참조해 Swift 6 에서 에러가 된다. 싱글턴이라 강한 참조여도 누수 없음.
+        Task {
             for await (event, session) in client.auth.authStateChanges {
-                await MainActor.run { self?.handle(event: event, session: session) }
+                handle(event: event, session: session)
             }
         }
     }
@@ -54,7 +55,7 @@ final class AuthManager {
     }
 
     nonisolated func accessToken() async -> String? {
-        guard let client = await client else { return nil }
+        guard let client else { return nil }   // let 프로퍼티라 액터 홉 없이 읽힌다
         return try? await client.auth.session.accessToken
     }
 
