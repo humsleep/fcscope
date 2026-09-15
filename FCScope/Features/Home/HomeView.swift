@@ -94,7 +94,7 @@ struct HomeView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         SectionLabel("처음이신가요?", color: FC.gold)
                         Text("예시 리포트 먼저 보기").fcFont(17, weight: .bold).foregroundStyle(FC.ink)
-                        Text("실제 구단주 \(nick) 의 전적·슛맵·진단을 그대로 볼 수 있어요.").fcFont(13).foregroundStyle(FC.muted)
+                        Text("실제 구단주 \(nick)의 전적·슛맵·진단을 그대로 볼 수 있어요.").fcFont(13).foregroundStyle(FC.muted)
                     }
                     Spacer()
                     Image(systemName: "chevron.right").foregroundStyle(FC.muted)
@@ -255,16 +255,28 @@ struct OnboardingView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "person.text.rectangle").fcFont(56).foregroundStyle(FC.accent)
                     Text("내 구단주명을 알려주세요").fcFont(22, weight: .bold).foregroundStyle(FC.ink)
-                    Text("홈에 내 폼 카드가 고정되고, 위젯·주간 성적표에 쓰여요. 나중에 바꿀 수 있어요.").fcFont(14).foregroundStyle(FC.muted).multilineTextAlignment(.center)
+                    // 다른 페이지와 같은 좌우 여백 — 없으면 이 페이지만 설명이 화면 끝까지 붙는다.
+                    Text("홈에 내 폼 카드가 고정되고, 위젯·주간 성적표에 쓰여요. 나중에 바꿀 수 있어요.").fcFont(14).foregroundStyle(FC.muted).multilineTextAlignment(.center).padding(.horizontal, 32)
                     TextField("FC온라인 구단주명", text: $nick).textFieldStyle(.roundedBorder).padding(.horizontal, 32).autocorrectionDisabled()
                 }.tag(1)
                 onboardPage(icon: "bell.badge", title: "주간 성적표를 받아볼까요?", desc: "일요일 밤 이번 주 승률·연승 리캡, 금요일엔 랭커 메타 한 줄 요약만 보내요. 경기마다 알림하지 않아요.").tag(2)
             }
             .tabViewStyle(.page)
-            Button {
-                if page < 2 { withAnimation { page += 1 } } else { finish() }
-            } label: { Text(page == 1 && nick.isEmpty ? "나중에 입력할게요" : page < 2 ? "다음" : "시작하기").frame(maxWidth: .infinity) }
-            .buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk)
+            // 기본 페이지 점은 흰색이라 라이트 모드 배경(거의 흰색)에서 보이지 않았다 — 반투명 배경 캡슐을 깐다.
+            .indexViewStyle(.page(backgroundDisplayMode: .always))
+            VStack(spacing: 8) {
+                Button {
+                    if page < 2 { withAnimation { page += 1 } } else { finish(requestPush: true) }
+                } label: { Text(page == 1 && nick.isEmpty ? "나중에 입력할게요" : page < 2 ? "다음" : "알림 받기").frame(maxWidth: .infinity) }
+                .buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk)
+                // HIG: 권한 요청 직전 화면에는 거절할 길이 있어야 한다. "시작하기" 하나뿐이라
+                // 누르는 순간 시스템 알림 팝업이 떠 사실상 강요였다. 거절해도 설정에서 다시 켤 수 있다.
+                if page == 2 {
+                    Button("나중에") { finish(requestPush: false) }
+                        .fcFont(15, weight: .semibold).foregroundStyle(FC.muted)
+                        .frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
+                }
+            }
             .padding(.horizontal, 24).padding(.bottom, 24)
         }
         .background(FC.bg.ignoresSafeArea())
@@ -276,10 +288,10 @@ struct OnboardingView: View {
             Text(desc).fcFont(14).foregroundStyle(FC.muted).multilineTextAlignment(.center).padding(.horizontal, 32)
         }
     }
-    private func finish() {
+    private func finish(requestPush: Bool) {
         let n = nick.trimmingCharacters(in: .whitespaces)
         if !n.isEmpty { prefs.myNickname = n }
-        Task { await PushManager.shared.requestPermission() }
+        if requestPush { Task { await PushManager.shared.requestPermission() } }
         prefs.onboardingDone = true
     }
 }

@@ -3,7 +3,8 @@ import Observation
 
 enum Route: Hashable {
     case user(String)
-    case match(id: String, me: String?)
+    /// fromRecord: 전적 화면에서 연 경기. 리포트의 "← 전적으로"가 같은 전적을 한 번 더 쌓지 않고 뒤로 가게 한다.
+    case match(id: String, me: String?, fromRecord: Bool = false)
     case player(Int)
     case post(String)
     case squad(String)
@@ -90,7 +91,7 @@ struct RouteView: View {
     var body: some View {
         switch route {
         case .user(let nick): RecordView(nickname: nick)
-        case .match(let id, let me): MatchReportView(matchId: id, me: me)
+        case .match(let id, let me, let fromRecord): MatchReportView(matchId: id, me: me, fromRecord: fromRecord)
         case .player(let spid): PlayerDetailView(spid: spid)
         case .post(let id): PostDetailView(postId: id)
         case .squad(let id): SquadDetailView(squadId: id)

@@ -1,5 +1,6 @@
 import SwiftUI
 import AuthenticationServices
+import UserNotifications
 
 struct MyPageView: View {
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -33,7 +34,8 @@ struct MyPageView: View {
                     Panel(padding: 12) { VStack(alignment: .leading, spacing: 6) { SectionLabel("내가 쓴 글"); ForEach(posts) { p in Button { router.push(.post(p.id)) } label: { HStack { Text(p.title).foregroundStyle(FC.ink).lineLimit(1); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(.plain) } } }
                 }
                 if prefs.streak.current >= 2 { Text("🔥 \(prefs.streak.current)일 연속 방문 (최고 \(prefs.streak.best)일)").fcFont(13, weight: .semibold).foregroundStyle(FC.gold) }
-                NavigationLink { SettingsView() } label: { Panel(padding: 12) { HStack { Label("설정 · 약관 · 계정", systemImage: "gearshape").foregroundStyle(FC.ink); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) } } }.buttonStyle(.plain)
+                // 시스템 기본 폰트는 AX5 까지 3배로 커져 이 한 줄이 화면 절반을 차지했다 — 앱 공통 배율(1.6배 상한)을 쓴다.
+                NavigationLink { SettingsView() } label: { Panel(padding: 12) { HStack { Label("설정 · 약관 · 계정", systemImage: "gearshape").fcFont(15).lineLimit(1).minimumScaleFactor(0.8).foregroundStyle(FC.ink); Spacer(); Image(systemName: "chevron.right").font(.system(size: 13 * TypeScale.factor(typeSize), weight: .semibold)).foregroundStyle(FC.muted) } } }.buttonStyle(.plain)
             }.padding(16)
         }
         .fcScreen().navigationTitle("내 정보").navigationBarTitleDisplayMode(.inline)
@@ -53,7 +55,15 @@ struct MyPageView: View {
     private var accountCard: some View {
         Panel {
             if !auth.isLoggedIn {
-                HStack { Text("로그인하면 연동 구단주·내 글·댓글 알림을 한 곳에서 볼 수 있어요.").fcFont(13).foregroundStyle(FC.muted); Spacer(); Button("로그인") { showLogin = true }.buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk) }
+                // 가로 배치에서 글자를 키우면 설명이 폭을 다 먹어 버튼이 "로그/인" 으로 쪼개진 큰 원이 됐다.
+                // 접근성 크기에서는 세로로 쌓고, 버튼 라벨은 한 줄 고정 + 캡슐 모양으로.
+                let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(spacing: 12))
+                layout {
+                    Text("로그인하면 연동 구단주·내 글·댓글 알림을 한 곳에서 볼 수 있어요.").fcFont(13).foregroundStyle(FC.muted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button { showLogin = true } label: { Text("로그인").fcFont(15, weight: .semibold).lineLimit(1).fixedSize() }
+                        .buttonStyle(.borderedProminent).buttonBorderShape(.capsule).tint(FC.accent).foregroundStyle(FC.accentInk)
+                }
             } else {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
@@ -102,8 +112,9 @@ struct MyPageView: View {
                         Button { router.push(.user(n)) } label: { Text(n).foregroundStyle(FC.ink) }.buttonStyle(.plain)
                         Spacer()
                         if let s = prefs.snapshot(for: n) { Text("\(s.winRate)%").fcScoreboard(12).foregroundStyle(FC.accent) }
-                        Button { prefs.toggleFavorite(n) } label: { Image(systemName: "xmark").fcFont(11).foregroundStyle(FC.muted) }.accessibilityLabel("\(n) 즐겨찾기 해제")
-                    }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8))
+                        // 11pt 아이콘 크기 그대로가 탭 영역이라 거의 안 눌렸다 — 44pt 영역(행 높이도 44로 맞춘다).
+                        Button { prefs.toggleFavorite(n) } label: { Image(systemName: "xmark").fcFont(11).foregroundStyle(FC.muted).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle()) }.buttonStyle(.plain).accessibilityLabel("\(n) 즐겨찾기 해제")
+                    }.padding(.leading, 8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8))
                 }
             }
         }
@@ -135,7 +146,7 @@ struct LoginView: View {
                     } label: {
                         HStack(alignment: .top, spacing: 10) {
                             Image(systemName: agreed ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 22))
+                                .font(.system(size: 22 * TypeScale.factor(typeSize)))   // 옆 문구와 같은 배율로 커지게
                                 .foregroundStyle(agreed ? FC.accent : FC.muted)
                             (Text("이용약관").underline() + Text("과 ") + Text("개인정보처리방침").underline() + Text("에 동의하며, 만 14세 이상입니다."))
                                 .font(.fcFont(13, typeSize)).foregroundStyle(FC.muted)
@@ -162,7 +173,7 @@ struct LoginView: View {
                     }.buttonStyle(.bordered).disabled(busy || !agreed)
                 }
                 if let e = error { Text(e).fcFont(13).foregroundStyle(FC.lose) }
-                Text("로그인 시 서비스 이용에 필요한 최소 정보(이메일·프로필)만 사용합니다.").fcFont(12).foregroundStyle(FC.muted).multilineTextAlignment(.center)
+                Text("로그인 시 서비스 이용에 필요한 최소 정보(이메일·프로필)만 사용해요.").fcFont(12).foregroundStyle(FC.muted).multilineTextAlignment(.center)
                 Spacer()
             }
             .padding(24).background(FC.bg.ignoresSafeArea())
@@ -222,6 +233,23 @@ struct SettingsView: View {
         cacheBytes < 1024 ? "0KB" : ByteCountFormatter.string(fromByteCount: Int64(cacheBytes), countStyle: .file)
     }
     private func refreshCacheSize() async { cacheBytes = await ResponseCache.shared.sizeBytes() }
+
+    @State private var notifStatus: UNAuthorizationStatus = .notDetermined
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
+    private var notifOn: Bool { [.authorized, .provisional, .ephemeral].contains(notifStatus) }
+    private func refreshNotifStatus() async { notifStatus = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus }
+    /// 이미 거절한 사용자에게 requestAuthorization 은 팝업 없이 조용히 끝나 버튼이 고장난 것처럼 보였다.
+    /// 요청할 수 있는 상태(미결정)에서만 요청하고, 그 밖에는 iOS 설정의 이 앱 알림 화면으로 보낸다.
+    private func changeNotifications() async {
+        await refreshNotifStatus()
+        if notifStatus == .notDetermined {
+            await PushManager.shared.requestPermission()
+            await refreshNotifStatus()
+        } else if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
+            openURL(url)
+        }
+    }
     var body: some View {
         Form {
             Section("내 구단") {
@@ -232,7 +260,8 @@ struct SettingsView: View {
                 else { Button("차단 \(prefs.blockedUsers.count)명 전체 해제") { prefs.blockedUsers = [] } }
             }
             Section("알림") {
-                Button("주간 성적표·메타 요약 알림 켜기") { Task { await PushManager.shared.requestPermission() } }
+                LabeledContent("주간 성적표·메타 요약 알림", value: notifOn ? "켜짐" : "꺼짐")
+                Button(notifStatus == .notDetermined ? "알림 켜기" : notifOn ? "iOS 설정에서 알림 끄기" : "iOS 설정에서 알림 켜기") { Task { await changeNotifications() } }
                 Text("일요일 밤 주간 리캡, 금요일 메타 한 줄, 내 글 새 댓글만 보내요.").fcFont(12).foregroundStyle(FC.muted)
             }
             Section("약관 · 문의") {
@@ -288,7 +317,9 @@ struct SettingsView: View {
             Section { Text("FC Scope iOS v\(AppConfig.appVersion)\nFC Scope은 비공식 팬 서비스입니다. Data based on NEXON Open API. 게임 데이터의 저작권은 NEXON·EA에 있습니다.").fcFont(12).foregroundStyle(FC.muted) }
         }
         .navigationTitle("설정")
-        .task { await refreshCacheSize() }
+        .task { await refreshCacheSize(); await refreshNotifStatus() }
+        // iOS 설정에서 알림을 바꾸고 돌아오면 상태 문구를 다시 맞춘다.
+        .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await refreshNotifStatus() } } }
         .alert("계정을 삭제할까요?", isPresented: $confirmDelete) { Button("계속", role: .destructive) { confirmDelete2 = true }; Button("취소", role: .cancel) {} } message: { Text("닉네임·구단주 연동·내가 쓴 글과 댓글·전적 스냅샷이 모두 삭제되며 되돌릴 수 없어요.") }
         .alert("정말 삭제할까요?", isPresented: $confirmDelete2) { Button("삭제", role: .destructive) { Task { do { try await auth.deleteAccount(); msg = "계정이 삭제됐어요. 그동안 이용해 주셔서 감사합니다." } catch { msg = error.localizedDescription } } }; Button("취소", role: .cancel) {} }
         .alert("알림", isPresented: Binding(get: { msg != nil }, set: { _ in msg = nil })) { Button("확인") {} } message: { Text(msg ?? "") }

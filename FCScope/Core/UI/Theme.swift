@@ -219,19 +219,44 @@ struct StatTile: View {
         Panel(padding: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(label).fcFont(12).foregroundStyle(FC.muted)
-                Text(value).fcScoreboard(20).foregroundStyle(color)
+                // 세 칸이 나란히 좁아 xxxLarge 에서 "72 / 63" 이 숫자 중간에서 줄바꿈됐다.
+                // 숫자는 쪼개지면 뜻이 바뀌므로 한 줄 고정 + 필요한 만큼만 축소한다.
+                Text(value).fcScoreboard(20).foregroundStyle(color).lineLimit(1).minimumScaleFactor(0.6)
             }
         }
     }
 }
 
+/// ErrorState 장식 분기용. Theme.swift 는 위젯 타깃에도 들어가는데 위젯에는 APIClient(APIError)가 없다 —
+/// 분류 기준만 프로토콜로 두고 앱 타깃(Components.swift)에서 APIError 가 채택한다.
+protocol ErrorDecorating {
+    var decorationIsNotFound: Bool { get }
+    var decorationIsNetwork: Bool { get }
+}
+
 struct ErrorState: View {
     let title: String
     var message: String? = nil
+    /// 장식 분기용. 502·오프라인에도 "4:04" 를 띄우면 "없는 페이지"로 오해한다 — 원인에 맞는 장식을 고른다.
+    var error: Error? = nil
     var retry: (() -> Void)? = nil
+
+    private enum Kind { case notFound, network, other }
+    private var kind: Kind {
+        if let d = error as? ErrorDecorating {
+            return d.decorationIsNotFound ? .notFound : d.decorationIsNetwork ? .network : .other
+        }
+        if error is URLError { return .network }
+        return .other
+    }
+
     var body: some View {
         VStack(spacing: 10) {
-            Text("4:04").fcScoreboard(44).foregroundStyle(FC.surface2)
+            switch kind {
+            case .notFound: Text("4:04").fcScoreboard(44).foregroundStyle(FC.surface2)
+            case .network: Image(systemName: "wifi.exclamationmark").fcFont(36).foregroundStyle(FC.muted)
+            case .other: Image(systemName: "exclamationmark.triangle").fcFont(36).foregroundStyle(FC.muted)
+            }
             Text(title).font(.headline).foregroundStyle(FC.ink)
             if let message { Text(message).font(.subheadline).foregroundStyle(FC.muted).multilineTextAlignment(.center) }
             if let retry {
@@ -245,10 +270,13 @@ struct ErrorState: View {
 struct Skeleton: View {
     var height: CGFloat = 80
     @State private var on = false
+    /// "동작 줄이기"를 켠 사용자에게 무한 반복 깜빡임은 멀미·주의 분산 요인이다 — 정지 상태로 둔다.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         RoundedRectangle(cornerRadius: 12).fill(FC.surface2).frame(height: height)
-            .opacity(on ? 0.5 : 1)
-            .onAppear { withAnimation(.easeInOut(duration: 0.9).repeatForever()) { on = true } }
+            .opacity(on && !reduceMotion ? 0.5 : 1)
+            .onAppear { if !reduceMotion { withAnimation(.easeInOut(duration: 0.9).repeatForever()) { on = true } } }
+            .accessibilityLabel("불러오는 중")
     }
 }
 

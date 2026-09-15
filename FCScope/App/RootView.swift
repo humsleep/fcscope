@@ -22,7 +22,8 @@ struct RootView: View {
                     NavigationStack(path: $router.mePath) { MyPageView().navigationDestination(for: Route.self) { RouteView(route: $0) } }
                         .tabItem { Label("내 정보", systemImage: "person.crop.circle") }.tag(Tab.me)
                 }
-                .onChange(of: router.tab) { _, _ in Haptic.light() }
+                // 탭 변경 햅틱은 제거 — router.tab 은 딥링크·"빌더로 열기" 같은 코드 경로에서도 바뀌어
+                // 사용자가 누르지 않았는데 진동이 났다. 시스템 탭 바도 기본적으로 햅틱을 주지 않는다.
             }
         }
         .preferredColorScheme(nil)

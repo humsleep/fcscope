@@ -10,9 +10,10 @@ struct MetaView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                SectionLabel("RANKER PICKS", color: FC.accent)
+                SectionLabel("랭커 픽", color: FC.accent)
                 Text("상위 랭커가 실제 경기에서 가장 많이 쓴 카드.\(state.value?.date.map { " (\($0) 스냅샷)" } ?? "")").fcFont(13).foregroundStyle(FC.muted)
-                Picker("", selection: $matchType) { Text("공식경기").tag(50); Text("감독모드").tag(52) }.pickerStyle(.segmented)
+                // 빈 라벨이면 VoiceOver 가 이름 없는 컨트롤로 읽는다 — 라벨은 주고 화면에서만 숨긴다.
+                Picker("매치 유형", selection: $matchType) { Text("공식경기").tag(50); Text("감독모드").tag(52) }.pickerStyle(.segmented).labelsHidden()
                     .onChange(of: matchType) { _, _ in Task { await load() } }
                 if !hits.isEmpty {
                     Panel(padding: 8) {
@@ -27,17 +28,24 @@ struct MetaView: View {
                 }
                 switch state {
                 case .idle, .loading: Skeleton(height: 300)
-                case .failed(let e): ErrorState(title: "픽 랭킹을 불러오지 못했어요", message: e.localizedDescription, retry: { Task { await load() } })
+                case .failed(let e): ErrorState(title: "픽 랭킹을 불러오지 못했어요", message: e.localizedDescription, error: e, retry: { Task { await load() } })
                 case .loaded(let m):
                     if m.lines.isEmpty {
-                        Panel { VStack(spacing: 6) { Text("오늘의 랭킹을 준비하고 있어요 ⚽").fcFont(15, weight: .semibold).foregroundStyle(FC.ink); Text("전적 검색이 쌓일수록 랭커 픽 랭킹이 빨리 채워져요.").fcFont(13).foregroundStyle(FC.muted) }.frame(maxWidth: .infinity) }
+                        // 작은 패널 한 칸 + 광고만 남아 고장난 화면처럼 보였다 — 시스템 빈 상태로 이유를 설명한다.
+                        ContentUnavailableView {
+                            Label("아직 랭커 데이터가 없어요", systemImage: "chart.bar.xaxis")
+                        } description: {
+                            Text("상위 랭커 경기를 매일 모아 픽 랭킹을 만들어요. 오늘 스냅샷이 쌓이면 여기에 표시돼요.")
+                        }
+                        .padding(.top, 24)
                     } else {
                         if let mv = m.mover { moverCard(mv) }
                         ForEach(m.lines) { line in lineBlock(line) }
                         Text("표본: 각 카드의 n = 랭커 경기 수. n이 작으면 신뢰도가 낮아요.").fcFont(11).foregroundStyle(FC.muted)
                     }
                 }
-                AdSlot()
+                // 빈 화면에 광고만 덩그러니 있으면 광고가 본문처럼 보인다 — 데이터가 있을 때만.
+                if !(state.value?.lines.isEmpty ?? false) { AdSlot() }
             }.padding(16)
         }
         .fcScreen().navigationTitle("픽 랭킹").navigationBarTitleDisplayMode(.inline)
@@ -120,15 +128,18 @@ struct PlayerDetailView: View {
         ScrollView {
             switch state {
             case .idle, .loading: VStack(spacing: 10) { Skeleton(height: 120); Skeleton(height: 200) }.padding(16)
-            case .failed(let e): ErrorState(title: "선수 정보를 불러오지 못했어요", message: e.localizedDescription, retry: { Task { await load() } })
+            case .failed(let e): ErrorState(title: "선수 정보를 불러오지 못했어요", message: e.localizedDescription, error: e, retry: { Task { await load() } })
             case .loaded(let p):
+                // 서버 `season` 은 요청한 카드가 아니라 최신 시즌(예: PTG 카드를 열어도 "26 TOTS")을 내려준다(2026-09-15 실측).
+                // 칩 강조(spid 기준)는 맞고 헤더가 틀렸다 — 같은 응답의 seasons 에서 spid 로 찾은 값을 우선한다.
+                let season = p.seasons.first { $0.spid == p.spid }?.season ?? p.season
                 VStack(alignment: .leading, spacing: 12) {
                     Panel {
                         HStack(spacing: 12) {
                             PlayerImage(spid: p.spid, size: 72, radius: 16)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(p.name).fcFont(22, weight: .bold).foregroundStyle(FC.ink)
-                                if !p.season.isEmpty { Chip(text: p.season, color: FC.gold, bg: FC.gold.opacity(0.15)) }
+                                if !season.isEmpty { Chip(text: season, color: FC.gold, bg: FC.gold.opacity(0.15)) }
                                 Text("랭커 실사용 \(p.ranker.totalMatches)경기\(p.ranker.date.map { " · \($0)" } ?? "")").fcFont(12).foregroundStyle(FC.muted)
                             }
                         }
@@ -151,12 +162,12 @@ struct PlayerDetailView: View {
                         Panel(padding: 12) {
                             VStack(alignment: .leading, spacing: 6) {
                                 SectionLabel("다른 시즌 카드")
-                                FlowLayout(spacing: 6) { ForEach(p.seasons) { s in Button { router.push(.player(s.spid)) } label: { Chip(text: s.season, color: s.spid == p.spid ? FC.accentInk : FC.ink, bg: s.spid == p.spid ? FC.accent : FC.surface2) }.buttonStyle(.plain) } }
+                                FlowLayout(spacing: 6) { ForEach(p.seasons) { s in Button { if s.spid != p.spid { router.push(.player(s.spid)) } } label: { Chip(text: s.season, color: s.spid == p.spid ? FC.accentInk : FC.ink, bg: s.spid == p.spid ? FC.accent : FC.surface2) }.buttonStyle(.plain) } }
                             }
                         }
                     }
                     Button {
-                        let hit = PlayerHit(spid: p.spid, pid: p.pid ?? p.spid % 1_000_000, name: p.name, season: p.season, seasons: p.seasons)
+                        let hit = PlayerHit(spid: p.spid, pid: p.pid ?? p.spid % 1_000_000, name: p.name, season: season, seasons: p.seasons)
                         // 랭커가 가장 많이 뛴 포지션의 라인에 넣는다 — 골키퍼가 공격 슬롯에 들어가지 않게.
                         let main = p.ranker.positions.filter { $0.positionLabel != "SUB" }.max { $0.matchCount < $1.matchCount }?.positionLabel
                         router.pendingSquadImport = .add(hit, line: main.map(Formation.lineOf))
