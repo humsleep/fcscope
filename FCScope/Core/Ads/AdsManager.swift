@@ -222,16 +222,29 @@ struct BannerAdView: UIViewRepresentable {
     }
 }
 
+/// 배너 자리 — 광고 크리에이티브는 대부분 흰 배경이라, 다크 화면 끝에 그냥 놓으면
+/// "본문 카드"처럼 보이거나 탭바에 눌린 흰 덩어리로 보인다. 라벨 + 카드로 감싸 광고임을 분명히 하고
+/// 탭바와 간격을 둔다. 광고가 없으면(height == 0) 자리까지 접는다.
 struct AdSlot: View {
     @State private var ads = AdsManager.shared
     /// nil = 로딩 중(예상 높이만큼 자리 확보), 0 = 광고 없음(접힘)
     @State private var height: CGFloat?
     var body: some View {
-        if ads.ready && ads.canShowAds {
-            GeometryReader { geo in
-                BannerAdView(width: geo.size.width, height: $height)
+        if ads.ready && ads.canShowAds, height != 0 {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("광고").fcFont(10, weight: .semibold).foregroundStyle(FC.muted)
+                GeometryReader { geo in
+                    BannerAdView(width: geo.size.width - 16, height: $height)
+                }
+                .frame(height: height ?? 60)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-            .frame(height: height ?? 60)
+            .padding(8)
+            .background(FC.surface2, in: RoundedRectangle(cornerRadius: 14))
+            .padding(.top, 4)
+            .padding(.bottom, 8)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("광고")
         }
     }
 }
