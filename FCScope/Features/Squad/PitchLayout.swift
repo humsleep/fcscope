@@ -8,10 +8,13 @@ struct PitchPoint: Hashable, Codable {
 
 /// 스쿼드 피치 드래그의 순수 로직 — UI·네트워크 의존 없음(스크립트로 검증 가능하게 분리).
 ///
+/// FC온라인처럼 **자리마다 제 포지션 라벨**을 가진다(`Layout.labels`, 없으면 포메이션 기본 라벨).
+///
 /// 불변식(스크립트로 검증):
-/// - 한 번의 이동에서 **옮기지 않은 선수의 라벨은 절대 바뀌지 않는다.**
-/// - 자기 기본 위치(또는 같은 구역 안)로 옮기면 라벨·포메이션이 바뀌지 않는다.
-/// - 포메이션은 새 라벨 11개가 어떤 포메이션과 **정확히** 일치할 때만 바뀐다. 아니면 좌표만 저장.
+/// - 한 번의 이동은 **그 자리 하나의 좌표·라벨만** 바꾼다. 다른 자리는 선수·라벨·위치 모두 그대로.
+/// - 자기 기본 위치(또는 같은 구역 안)로 옮기면 아무것도 바뀌지 않는다.
+/// - 라벨 11개가 어떤 포메이션과 정확히 일치하면 포메이션 id 가 그쪽으로 바뀐다(화면 변화 없음).
+///   아니면 id 는 그대로, 이름은 "커스텀 (≈가장 가까운 포메이션)".
 /// - 선수는 사라지지 않는다(포메이션을 직접 바꿔도 11명 모두 새 자리로 재배치).
 enum PitchLayout {
     // MARK: - 구역
@@ -170,72 +173,130 @@ enum PitchLayout {
         return (1...n).map { (p[$0] - 1, $0 - 1) }
     }
 
-    // MARK: - 자리 옮기기(빈 잔디에 놓기)
+    // MARK: - 배치 상태
 
     struct Layout {
         var formation: Formation
         var slots: [String: SquadSlotModel]
         var coords: [String: PitchPoint]
-        /// 옮긴 자리의 (재매핑 후) 슬롯 id
-        var movedId: String
+        /// 자리별 포지션 라벨(FC온라인처럼 자리마다 제 라벨). 포메이션 기본 라벨과 같으면 두지 않는다.
+        var labels: [String: String] = [:]
+        /// 옮긴 자리의 (포메이션 전환 후) 슬롯 id
+        var movedId: String = ""
 
         func point(of s: FormationSlot) -> PitchPoint { coords[s.id] ?? PitchLayout.defaultPoint(s) }
+        func pos(of s: FormationSlot) -> String { labels[s.id] ?? s.pos }
+        /// 11자리의 실제 라벨
+        var effectiveLabels: [String] { formation.slots.map { pos(of: $0) } }
         /// 옮긴 자리의 결과 라벨
-        var movedLabel: String? { formation.slots.first { $0.id == movedId }?.pos }
+        var movedLabel: String? { formation.slots.first { $0.id == movedId }.map { pos(of: $0) } }
+        /// 라벨 11개가 현재 포메이션과 정확히 일치하는지(아니면 "커스텀")
+        var isExact: Bool { score(effectiveLabels, formation) == formation.slots.count * 2 }
+        /// 포메이션 칩 문구 — 정확 일치면 "4-4-2", 아니면 "커스텀 (≈4-4-2)"
+        var title: String { isExact ? formation.name : "커스텀 (≈\(nearestFormation(labels: effectiveLabels, prefer: labels.keys.sorted().compactMap { labels[$0] }, current: formation.id).name))" }
     }
 
     static func defaultPoint(_ s: FormationSlot) -> PitchPoint { PitchPoint(x: s.x, y: s.y) }
     /// 이보다 적게(피치 %) 옮기면 라벨을 다시 정하지 않는다.
     static let relabelMinDistance: Double = 6
 
-    /// 슬롯 `id` 를 `point` 로 옮긴다.
-    ///
-    /// 1. 좌표는 항상 저장(GK 규칙 clamp). 기본 위치로 돌아오면 좌표를 지운다.
-    /// 2. 새 구역 라벨이 옛 위치의 구역 라벨과 같거나 현재 라벨과 같거나, 6% 미만으로 옮겼으면 → 라벨·포메이션 유지.
-    /// 3. 다른 선수 10명의 라벨 + 새 라벨이 어떤 포메이션과 **정확히** 일치하면 그 포메이션으로 전환
-    ///    (구성이 같은 후보가 여럿이면 위치 이동이 가장 적은 것). 아니면 옛 라벨 유지(좌표만).
-    /// 옮기지 않은 선수의 라벨은 어떤 경우에도 바뀌지 않는다.
-    static func move(_ l: Layout, id: String, to point: PitchPoint) -> Layout {
-        guard let slot = l.formation.slots.first(where: { $0.id == id }) else { return l }
-        let p = clamp(point, isGK: slot.pos == "GK")
-        let old = l.point(of: slot)
-        var coordsOnly = l
-        coordsOnly.movedId = id
-        coordsOnly.coords[id] = p == defaultPoint(slot) ? nil : p
-        if slot.pos == "GK" { return coordsOnly }   // 골키퍼는 구역 안에서만 → 라벨·포메이션 불변
-
-        let newLabel = label(at: p)
-        if newLabel == slot.pos || newLabel == label(at: old) { return coordsOnly }
-        // 히스테리시스 — 구역 경계 바로 옆 기본 좌표(4-1-4-1 CDM y57 ↔ CM 경계 54)에서 살짝 민 것만으로 라벨이 뒤집히지 않게.
-        if hypot(p.x - old.x, p.y - old.y) < relabelMinDistance { return coordsOnly }
-
-        let sources = l.formation.slots.map { s in
-            Source(id: s.id, label: s.id == id ? newLabel : s.pos, point: s.id == id ? p : l.point(of: s))
+    /// 웹 bestFormationId — 점수가 가장 높은 포메이션.
+    /// 동점이면 ① 자리 라벨(`prefer`, 사용자가 옮겨 만든 라벨)을 더 많이 가진 포메이션 ② 현재 포메이션 ③ 목록 순서.
+    /// (4-3-3 에서 LW 를 LM 으로 내리면 4-3-3 과 4-4-2 가 동점인데, 사용자의 의도는 4-4-2 쪽이다)
+    static func nearestFormation(labels: [String], prefer: [String] = [], current: String? = nil) -> Formation {
+        var best = Formation.all[0]
+        var bestKey = (-1, -1, -1)
+        for f in Formation.all {
+            var avail: [String: Int] = [:]
+            for s in f.slots { avail[s.pos, default: 0] += 1 }
+            var satisfied = 0
+            for p in prefer where (avail[p] ?? 0) > 0 { avail[p]! -= 1; satisfied += 1 }
+            let key = (score(labels, f), satisfied, f.id == current ? 1 : 0)
+            if key > bestKey { bestKey = key; best = f }
         }
-        let candidates = exactFormations(labels: sources.map(\.label))
-        guard let best = candidates
-            .map({ f in (f, rekeyWithCost(sources, to: f, strict: true)) })
-            .min(by: { $0.1.cost < $1.1.cost })
-        else { return coordsOnly }
-
-        let (f, (map, _)) = best
-        var slots: [String: SquadSlotModel] = [:]
-        var coords: [String: PitchPoint] = [:]
-        for s in sources {
-            guard let nid = map[s.id], let target = f.slots.first(where: { $0.id == nid }) else { return coordsOnly }
-            if let player = l.slots[s.id] { slots[nid] = player.moved(to: nid) }
-            if s.point != defaultPoint(target) { coords[nid] = s.point }
-        }
-        return Layout(formation: f, slots: slots, coords: coords, movedId: map[id] ?? id)
+        return best
     }
 
-    /// 포메이션을 직접 고를 때 — 선수를 한 명도 버리지 않고 새 포메이션 자리로 재배치한다(좌표는 초기화).
+    // MARK: - 자리 옮기기(빈 잔디에 놓기)
+
+    /// 슬롯 `id` 를 `point` 로 옮긴다. **그 자리의 좌표·라벨만** 바뀌고 다른 자리는 절대 바뀌지 않는다.
+    ///
+    /// 1. 좌표 저장(GK 규칙 clamp). 기본 위치로 돌아오면 좌표를 지운다.
+    /// 2. 라벨: 놓은 곳의 구역 라벨. 단 현재 라벨과 같거나, 옛 위치와 같은 구역이거나, 6% 미만 이동이면 그대로
+    ///    (기본 좌표와 구역표가 어긋나는 포메이션에서 제자리 근처 흔들림이 라벨을 바꾸지 않게). GK 자리는 항상 GK.
+    /// 3. 라벨 11개가 어떤 포메이션과 정확히 일치하면 그 포메이션 id 로 옮겨 탄다(`normalize` — 화면 변화 없음).
+    ///    일치하는 게 없으면 포메이션 id 는 그대로 두고 "커스텀 (≈가장 가까운 포메이션)" 으로 보인다.
+    static func move(_ l: Layout, id: String, to point: PitchPoint) -> Layout {
+        guard let slot = l.formation.slots.first(where: { $0.id == id }) else { return l }
+        let cur = l.pos(of: slot)
+        let p = clamp(point, isGK: cur == "GK")
+        let old = l.point(of: slot)
+        var out = l
+        out.movedId = id
+        out.coords[id] = p == defaultPoint(slot) ? nil : p
+        if cur == "GK" { return out }   // 골키퍼는 구역 안에서만 → 라벨 불변
+
+        let zone = label(at: p)
+        if zone == cur || zone == label(at: old) || hypot(p.x - old.x, p.y - old.y) < relabelMinDistance { return out }
+        out.labels[id] = zone == slot.pos ? nil : zone
+        return normalize(out)
+    }
+
+    /// 라벨 11개가 정확히 일치하는 포메이션으로 id 를 맞춘다(현재가 이미 일치하면 그대로).
+    /// 같은 라벨끼리만 옮겨 태우므로 선수·라벨·화면 위치는 하나도 바뀌지 않는다.
+    static func normalize(_ l: Layout) -> Layout {
+        if l.isExact { return l }
+        let sources = l.formation.slots.map { Source(id: $0.id, label: l.pos(of: $0), point: l.point(of: $0)) }
+        guard let best = exactFormations(labels: sources.map(\.label))
+            .map({ f in (f, rekeyWithCost(sources, to: f, strict: true)) })
+            .min(by: { $0.1.cost < $1.1.cost })
+        else { return l }
+        let f = best.0, map = best.1.map
+        var out = Layout(formation: f, slots: [:], coords: [:], labels: [:], movedId: map[l.movedId] ?? l.movedId)
+        for s in sources {
+            guard let nid = map[s.id], let t = f.slots.first(where: { $0.id == nid }) else { return l }
+            if let player = l.slots[s.id] { out.slots[nid] = player.moved(to: nid) }
+            if s.point != defaultPoint(t) { out.coords[nid] = s.point }
+            if s.label != t.pos { out.labels[nid] = s.label }   // 정확 일치라 실제로는 비어 있다
+        }
+        return out
+    }
+
+    /// 포메이션을 직접 고를 때 — 선수를 한 명도 버리지 않고 새 포메이션 자리로 재배치한다(좌표·자리 라벨 초기화).
     static func changeFormation(_ l: Layout, to f: Formation) -> Layout {
-        let sources = l.formation.slots.map { Source(id: $0.id, label: $0.pos, point: l.point(of: $0)) }
+        let sources = l.formation.slots.map { Source(id: $0.id, label: l.pos(of: $0), point: l.point(of: $0)) }
         let map = rekey(sources, to: f)
         var slots: [String: SquadSlotModel] = [:]
         for (old, player) in l.slots { if let nid = map[old] { slots[nid] = player.moved(to: nid) } }
-        return Layout(formation: f, slots: slots, coords: [:], movedId: "")
+        return Layout(formation: f, slots: slots, coords: [:], labels: [:])
+    }
+
+    // MARK: - 저장·불러오기
+
+    /// POST /api/squad 의 slots — 옮긴 자리는 x/y, 라벨이 기본과 다른 자리는 pos 를 함께 보낸다.
+    static func saveSlots(_ l: Layout) -> [[String: Any]] {
+        l.formation.slots.compactMap { fs in
+            guard let s = l.slots[fs.id] else { return nil }
+            var d: [String: Any] = ["slotId": fs.id, "spid": s.spid, "name": s.name]
+            if let img = s.imageSpid { d["imageSpid"] = img }
+            if let p = l.coords[fs.id] { d["x"] = p.x; d["y"] = p.y }
+            if let pos = l.labels[fs.id], pos != fs.pos { d["pos"] = pos }
+            return d
+        }
+    }
+
+    /// 서버 슬롯(선택적 x/y/pos) → 배치 상태. 포메이션에 없는 slotId 는 버린다.
+    static func restore(formation f: Formation, slots list: [SquadSlotModel]) -> Layout {
+        var out = Layout(formation: f, slots: [:], coords: [:], labels: [:])
+        for sl in list {
+            guard let fs = f.slots.first(where: { $0.id == sl.slotId }) else { continue }
+            var clean = sl.moved(to: sl.slotId)
+            clean.pos = nil
+            out.slots[fs.id] = clean
+            if let x = sl.x, let y = sl.y { out.coords[fs.id] = PitchPoint(x: x, y: y) }
+            if let pos = sl.pos, !pos.isEmpty, pos != fs.pos { out.labels[fs.id] = pos }
+        }
+        return out
     }
 
     // MARK: - 겹침
