@@ -198,12 +198,16 @@ struct SquadBuilderView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
+                // "커스텀 (≈4-4-2)" 처럼 포메이션 이름이 길어지면 한 줄에 세 칩이 다 들어가지 않아 잘렸다 — 두 줄로 나눈다.
                 HStack(spacing: 8) {
-                    Button { showFormations = true } label: { chipButton("⚙️ \(model.formationTitle)") }.layoutPriority(1)   // "커스텀 (≈4-4-2)" 가 잘리지 않게 다른 칩이 먼저 줄어든다
+                    Button { showFormations = true } label: { chipButton("⚙️ \(model.formationTitle)") }
+                    Spacer()
+                    Text("\(model.filled)/11").fcScoreboard(14).foregroundStyle(model.filled == 11 ? FC.accent : FC.muted)
+                }
+                HStack(spacing: 8) {
                     Button { showPresets = true } label: { chipButton("🏟 팀 프리셋") }
                     Button { importNick = LocalPrefs.shared.myNickname ?? ""; showImport = true } label: { chipButton("⬇️ 최근 선발") }
                     Spacer()
-                    Text("\(model.filled)/11").fcScoreboard(14).foregroundStyle(model.filled == 11 ? FC.accent : FC.muted)
                 }
                 PitchView(model: model)
                 HStack(spacing: 8) {

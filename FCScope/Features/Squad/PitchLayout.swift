@@ -279,6 +279,7 @@ enum PitchLayout {
             guard let s = l.slots[fs.id] else { return nil }
             var d: [String: Any] = ["slotId": fs.id, "spid": s.spid, "name": s.name]
             if let img = s.imageSpid { d["imageSpid"] = img }
+            if let season = s.season, !season.isEmpty { d["season"] = season }   // 불러온 스쿼드·웹에서 시즌 배지가 빠지지 않게
             if let p = l.coords[fs.id] { d["x"] = p.x; d["y"] = p.y }
             if let pos = l.labels[fs.id], pos != fs.pos { d["pos"] = pos }
             return d
