@@ -269,3 +269,29 @@ struct ShotMapView: View {
         ctx.stroke(lines, with: .color(line), lineWidth: lineWidth)
     }
 }
+
+/// 탭 없는 작은 전체 운동장 슛맵 — 버튼 안(마지막 경기 카드)에 넣는다.
+/// ShotMapView 는 점마다 탭 제스처가 있어 카드 탭과 겹친다. 같은 좌표 규칙(point·scale)을 Canvas 한 장으로 그린다.
+struct MiniShotMap: View {
+    let mine: [Shot]
+    let theirs: [Shot]
+    var body: some View {
+        let sx = ShotMapView.scale(mine + theirs, \.x), sy = ShotMapView.scale(mine + theirs, \.y)
+        Canvas { ctx, size in
+            ShotMapView.drawPitch(ctx, size, ground: FC.surface2, line: FC.line)
+            for (shots, isMine, tone) in [(theirs, false, FC.lose), (mine, true, FC.accent)] {
+                for s in shots {
+                    let pt = ShotMapView.point(s, sx: sx, sy: sy, mine: isMine, in: size)
+                    let r: CGFloat = s.isGoal ? 5 : 3.5
+                    let rect = CGRect(x: pt.x - r, y: pt.y - r, width: r * 2, height: r * 2)
+                    let c = s.hitPost ? FC.gold : tone
+                    if s.isGoal { ctx.fill(Path(ellipseIn: rect), with: .color(c)) }
+                    ctx.stroke(Path(ellipseIn: rect), with: .color(c), lineWidth: 1.5)
+                }
+            }
+        }
+        .aspectRatio(ShotMapView.pitchRatio, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .accessibilityLabel("슛맵 · 내 슛 \(mine.count)개, 상대 슛 \(theirs.count)개")
+    }
+}

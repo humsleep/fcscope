@@ -238,13 +238,7 @@ struct RecordView: View {
                     Text(p.nickname).fcFont(26, weight: .bold).foregroundStyle(FC.ink)
                     (Text("LV.").foregroundStyle(FC.muted) + Text("\(p.level)").foregroundStyle(FC.accent)).font(.fcScoreboard(14, typeSize, weight: .semibold)).lineLimit(1).fixedSize()
                 }
-                ForEach(p.divisions) { d in
-                    HStack(spacing: 6) {
-                        Text(d.matchTypeName).fcFont(13).foregroundStyle(FC.muted)
-                        if let icon = d.iconUrl { RemoteImage(url: icon, size: 20) }
-                        Text(d.divisionName).fcFont(13, weight: .bold).foregroundStyle(FC.gold)
-                    }
-                }
+                ForEach(p.divisions) { d in divisionRow(d) }
             }
         }
     }
@@ -330,17 +324,40 @@ struct RecordView: View {
                         .buttonStyle(.plain).padding(.vertical, -12)
                     } else { Chip(text: "내 구단", color: FC.accentInk, bg: FC.accent) }
                 }
-                ForEach(o.profile.divisions) { d in
-                    HStack(spacing: 6) {
-                        Text(d.matchTypeName).fcFont(13).foregroundStyle(FC.muted)
-                        if let icon = d.iconUrl { RemoteImage(url: icon, size: 20) }
-                        Text(d.divisionName).fcFont(13, weight: .bold).foregroundStyle(FC.gold)
-                        Text("(\(d.date))").fcFont(12).foregroundStyle(FC.muted)
-                    }
-                }
+                if o.summary.played > 0 { headline(o) }
+                ForEach(o.profile.divisions) { d in divisionRow(d) }
                 if let rankSpec = ShareCardSpec.rank(o) { ShareCardButton(spec: rankSpec, label: "🏆 계급 인증 카드", compact: true) }
             }
         }
+    }
+
+    /// 넥슨 division 은 "역대 최고 등급 + 달성일"이다. 날짜만 괄호로 붙이니 현재 등급으로 읽혔다 — "최고 등급"을 밝힌다.
+    private func divisionRow(_ d: DivisionCard) -> some View {
+        FlowLayout(spacing: 6, lineSpacing: 4) {
+            Text("\(d.matchTypeName) 최고 등급").fcFont(13).foregroundStyle(FC.muted)
+            HStack(spacing: 4) {
+                if let icon = d.iconUrl { RemoteImage(url: icon, size: 20) }
+                Text(d.divisionName).fcFont(13, weight: .bold).foregroundStyle(FC.gold)
+            }
+            Text("\(d.date) 달성").fcFont(12).foregroundStyle(FC.muted)
+        }
+    }
+
+    /// 머리 숫자는 두 개만 — 승률과 FC Scope 스코어. 평균 평점·주간 평균처럼 척도가 다른 숫자가 나란히 있으면 무엇이 기준인지 흐려진다.
+    private func headline(_ o: UserOverview) -> some View {
+        HStack(alignment: .top, spacing: 24) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("최근 \(o.summary.played)경기 승률").fcFont(12).foregroundStyle(FC.muted)
+                Text("\(o.summary.winRate)%").fcScoreboard(30).foregroundStyle(FC.accent)
+                Text("\(o.summary.win)승 \(o.summary.draw)무 \(o.summary.lose)패").fcScoreboard(11).foregroundStyle(FC.muted)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("FC Scope 스코어").fcFont(12).foregroundStyle(FC.muted)
+                (Text(String(format: "%.1f", o.score)) + Text("/10").font(.fcScoreboard(13, typeSize)).foregroundStyle(FC.muted)).font(.fcScoreboard(30, typeSize)).foregroundStyle(FC.tone(o.tier.tone))
+                Text(o.tier.label).fcScoreboard(11).foregroundStyle(FC.tone(o.tier.tone))
+            }
+        }
+        .padding(.vertical, 2)
     }
 
     private func badge(_ emoji: String, _ r: Rule, action: @escaping () -> Void) -> some View {
@@ -397,7 +414,11 @@ struct MatchesSection: View {
     let o: UserOverview
     let nickname: String
     @Environment(AppRouter.self) private var router
-    private var enc: String { nickname.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? nickname }
+    /// 진단은 두 개(주간·성향)만 먼저 보이고 나머지는 접는다 — 경기 목록이 화면 아래로 밀려 "경기" 탭인데 경기가 안 보였다.
+    @State private var moreDiagnosis = false
+    /// 경기 목록은 10경기까지 먼저 — 30줄을 다 펼치면 아래 진단이 사라진다.
+    @State private var allMatches = false
+    private static let listPreview = 10
 
     var body: some View {
         if o.matches.isEmpty {
@@ -407,18 +428,11 @@ struct MatchesSection: View {
                 Text("⚠️ 최근 \(o.requested)경기 중 \(o.loaded)경기만 불러와 \(o.loaded)경기 기준으로 계산했어요.").fcFont(13).foregroundStyle(FC.muted)
                     .padding(10).background(FC.gold.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
             }
+            // 전적을 여는 가장 흔한 이유는 "방금 그 경기" — 맨 위에 슛맵·POTM 까지 바로 보여 준다.
+            if let last = o.matches.first { LastMatchCard(m: last, me: o.profile.ouid) }
+            matchList
+            // 진단은 최대 두 장만 펼쳐 둔다: 이번 주 + 경기 성향.
             if o.week.games >= 3 { weekly(o.week) }
-            if o.streak.highlight { streakBanner(o.streak) }
-            if let n = o.nemesis { revenge(n) }
-            scoreboard
-            // 접근성 크기에서는 세 칸이 너무 좁아 숫자가 과하게 줄어든다 — 세로로 쌓는다.
-            let tiles = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
-            tiles {
-                StatTile(label: "득점 / 실점", value: "\(o.summary.goalsFor) / \(o.summary.goalsAgainst)")
-                StatTile(label: "경기당 득점", value: String(format: "%.1f", Double(o.summary.goalsFor) / Double(max(1, o.summary.played))))
-                StatTile(label: "평균 점유율", value: "\(o.summary.avgPossession)%")
-            }
-            // 유형 배지(롤러코스터 등)는 섹션 선택 칩 바로 아래에 이미 있다 — 두 번 보이지 않게 여기선 보조 노트만.
             if !o.diagnosis.notes.isEmpty {
                 Panel {
                     VStack(alignment: .leading, spacing: 8) {
@@ -427,9 +441,40 @@ struct MatchesSection: View {
                     }
                 }
             }
-            if !o.rivals.isEmpty { rivals(o.rivals) }
+            Button { withAnimation(.snappy) { moreDiagnosis.toggle() }; Haptic.light() } label: {
+                HStack {
+                    Text(moreDiagnosis ? "진단 접기" : "진단 더 보기").fcFont(14, weight: .semibold)
+                    Text("폼 · 연승 · 상대 전적 · 득실").fcFont(12).foregroundStyle(FC.muted)
+                    Spacer()
+                    Image(systemName: moreDiagnosis ? "chevron.up" : "chevron.down").fcFont(12)
+                }
+                .foregroundStyle(FC.ink).padding(12)
+                .background(FC.surface2, in: RoundedRectangle(cornerRadius: 12))
+            }.buttonStyle(.plain)
+            if moreDiagnosis {
+                formPanel
+                if o.streak.highlight { streakBanner(o.streak) }
+                if let n = o.nemesis { revenge(n) }
+                // 접근성 크기에서는 세 칸이 너무 좁아 숫자가 과하게 줄어든다 — 세로로 쌓는다.
+                let tiles = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+                tiles {
+                    StatTile(label: "득점 / 실점", value: "\(o.summary.goalsFor) / \(o.summary.goalsAgainst)")
+                    StatTile(label: "경기당 득점", value: String(format: "%.1f", Double(o.summary.goalsFor) / Double(max(1, o.summary.played))))
+                    StatTile(label: "평균 점유율", value: "\(o.summary.avgPossession)%")
+                }
+                if !o.rivals.isEmpty { rivals(o.rivals) }
+            }
+        }
+    }
+
+    /// 마지막 경기는 위 카드가 보여 주므로 목록은 그 이전 경기부터.
+    private var matchList: some View {
+        let rest = Array(o.matches.dropFirst())
+        let shown = allMatches ? rest : Array(rest.prefix(Self.listPreview))
+        return VStack(alignment: .leading, spacing: 6) {
+            if !rest.isEmpty { SectionLabel("이전 경기") }
             LazyVStack(spacing: 6) {
-                ForEach(o.matches) { m in
+                ForEach(shown) { m in
                     Button { router.push(.match(id: m.matchId, me: o.profile.ouid, fromRecord: true)) } label: { MatchRow(m: m) }.buttonStyle(.plain)
                         .contextMenu {
                             Button { router.push(.match(id: m.matchId, me: o.profile.ouid, fromRecord: true)) } label: { Label("슛맵 · 매치 리포트", systemImage: "soccerball") }
@@ -437,30 +482,28 @@ struct MatchesSection: View {
                         }
                 }
             }
+            if rest.count > Self.listPreview {
+                Button { withAnimation(.snappy) { allMatches.toggle() } } label: {
+                    Text(allMatches ? "접기" : "나머지 \(rest.count - Self.listPreview)경기 더 보기").fcFont(13, weight: .semibold).foregroundStyle(FC.accent)
+                        .frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
+                }.buttonStyle(.plain)
+            }
         }
     }
 
-    private var scoreboard: some View {
+    /// 승률·스코어 큰 숫자는 히어로로 올렸다 — 여기엔 흐름(최근 10경기 폼·경기 평점 추이)만 남긴다.
+    private var formPanel: some View {
         Panel {
             VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .top, spacing: 24) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("FC Scope 스코어").fcFont(12).foregroundStyle(FC.muted)
-                        (Text(String(format: "%.1f", o.score)) + Text("/10").font(.fcScoreboard(14, typeSize)).foregroundStyle(FC.muted)).font(.fcScoreboard(34, typeSize)).foregroundStyle(FC.tone(o.tier.tone))
-                        Text(o.tier.label).fcScoreboard(11).foregroundStyle(FC.tone(o.tier.tone))
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("최근 \(o.summary.played)경기 승률").fcFont(12).foregroundStyle(FC.muted)
-                        Text("\(o.summary.winRate)%").fcScoreboard(34).foregroundStyle(FC.accent)
-                        Text("\(o.summary.win)승 \(o.summary.draw)무 \(o.summary.lose)패").fcScoreboard(11).foregroundStyle(FC.muted)
-                    }
-                }
                 VStack(alignment: .leading, spacing: 4) {
                     Text("최근 10경기 폼").fcFont(12).foregroundStyle(FC.muted)
                     HStack(spacing: 4) { ForEach(o.matches.prefix(10)) { ResultBadge(result: $0.result, size: 24) } }
                 }
-                RatingSparkline(values: o.matches.reversed().map { $0.me.rating })
-                Text("FC Scope 스코어는 승패·득실차·인게임 평점·점유율을 종합한 퍼포먼스 점수(10점 만점)예요.").fcFont(11).foregroundStyle(FC.muted)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("경기 평점 추이 (과거 → 최근)").fcFont(12).foregroundStyle(FC.muted)
+                    RatingSparkline(values: o.matches.reversed().map { $0.me.rating })
+                }
+                Text("FC Scope 스코어는 승패·득실차·경기 평점·점유율을 종합한 퍼포먼스 점수(10점 만점)예요.").fcFont(11).foregroundStyle(FC.muted)
             }
         }
     }
@@ -480,7 +523,8 @@ struct MatchesSection: View {
                             .fcFont(16, weight: .bold).foregroundStyle(w.winRate >= 50 ? FC.win : FC.lose)
                             .lineLimit(1).minimumScaleFactor(0.8)
                         HStack(spacing: 6) {
-                            Text("승률 \(w.winRate)% · 평균 \(String(format: "%.1f", w.avgScore))").fcFont(12).foregroundStyle(FC.muted)
+                            // 서버 주간 avgScore 는 최근 스코어와 척도가 달라 나란히 두면 헷갈린다 — 승률만.
+                            Text("승률 \(w.winRate)%").fcFont(12).foregroundStyle(FC.muted)
                             if w.bestStreak >= 2 { Text("🔥\(w.bestStreak)연승").fcFont(12, weight: .bold).foregroundStyle(FC.win) }
                         }
                         .lineLimit(1).minimumScaleFactor(0.8)
@@ -518,7 +562,7 @@ struct MatchesSection: View {
                         Text("\(r.nickname)에게 \(r.win)승 \(r.lose)패 — 아직 \(r.lose - r.win)점 뒤").fcFont(14, weight: .bold).foregroundStyle(FC.ink)
                     }
                     Spacer()
-                    ShareCardButton(spec: .rival(o, rival: r), label: "저격 카드", compact: true)
+                    ShareCardButton(spec: .rival(o, rival: r), label: "맞대결 카드", compact: true)
                 }
             }
         }.buttonStyle(.plain)
@@ -561,5 +605,84 @@ struct RatingSparkline: View {
             }
             .frame(height: 36)
         }
+    }
+}
+
+/// 마지막 경기 카드 — 결과·스코어·상대·날짜 + 작은 슛맵 + POTM. 누르면 매치 리포트.
+/// 요약(MatchSummary)만으로 먼저 그리고, 매치 상세는 리포트 화면과 같은 캐시 키로 받아 슛맵·POTM 을 채운다.
+/// 끝난 경기는 불변이라 한 번 받으면 리포트를 열 때 네트워크가 다시 돌지 않는다. 실패하면 슛맵 없이 둔다.
+struct LastMatchCard: View {
+    let m: MatchSummary
+    /// 매치 리포트와 같은 `me`(ouid) — 캐시 키를 맞춘다.
+    let me: String
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(AppRouter.self) private var router
+    @State private var detail: MatchDetailResponse?
+    @State private var loading = true
+
+    var body: some View {
+        Button { router.push(.match(id: m.matchId, me: me, fromRecord: true)) } label: {
+            Panel(padding: 12, highlight: FC.resultColor(m.result).opacity(0.5)) {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        SectionLabel("마지막 경기", color: FC.accent)
+                        Spacer()
+                        Text(DateFmt.relative(m.matchDate)).fcFont(12).foregroundStyle(FC.muted)
+                    }
+                    HStack(spacing: 10) {
+                        ResultBadge(result: m.result, size: 36)
+                        (Text("\(m.me.goals)").foregroundStyle(FC.ink) + Text(" : ").foregroundStyle(FC.muted) + Text(m.opponent.map { "\($0.goals)" } ?? "-").foregroundStyle(FC.muted))
+                            .fcScoreboard(28).lineLimit(1).fixedSize()
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("vs \(m.opponent?.nickname ?? "상대 없음")").fcFont(15, weight: .bold).foregroundStyle(FC.ink).lineLimit(1)
+                            HStack(spacing: 6) {
+                                if m.forfeit { Chip(text: "몰수", color: FC.lose, bg: FC.lose.opacity(0.15)) }
+                                Text("점유 \(m.me.possession)% · 경기 평점 \(String(format: "%.1f", m.me.rating))").fcFont(12).foregroundStyle(FC.muted).lineLimit(1)
+                            }
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right").fcFont(12).foregroundStyle(FC.muted)
+                    }
+                    if let d = detail {
+                        if !(d.me.shots.isEmpty && (d.opponent?.shots ?? []).isEmpty) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                MiniShotMap(mine: d.me.shots, theirs: d.opponent?.shots ?? [])
+                                HStack {
+                                    Text("\(d.opponent?.nickname ?? "상대") 슛 \(d.opponent?.stats.shots ?? 0)").foregroundStyle(FC.lose)
+                                    Spacer()
+                                    Text("내 슛 \(d.me.stats.shots) (유효 \(d.me.stats.effectiveShots))").foregroundStyle(FC.accent)
+                                }
+                                .fcFont(11, weight: .medium).lineLimit(1)
+                            }
+                        }
+                        if let p = d.potm {
+                            HStack(spacing: 8) {
+                                PlayerImage(spid: p.spId, size: 32, radius: 8)
+                                Text("POTM").fcScoreboard(11, weight: .semibold).foregroundStyle(FC.gold)
+                                (Text(p.name).foregroundStyle(FC.ink).bold() + Text(" · \(p.side)").foregroundStyle(FC.muted))
+                                    .fcFont(13).lineLimit(1).minimumScaleFactor(0.8)
+                                Spacer(minLength: 4)
+                                (Text("선수 평점 ").font(.fcFont(10, typeSize)).foregroundStyle(FC.muted) + Text(String(format: "%.1f", p.rating)).foregroundStyle(FC.gold))
+                                    .fcScoreboard(16).lineLimit(1).fixedSize()
+                            }
+                        }
+                    } else if loading {
+                        Skeleton(height: 90)
+                    }
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .task(id: m.matchId) { await load() }
+    }
+
+    private func load() async {
+        let p = "/api/v1/match/\(m.matchId)", q = ["me": me]
+        if let hit: (value: MatchDetailResponse, isFresh: Bool) = await APIClient.shared.cachedValue(p, query: q) {
+            detail = hit.value; loading = false; return
+        }
+        loading = true
+        detail = try? await APIClient.shared.getAndCache(p, query: q, auth: false)
+        loading = false
     }
 }
