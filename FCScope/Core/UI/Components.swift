@@ -344,7 +344,7 @@ struct MatchRow: View {
                     Text("스코어").fcFont(10).foregroundStyle(FC.muted)
                     Text(String(format: "%.1f", m.score)).fcScoreboard(16).foregroundStyle(m.score >= 6.5 ? FC.accent : m.score < 5 ? FC.lose : FC.ink)
                 }
-                Text("평점 \(String(format: "%.1f", m.me.rating))").fcFont(11).foregroundStyle(FC.muted)
+                Text("경기 평점 \(String(format: "%.1f", m.me.rating))").fcFont(11).foregroundStyle(FC.muted)
             }
             Image(systemName: "chevron.right").fcFont(12).foregroundStyle(FC.muted)
         }

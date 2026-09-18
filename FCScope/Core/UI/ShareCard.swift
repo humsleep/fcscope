@@ -221,7 +221,7 @@ extension ShareCardSpec {
             subtitle: o.profile.nickname,
             stamp: CardStamp(text: "달성 \(d.date)", color: CardPalette.gold),
             badges: [CardBadge(label: "레벨", value: "Lv.\(o.profile.level)")]
-                + others.map { CardBadge(label: $0.matchTypeName, value: $0.divisionName, color: CardPalette.gold) },
+                + others.map { CardBadge(label: "\($0.matchTypeName) 최고", value: $0.divisionName, color: CardPalette.gold) },
             filename: "fcscope-rank-\(o.profile.nickname)"
         )
     }
@@ -257,7 +257,8 @@ extension ShareCardSpec {
             stamp: CardStamp(text: w.bestStreak >= 2 ? "이번 주 \(w.bestStreak)연승" : "승률 \(w.winRate)%", color: color),
             badges: [
                 CardBadge(label: "승률", value: "\(w.winRate)%", color: color),
-                CardBadge(label: "평균 스코어", value: String(format: "%.1f", w.avgScore)),
+                // 서버 주간 avgScore 는 전적 화면의 FC Scope 스코어와 척도가 달라 빼고, 같은 주의 최고 연승을 싣는다.
+                CardBadge(label: "최고 연승", value: "\(w.bestStreak)"),
                 CardBadge(label: "득실", value: "\(w.goalsFor):\(w.goalsAgainst)"),
             ],
             filename: "fcscope-weekly-\(o.profile.nickname)"
@@ -265,9 +266,12 @@ extension ShareCardSpec {
     }
 
     /// 라이벌 H2H 카드 (서버 card/rival)
+    ///
+    /// 카드에는 실제 다른 유저의 구단주명이 찍힌다. 상대를 깎아내리는 라벨("호구" 등)은 쓰지 않는다
+    /// (서버 lib/verdict.ts 의 otherUser 톤 게이트와 같은 원칙) — 내 입장에서 본 중립 문구만.
     static func rival(_ o: UserOverview, rival r: Rival) -> ShareCardSpec {
         let gap = r.win - r.lose
-        let label: (String, Color) = gap <= -2 ? ("천적", CardPalette.lose) : gap >= 2 ? ("호구", CardPalette.gold) : ("접전", CardPalette.lime)
+        let label: (String, Color) = gap <= -2 ? ("이 상대에겐 고전 중", CardPalette.lose) : gap >= 2 ? ("이 상대에겐 강해요", CardPalette.gold) : ("팽팽한 접전", CardPalette.lime)
         return ShareCardSpec(
             kicker: "라이벌 H2H",
             title: "\(r.win) : \(r.lose)",
@@ -309,7 +313,7 @@ extension ShareCardSpec {
             badges: [
                 CardBadge(label: "점유율", value: "\(m.me.possession)%"),
                 CardBadge(label: "유효슛", value: "\(m.me.stats.effectiveShots)"),
-                CardBadge(label: "평점", value: String(format: "%.1f", m.me.rating), color: color),
+                CardBadge(label: "경기 평점", value: String(format: "%.1f", m.me.rating), color: color),
             ],
             filename: "fcscope-match-\(m.matchId)"
         )

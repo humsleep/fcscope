@@ -83,7 +83,7 @@ struct MyPageView: View {
                 SectionLabel("지난 방문 대비")
                 HStack(spacing: 20) {
                     VStack(alignment: .leading) { Text("최근 \(s.played)경기 승률").font(.fcFont(12, typeSize)).foregroundStyle(FC.muted); (Text("\(s.winRate)%").foregroundStyle(FC.accent) + Text(s.deltaWinRate.map { $0 > 0 ? " ▲\($0)%p" : $0 < 0 ? " ▼\(-$0)%p" : " ±0" } ?? "").font(.fcScoreboard(13, typeSize)).foregroundStyle((s.deltaWinRate ?? 0) >= 0 ? FC.win : FC.lose)).font(.fcScoreboard(24, typeSize)) }
-                    VStack(alignment: .leading) { Text("평균 평점").fcFont(12).foregroundStyle(FC.muted); Text(String(format: "%.2f", s.avgRating)).fcScoreboard(24).foregroundStyle(FC.gold) }
+                    VStack(alignment: .leading) { Text("평균 경기 평점").fcFont(12).foregroundStyle(FC.muted); Text(String(format: "%.2f", s.avgRating)).fcScoreboard(24).foregroundStyle(FC.gold) }
                 }
                 Text(s.prevDate.map { "\($0) 방문 대비" } ?? "내일 다시 방문하면 변화를 보여드려요.").fcFont(11).foregroundStyle(FC.muted)
             }
