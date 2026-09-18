@@ -236,6 +236,11 @@ enum PitchLayout {
         out.coords[id] = p == defaultPoint(slot) ? nil : p
         if cur == "GK" { return out }   // 골키퍼는 구역 안에서만 → 라벨 불변
 
+        // 원래 자리 근처로 되돌리면 원래 포지션으로 — 구역표가 기본 좌표와 어긋나는 포메이션이 있어서
+        // 구역으로 다시 판정하면 LB→LWB→(제자리) 가 CB 가 되는 식의 오판이 났다(검증 1,710회 중 414회).
+        let home = defaultPoint(slot)
+        if hypot(p.x - home.x, p.y - home.y) < relabelMinDistance { out.labels[id] = nil; return normalize(out) }
+
         let zone = label(at: p)
         if zone == cur || zone == label(at: old) || hypot(p.x - old.x, p.y - old.y) < relabelMinDistance { return out }
         out.labels[id] = zone == slot.pos ? nil : zone
@@ -304,7 +309,9 @@ enum PitchLayout {
 
     /// 슬롯 하나가 차지하는 영역(반폭·반높이, pt). 원(44pt)이 겹치지 않을 간격보다 조금 넓게.
     /// 5인 라인의 기본 간격(16% ≈ 59pt)보다 작아야 제자리 근처에서 살짝 옮길 때 옆 선수와 교환되지 않는다.
-    static let occupyHalfWidth: Double = 48, occupyHalfHeight: Double = 40
+    /// 세로는 슬롯(원 + 이름 + 시즌 배지 ≈ 80pt) 높이 기준 — 40 이면 위아래로 이름표가 겹쳐 놓였다.
+    /// 가로는 원 기준(≈36) — 48 이면 CM(x 25/75) 옆에서 LM·RM 으로 놓을 공간이 15pt 밖에 없었다.
+    static let occupyHalfWidth: Double = 36, occupyHalfHeight: Double = 60
 
     /// `p`(pt)가 차지 영역 안에 들어가는 가장 가까운 다른 자리. 드래그를 여기서 놓으면 교환한다(겹쳐 놓기 금지).
     static func occupant(near p: (x: Double, y: Double), in l: Layout, excluding id: String, size: (w: Double, h: Double)) -> FormationSlot? {
