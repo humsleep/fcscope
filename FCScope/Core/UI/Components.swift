@@ -251,7 +251,7 @@ struct ShareCardButton: View {
             image = ShareCardRenderer.render(spec)
         case .squad(let data):
             // 동기 렌더 전에 선수 이미지를 미리 채운다(ImageRenderer 는 비동기 로딩을 기다리지 않음)
-            await ImageCache.prefetch(spids: data.slots.values.map(\.spid))
+            await ImageCache.prefetch(spids: data.slots.values.map(\.displaySpid))
             image = ShareCardRenderer.render(
                 view: SquadCardView(data: data),
                 size: CGSize(width: ShareCardView.width, height: ShareCardView.height)

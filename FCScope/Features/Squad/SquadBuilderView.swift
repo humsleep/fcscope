@@ -26,6 +26,14 @@ final class SquadBuilderModel {
         Haptic.light()
     }
     func remove(_ slot: FormationSlot) { slots[slot.id] = nil }
+    /// 사진만 바꾼다(카드·능력치는 그대로). 다른 선수의 사진은 받지 않는다 — pid 가 같아야 한다.
+    func setImage(_ imageSpid: Int?, for slotId: String) {
+        guard var s = slots[slotId] else { return }
+        if let imageSpid, imageSpid % 1_000_000 != s.spid % 1_000_000 { return }
+        s.imageSpid = imageSpid == s.spid ? nil : imageSpid
+        slots[slotId] = s
+        Haptic.light()
+    }
     func clear() { slots = [:]; savedId = nil; teamTag = nil }
 
     /// 라인별로 빈 슬롯에 순서대로 배치 (프리셋/임포트)
@@ -83,7 +91,11 @@ final class SquadBuilderModel {
         guard filled > 0 else { message = "선수를 먼저 배치해 주세요."; return }
         busy = true; defer { busy = false }
         do {
-            var body: [String: Any] = ["name": name, "formation": formation.id, "slots": slots.values.map { ["slotId": $0.slotId, "spid": $0.spid, "name": $0.name] }]
+            var body: [String: Any] = ["name": name, "formation": formation.id, "slots": slots.values.map { s -> [String: Any] in
+                var d: [String: Any] = ["slotId": s.slotId, "spid": s.spid, "name": s.name]
+                if let img = s.imageSpid { d["imageSpid"] = img }
+                return d
+            }]
             if let t = teamTag { body["teamTag"] = t }
             let r: IdBody = try await APIClient.shared.send("/api/squad", method: "POST", json: body)
             savedId = r.id
@@ -220,7 +232,7 @@ struct PitchView: View {
                     Button { if !readOnly { Haptic.light(); model.selectedSlot = s } } label: {
                         VStack(spacing: 2) {
                             ZStack {
-                                if let f = filled { PlayerImage(spid: f.spid, size: 44, radius: 22) }
+                                if let f = filled { PlayerImage(spid: f.displaySpid, size: 44, radius: 22) }
                                 else { Circle().fill(Color.white.opacity(0.12)).frame(width: 44, height: 44).overlay(Text("+").fcFont(18, weight: .bold).foregroundStyle(.white.opacity(0.7))) }
                                 Circle().stroke(filled == nil ? Color.white.opacity(0.3) : FC.accent, lineWidth: 2).frame(width: 44, height: 44)
                             }
@@ -301,7 +313,12 @@ struct PlayerSearchSheet: View {
                 }
                 List {
                     if let current = model.slots[slot.id] {
-                        Section { Button(role: .destructive) { model.remove(slot); dismiss() } label: { Label("\(current.name) 제거", systemImage: "trash") } }
+                        Section {
+                            NavigationLink { PlayerPhotoPicker(model: model, slotId: slot.id) } label: {
+                                HStack(spacing: 10) { PlayerImage(spid: current.displaySpid, size: 36, radius: 8); Label("\(current.name) 사진 바꾸기", systemImage: "photo.on.rectangle") }
+                            }
+                            Button(role: .destructive) { model.remove(slot); dismiss() } label: { Label("\(current.name) 제거", systemImage: "trash") }
+                        }
                     }
                     ForEach(hits) { h in
                         Button { if h.seasons.count > 1 { pick = h } else { model.assign(h, to: slot); dismiss() } } label: {
@@ -362,5 +379,92 @@ struct SquadDetailView: View {
         }
         .fcScreen().navigationTitle("스쿼드").navigationBarTitleDisplayMode(.inline)
         .task { await model.load(id: squadId); loaded = model.message == nil }
+    }
+}
+
+/// 사진 바꾸기 — 같은 선수(pid)의 시즌 카드 사진과 기본 사진만 후보로 보여 준다.
+/// 카드(spid)·능력치는 그대로 두고 표시 사진만 바꾼다. 넥슨 CDN 에 사진이 없는 시즌은 숨긴다.
+struct PlayerPhotoPicker: View {
+    @Bindable var model: SquadBuilderModel
+    let slotId: String
+    @Environment(\.dismiss) private var dismiss
+    @State private var options: [PhotoCandidate] = []
+    private let columns = [GridItem(.adaptive(minimum: 80), spacing: 12)]
+
+    struct PhotoCandidate: Identifiable, Hashable { let spid: Int; let season: String; var id: Int { spid } }
+
+    var body: some View {
+        ScrollView {
+            if let slot = model.slots[slotId] {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("\(slot.name)의 다른 시즌 사진만 고를 수 있어요. 시즌 카드와 능력치는 바뀌지 않아요.")
+                        .fcFont(13).foregroundStyle(FC.muted)
+                    LazyVGrid(columns: columns, spacing: 14) {
+                        ForEach(options) { o in
+                            PhotoOption(candidate: o, selected: slot.displaySpid == o.spid) {
+                                model.setImage(o.spid, for: slotId)
+                                dismiss()
+                            }
+                        }
+                    }
+                }.padding(16)
+            }
+        }
+        .fcScreen().navigationTitle("사진 바꾸기").navigationBarTitleDisplayMode(.inline)
+        .task { await loadOptions() }
+    }
+
+    private func loadOptions() async {
+        guard let slot = model.slots[slotId] else { return }
+        await PlayerIndex.shared.load()
+        let pid = slot.spid % 1_000_000
+        var list: [PhotoCandidate]
+        if let hit = await PlayerIndex.shared.player(spid: slot.spid) {
+            list = hit.seasons.map { PhotoCandidate(spid: $0.spid, season: $0.season) }
+        } else {
+            list = [PhotoCandidate(spid: slot.spid, season: slot.season ?? "")]
+        }
+        // pid 자체 = 시즌 구분 없는 기본 사진(NexonCDN 폴백 체인이 players/p{pid}.png 로 간다)
+        list.append(PhotoCandidate(spid: pid, season: "기본"))
+        options = list
+    }
+}
+
+private struct PhotoOption: View {
+    let candidate: PlayerPhotoPicker.PhotoCandidate
+    let selected: Bool
+    let action: () -> Void
+    @State private var image: UIImage?
+    @State private var missing = false
+
+    private var isBase: Bool { candidate.spid < 1_000_000 }
+
+    var body: some View {
+        if !missing {
+            Button(action: action) {
+                VStack(spacing: 6) {
+                    ZStack {
+                        FC.surface2
+                        if let image { Image(uiImage: image).resizable().scaledToFill() } else { ProgressView() }
+                    }
+                    .frame(width: 80, height: 80)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(selected ? FC.accent : .clear, lineWidth: 3))
+                    if isBase { Text("기본").fcFont(12, weight: .semibold).foregroundStyle(FC.muted) }
+                    else { SeasonBadge(spid: candidate.spid, season: candidate.season, height: 16) }
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(candidate.season) 사진\(selected ? ", 선택됨" : "")")
+            .task { await load() }
+        }
+    }
+
+    /// 폴백 없이 그 시즌 사진만 본다 — 없는 시즌이 기본 사진으로 대체돼 같은 사진이 여러 칸에 보이지 않게.
+    private func load() async {
+        let pid = candidate.spid % 1_000_000
+        let path = isBase ? "players/p\(pid).png" : "playersAction/p\(candidate.spid).png"
+        guard let url = URL(string: "\(NexonCDN.base)/\(path)") else { missing = true; return }
+        if let img = try? await ImageCache.pipeline.image(for: url) { image = img } else { missing = true }
     }
 }

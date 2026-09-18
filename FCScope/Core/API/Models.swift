@@ -417,6 +417,9 @@ struct SquadSlotModel: Codable, Identifiable, Hashable {
     var season: String?
     var x: Double?
     var y: Double?
+    /// 표시용 사진 — 같은 선수(pid)의 다른 시즌 카드 사진, 또는 pid 자체(기본 사진). 없으면 카드(spid) 사진.
+    var imageSpid: Int? = nil
+    var displaySpid: Int { imageSpid ?? spid }
     var id: String { slotId }
 }
 struct Squad: Decodable, Identifiable {

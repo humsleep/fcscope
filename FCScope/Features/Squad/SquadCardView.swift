@@ -88,7 +88,7 @@ struct SquadCardView: View {
         VStack(spacing: 6) {
             ZStack {
                 Circle().fill(Color.white.opacity(0.10))
-                if let p = player, let img = ImageCache.cached(spid: p.spid) {
+                if let p = player, let img = ImageCache.cached(spid: p.displaySpid) {
                     Image(uiImage: img).resizable().scaledToFill()
                 }
                 Circle().stroke(player == nil ? Color.white.opacity(0.25) : CardPalette.lime, lineWidth: 4)
