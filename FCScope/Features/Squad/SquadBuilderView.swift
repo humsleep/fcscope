@@ -8,6 +8,9 @@ final class SquadBuilderModel {
     /// 드래그로 옮긴 자리의 좌표(slotId → 0~100). 없으면 포메이션 기본 위치.
     /// 빈 자리도 옮길 수 있어 선수(slots)와 따로 둔다 — 저장할 때 선수 슬롯에 x/y 로 합친다.
     var coords: [String: PitchPoint] = [:]
+    /// 자리별 포지션 라벨(slotId → "LM" 등). FC온라인처럼 자리마다 제 라벨 — 없으면 포메이션 기본 라벨.
+    /// 빈 자리도 가질 수 있어 coords 처럼 선수와 따로 두고, 저장할 때 선수 슬롯의 pos 로 합친다.
+    var labels: [String: String] = [:]
     /// 슬롯을 들어 올린 동안 true — 바깥 ScrollView 스크롤을 막는다.
     var isDraggingSlot = false
     /// 선수(pid)가 골키퍼인지 — 처음 배치될 때의 포지션(임포트 pos · 선수 상세의 주 포지션 · 배치한 자리)으로 기억한다.
@@ -27,15 +30,19 @@ final class SquadBuilderModel {
     /// (예전엔 같은 slotId 만 남겨 4-4-2 → 4-3-3 에서 lm1·rm1·st2 가 사라졌다)
     func changeFormation(_ f: Formation) {
         guard f.id != formation.id else { return }
-        let r = PitchLayout.changeFormation(.init(formation: formation, slots: slots, coords: coords, movedId: ""), to: f)
-        formation = r.formation
-        slots = r.slots
-        coords = r.coords
+        apply(PitchLayout.changeFormation(layout, to: f))
         savedId = nil
     }
 
     /// 화면에 그릴 위치(옮긴 좌표 또는 포메이션 기본 위치)
     func point(of s: FormationSlot) -> PitchPoint { coords[s.id] ?? PitchLayout.defaultPoint(s) }
+    /// 이 자리의 실제 포지션 라벨(자리 라벨 또는 포메이션 기본 라벨)
+    func pos(of s: FormationSlot) -> String { labels[s.id] ?? s.pos }
+    /// 포메이션 칩 문구 — "4-4-2" 또는 "커스텀 (≈4-4-2)"
+    var formationTitle: String { layout.title }
+    private func apply(_ r: PitchLayout.Layout) {
+        formation = r.formation; slots = r.slots; coords = r.coords; labels = r.labels
+    }
 
     /// 드래그를 다른 자리 위에서 놓음 — 두 자리의 선수만 맞바꾼다(빈 자리면 이동). 자리(좌표·라벨)는 그대로.
     func swapSlots(_ a: String, _ b: String) {
@@ -49,60 +56,53 @@ final class SquadBuilderModel {
     func moveSlot(_ id: String, to p: PitchPoint) {
         let before = formation.id
         let r = PitchLayout.move(layout, id: id, to: p)
-        if r.coords != coords || r.formation.id != before { savedId = nil }
-        formation = r.formation
-        slots = r.slots
-        coords = r.coords
-        if r.formation.id != before { Haptic.medium() } else { Haptic.light() }
+        if r.coords != coords || r.labels != labels || r.formation.id != before { savedId = nil }
+        let relabeled = r.movedLabel != formation.slots.first { $0.id == id }.map { pos(of: $0) }
+        apply(r)
+        if relabeled || r.formation.id != before { Haptic.medium() } else { Haptic.light() }
     }
 
-    /// 옮긴 좌표를 모두 지우고 현재 포메이션의 기본 배치로
+    /// 옮긴 좌표와 자리 라벨을 모두 지우고 현재 포메이션의 기본 배치로
     func resetPositions() {
-        guard !coords.isEmpty else { return }
-        coords = [:]
+        guard !coords.isEmpty || !labels.isEmpty else { return }
+        coords = [:]; labels = [:]
         savedId = nil
         Haptic.light()
     }
 
     /// 현재 상태를 순수 로직(PitchLayout)에 넘길 형태로
-    var layout: PitchLayout.Layout { .init(formation: formation, slots: slots, coords: coords, movedId: "") }
+    var layout: PitchLayout.Layout { .init(formation: formation, slots: slots, coords: coords, labels: labels) }
 
     /// 골키퍼가 필드 자리에 있거나 필드 선수가 GK 자리에 있으면 true
     func isMisplaced(_ s: FormationSlot) -> Bool {
         guard let p = slots[s.id], let gk = naturalGK[p.spid % 1_000_000] else { return false }
-        return gk != (s.pos == "GK")
+        return gk != (pos(of: s) == "GK")
     }
     private func remember(_ spid: Int, gk: Bool) { naturalGK[spid % 1_000_000] = gk }
 
-    /// 저장·공유 카드용 — 옮긴 자리의 좌표를 선수 슬롯의 x/y 로 합친다.
+    /// 저장·공유 카드용 — 옮긴 자리의 좌표(x/y)와 자리 라벨(pos)을 선수 슬롯에 합친다.
     var exportSlots: [String: SquadSlotModel] {
         var out = slots
-        for (id, s0) in slots {
-            var s = s0
-            let p = coords[id]
+        for fs in formation.slots {
+            guard var s = slots[fs.id] else { continue }
+            let p = coords[fs.id]
             s.x = p?.x; s.y = p?.y
-            out[id] = s
+            s.pos = labels[fs.id]
+            out[fs.id] = s
         }
         return out
     }
-    /// 서버에서 받은 슬롯(선택적 x/y 포함)으로 선수·좌표를 채운다.
-    private func apply(_ list: [SquadSlotModel]) {
-        slots = [:]; coords = [:]
-        let valid = Set(formation.slots.map(\.id))
-        let posOf = Dictionary(uniqueKeysWithValues: formation.slots.map { ($0.id, $0.pos) })
+    /// 서버에서 받은 슬롯(선택적 x/y/pos 포함)으로 선수·좌표·자리 라벨을 채운다.
+    private func restore(_ list: [SquadSlotModel]) {
+        apply(PitchLayout.restore(formation: formation, slots: list))
         naturalGK = [:]
-        for sl in list where valid.contains(sl.slotId) {
-            slots[sl.slotId] = sl
-            remember(sl.spid, gk: posOf[sl.slotId] == "GK")
-            if let x = sl.x, let y = sl.y { coords[sl.slotId] = PitchPoint(x: x, y: y) }
-        }
+        for fs in formation.slots { if let p = slots[fs.id] { remember(p.spid, gk: pos(of: fs) == "GK") } }
     }
-    /// `line` = 선수 상세에서 알려 준 주 포지션 라인(없으면 배치한 자리를 그 선수의 포지션으로 본다)
     func assign(_ hit: PlayerHit, to slot: FormationSlot, line: String? = nil) {
         // 같은 실선수(pid) 중복 배치 방지
         for (k, v) in slots where v.spid % 1_000_000 == hit.pid { slots[k] = nil }
         slots[slot.id] = SquadSlotModel(slotId: slot.id, spid: hit.spid, name: hit.name, season: hit.season, x: nil, y: nil)
-        remember(hit.spid, gk: (line ?? Formation.lineOf(slot.pos)) == "GK")
+        remember(hit.spid, gk: (line ?? Formation.lineOf(pos(of: slot))) == "GK")
         savedId = nil
         Haptic.light()
     }
@@ -116,7 +116,7 @@ final class SquadBuilderModel {
         savedId = nil
         Haptic.light()
     }
-    func clear() { slots = [:]; coords = [:]; naturalGK = [:]; savedId = nil; teamTag = nil }
+    func clear() { slots = [:]; coords = [:]; labels = [:]; naturalGK = [:]; savedId = nil; teamTag = nil }
 
     /// 라인별로 빈 슬롯에 순서대로 배치 (프리셋/임포트)
     func place(players: [(spid: Int, name: String, pos: String, season: String)]) {
@@ -146,7 +146,7 @@ final class SquadBuilderModel {
         do {
             let r: PresetResponse = try await APIClient.shared.get("/api/squad/preset", query: ["id": id], auth: false)
             formation = Formation.get(r.formation)
-            apply(r.slots)
+            restore(r.slots)
             name = r.name; teamTag = r.teamTag; savedId = nil
             Haptic.success()
         } catch { message = error.localizedDescription }
@@ -155,7 +155,7 @@ final class SquadBuilderModel {
         busy = true; defer { busy = false }
         do {
             let r: FromUserResponse = try await APIClient.shared.get("/api/squad/from-user", query: ["nickname": nick], auth: false)
-            formation = Formation.get(r.formation); slots = [:]; coords = [:]
+            formation = Formation.get(r.formation); slots = [:]; coords = [:]; labels = [:]
             place(players: r.players.map { ($0.spid, $0.name, $0.pos, $0.season) })
             name = "\(r.nickname)의 스쿼드"; teamTag = nil; savedId = nil
             Haptic.success()
@@ -166,7 +166,7 @@ final class SquadBuilderModel {
         do {
             let s: Squad = try await APIClient.shared.get("/api/squad/\(id)", auth: false)
             formation = Formation.get(s.formation)
-            apply(s.slots)
+            restore(s.slots)
             name = s.name; teamTag = s.teamTag; savedId = s.id
         } catch { message = error.localizedDescription }
     }
@@ -174,13 +174,7 @@ final class SquadBuilderModel {
         guard filled > 0 else { message = "선수를 먼저 배치해 주세요."; return }
         busy = true; defer { busy = false }
         do {
-            var body: [String: Any] = ["name": name, "formation": formation.id, "slots": exportSlots.values.map { s -> [String: Any] in
-                var d: [String: Any] = ["slotId": s.slotId, "spid": s.spid, "name": s.name]
-                if let img = s.imageSpid { d["imageSpid"] = img }
-                // 옮긴 자리만 좌표를 보낸다(서버는 0~100 만 받는다 — clamp 로 이미 x 8~92 · y 6~96).
-                if let x = s.x, let y = s.y { d["x"] = x; d["y"] = y }
-                return d
-            }]
+            var body: [String: Any] = ["name": name, "formation": formation.id, "slots": PitchLayout.saveSlots(layout)]
             if let t = teamTag { body["teamTag"] = t }
             let r: IdBody = try await APIClient.shared.send("/api/squad", method: "POST", json: body)
             savedId = r.id
@@ -205,7 +199,7 @@ struct SquadBuilderView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
-                    Button { showFormations = true } label: { chipButton("⚙️ \(model.formation.name)") }
+                    Button { showFormations = true } label: { chipButton("⚙️ \(model.formationTitle)") }.layoutPriority(1)   // "커스텀 (≈4-4-2)" 가 잘리지 않게 다른 칩이 먼저 줄어든다
                     Button { showPresets = true } label: { chipButton("🏟 팀 프리셋") }
                     Button { importNick = LocalPrefs.shared.myNickname ?? ""; showImport = true } label: { chipButton("⬇️ 최근 선발") }
                     Spacer()
@@ -219,7 +213,7 @@ struct SquadBuilderView: View {
                     Button { model.resetPositions() } label: {
                         Label("위치 초기화", systemImage: "arrow.counterclockwise").fcFont(12, weight: .semibold)
                     }
-                    .buttonStyle(.bordered).controlSize(.small).disabled(model.coords.isEmpty)
+                    .buttonStyle(.bordered).controlSize(.small).disabled(model.coords.isEmpty && model.labels.isEmpty)
                 }
                 // .roundedBorder 는 다크 모드에서 새까만 상자로 떠 앱 표면색과 어긋났다 — 앱 표면색으로 직접 그린다.
                 TextField("스쿼드 이름", text: Binding(get: { model.name }, set: { model.name = $0 }))
@@ -246,7 +240,7 @@ struct SquadBuilderView: View {
                         }
                     }
                 }
-                Text("슬롯을 탭해 선수를 검색·배치하고, 배치된 선수를 탭하면 교체·제거할 수 있어요. 선수를 길게 눌러 다른 자리에 놓으면 서로 바뀌고, 빈 잔디에 놓으면 자리를 옮겨요. 옮긴 배치가 다른 포메이션과 딱 맞으면 포메이션도 바뀌어요. 같은 선수는 시즌이 달라도 한 명만.").fcFont(12).foregroundStyle(FC.muted)
+                Text("슬롯을 탭해 선수를 검색·배치하고, 배치된 선수를 탭하면 교체·제거할 수 있어요. 선수를 길게 눌러 다른 자리에 놓으면 서로 바뀌고, 빈 잔디에 놓으면 그 자리의 포지션이 바뀌어요(예: LW → LM). 11자리가 어떤 포메이션과 딱 맞으면 포메이션 이름도 바뀌어요. 같은 선수는 시즌이 달라도 한 명만.").fcFont(12).foregroundStyle(FC.muted)
             }.padding(16)
         }
         .scrollDisabled(model.isDraggingSlot)
@@ -269,7 +263,7 @@ struct SquadBuilderView: View {
         .confirmationDialog("\(placing?.name ?? "선수")을(를) 어느 자리에 둘까요?", isPresented: Binding(get: { placing != nil }, set: { if !$0 { placing = nil } }), titleVisibility: .visible) {
             if let hit = placing {
                 ForEach(model.formation.slots.filter { model.slots[$0.id] == nil }) { slot in
-                    Button(slot.pos) { model.assign(hit, to: slot); placing = nil }
+                    Button(model.pos(of: slot)) { model.assign(hit, to: slot); placing = nil }
                 }
             }
             Button("취소", role: .cancel) { placing = nil }
@@ -292,23 +286,24 @@ struct SquadBuilderView: View {
             model.message = "빈 자리가 없어요. 바꿀 선수를 탭해서 교체해 주세요."
             return
         }
-        guard let line, let slot = empty.first(where: { Formation.lineOf($0.pos) == line }) else {
+        guard let line, let slot = empty.first(where: { Formation.lineOf(model.pos(of: $0)) == line }) else {
             placing = hit
             return
         }
         model.assign(hit, to: slot, line: line)
-        model.message = "\(hit.name)을(를) \(slot.pos)에 배치했어요."
+        model.message = "\(hit.name)을(를) \(model.pos(of: slot))에 배치했어요."
     }
     private func chipButton(_ t: String) -> some View {
-        Text(t).fcFont(13, weight: .semibold).foregroundStyle(FC.ink).padding(.horizontal, 10).padding(.vertical, 8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
+        // "커스텀 (≈4-4-2)" 가 두 줄로 접히면 칩 줄 높이가 흔들린다 — 한 줄로 두고 줄여서 맞춘다.
+        Text(t).fcFont(13, weight: .semibold).lineLimit(1).minimumScaleFactor(0.7).foregroundStyle(FC.ink).padding(.horizontal, 10).padding(.vertical, 8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
     }
 }
 
 /// 피치 + 슬롯
 ///
 /// 편집 모드: 탭 = 선수 검색·교체 시트. 길게 눌러 끌기(FC온라인 방식) —
-/// 다른 자리 위(또는 겹치는 곳)에 놓으면 두 선수 교환(빈 자리면 이동), 빈 잔디에 놓으면 자리를 옮기고,
-/// 새 라벨 11개가 어떤 포메이션과 정확히 맞을 때만 포메이션을 바꾼다(`PitchLayout.move`).
+/// 다른 자리 위(또는 겹치는 곳)에 놓으면 두 선수 교환(빈 자리면 이동), 빈 잔디에 놓으면 그 자리만 옮기고
+/// 구역 라벨로 바꾼다. 11자리 라벨이 어떤 포메이션과 정확히 맞으면 포메이션 id 도 바뀐다(`PitchLayout.move`).
 /// 읽기 전용 모드는 드래그·탭이 없다.
 struct PitchView: View {
     @Bindable var model: SquadBuilderModel
@@ -375,10 +370,10 @@ struct PitchView: View {
         // 슬롯 좌표는 피치 비율 기준으로 고정이라 라벨이 커지면 옆 슬롯과 겹친다(AX5 에서 전부 겹침).
         // 피치 안 글자는 xLarge 에서 멈춘다 — 이름 전체는 교체 시트·카드에서 볼 수 있다.
         .dynamicTypeSize(...DynamicTypeSize.xLarge)
-        .confirmationDialog("\(swapSource.map { model.slots[$0.id]?.name ?? "\($0.pos) 빈 자리" } ?? "")와(과) 바꿀 자리", isPresented: Binding(get: { swapSource != nil }, set: { if !$0 { swapSource = nil } }), titleVisibility: .visible) {
+        .confirmationDialog("\(swapSource.map { model.slots[$0.id]?.name ?? "\(model.pos(of: $0)) 빈 자리" } ?? "")와(과) 바꿀 자리", isPresented: Binding(get: { swapSource != nil }, set: { if !$0 { swapSource = nil } }), titleVisibility: .visible) {
             if let src = swapSource {
                 ForEach(model.formation.slots.filter { $0.id != src.id }) { t in
-                    Button(model.slots[t.id].map { "\(t.pos) · \($0.name)" } ?? "\(t.pos) · 빈 자리") { model.swapSlots(src.id, t.id); swapSource = nil }
+                    Button(model.slots[t.id].map { "\(model.pos(of: t)) · \($0.name)" } ?? "\(model.pos(of: t)) · 빈 자리") { model.swapSlots(src.id, t.id); swapSource = nil }
                 }
             }
             Button("취소", role: .cancel) { swapSource = nil }
@@ -403,7 +398,7 @@ struct PitchView: View {
                 if filled != nil {
                     // GK 가 필드 자리에, 필드 선수가 GK 자리에 있으면 빨간 배지(허용은 하되 경고)
                     let warn = model.isMisplaced(s)
-                    Text(s.pos).font(.system(size: 8, weight: .heavy)).foregroundStyle(warn ? Color.white : FC.accentInk)
+                    Text(model.pos(of: s)).font(.system(size: 8, weight: .heavy)).foregroundStyle(warn ? Color.white : FC.accentInk)
                         .padding(.horizontal, 3).padding(.vertical, 1)
                         .background(warn ? FC.lose : FC.accent, in: Capsule())
                         .fixedSize()
@@ -411,7 +406,7 @@ struct PitchView: View {
                 }
             }
             // 64pt 폭에 전체 이름을 넣으면 "그레고르..." 처럼 잘려 누군지 몰랐다 — 마지막 단어(대개 성)만.
-            Text(filled.map { Self.shortName($0.name) } ?? s.pos).fcFont(10, weight: .bold).foregroundStyle(.white).lineLimit(1).minimumScaleFactor(0.7).frame(width: 64)
+            Text(filled.map { Self.shortName($0.name) } ?? model.pos(of: s)).fcFont(10, weight: .bold).foregroundStyle(.white).lineLimit(1).minimumScaleFactor(0.7).frame(width: 64)
                 .padding(.horizontal, 2).background(Color.black.opacity(0.45), in: Capsule())
             if let f = filled, let season = f.season, !season.isEmpty { SeasonBadge(spid: f.spid, season: season, height: 12) }
         }
@@ -424,10 +419,11 @@ struct PitchView: View {
     private func liveLabel(_ plan: DropPlan) -> some View {
         switch plan {
         case .none: EmptyView()
-        case .swap(let t): liveChip("↔ \(t.pos) 교체", color: FC.gold)
+        case .swap(let t): liveChip("↔ \(model.pos(of: t)) 교체", color: FC.gold)
         case .move(_, let r):
             let label = r.movedLabel ?? ""
-            liveChip(r.formation.id == model.formation.id ? label : "\(label) · \(r.formation.name)", color: FC.accent)
+            // 놓으면 11자리가 어떤 포메이션과 정확히 맞게 되는 경우에만 포메이션 이름을 덧붙인다.
+            liveChip(r.formation.id != model.formation.id && r.isExact ? "\(label) · \(r.formation.name)" : label, color: FC.accent)
         }
     }
     private func liveChip(_ text: String, color: Color) -> some View {
@@ -469,7 +465,7 @@ struct PitchView: View {
         return PitchDrag(id: s.id, location: CGPoint(x: o.x + t.width, y: o.y + t.height), moved: hypot(t.width, t.height) >= Self.moveThreshold)
     }
 
-    private func isGK(_ id: String) -> Bool { model.formation.slots.first { $0.id == id }?.pos == "GK" }
+    private func isGK(_ id: String) -> Bool { model.formation.slots.first { $0.id == id }.map { model.pos(of: $0) } == "GK" }
     /// 교환 대상 위에선 손가락을 따라가고, 빈 잔디에선 놓일 자리(GK 규칙 적용)를 보여 준다.
     private func liftedPosition(_ d: PitchDrag, plan: DropPlan, size: CGSize) -> CGPoint {
         if case .move(let p, _) = plan { return screen(p, size) }
@@ -480,8 +476,8 @@ struct PitchView: View {
         PitchPoint(x: Double(p.x / max(size.width, 1) * 100), y: Double(p.y / max(size.height, 1) * 100))
     }
     private func accessibilityText(_ s: FormationSlot) -> String {
-        if let f = model.slots[s.id] { return "\(s.pos), \(f.name)\(model.isMisplaced(s) ? ", 포지션 부적합" : "")" }
-        return "\(s.pos), 빈 자리"
+        if let f = model.slots[s.id] { return "\(model.pos(of: s)), \(f.name)\(model.isMisplaced(s) ? ", 포지션 부적합" : "")" }
+        return "\(model.pos(of: s)), 빈 자리"
     }
 
     static func shortName(_ name: String) -> String {
@@ -629,7 +625,7 @@ struct PlayerSearchSheet: View {
                 }
                 .listStyle(.plain)
             }
-            .navigationTitle("\(slot.pos) 선수 선택").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("\(model.pos(of: slot)) 선수 선택").navigationBarTitleDisplayMode(.inline)
             .sheet(item: $pick) { h in
                 NavigationStack {
                     List(h.seasons) { s in
@@ -668,7 +664,7 @@ struct SquadDetailView: View {
             VStack(alignment: .leading, spacing: 12) {
                 if loaded {
                     Text(model.name).fcFont(20, weight: .bold).foregroundStyle(FC.ink)
-                    Text("\(model.formation.name) · \(model.filled)명").fcFont(13).foregroundStyle(FC.muted)
+                    Text("\(model.formationTitle) · \(model.filled)명").fcFont(13).foregroundStyle(FC.muted)
                     PitchView(model: model, readOnly: true)
                     HStack {
                         Button { router.pendingSquadImport = .load(squadId); router.tab = .squad } label: { Text("빌더에서 수정").frame(maxWidth: .infinity) }.buttonStyle(.bordered)
