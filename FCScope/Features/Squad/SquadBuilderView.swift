@@ -5,6 +5,11 @@ import SwiftUI
 final class SquadBuilderModel {
     var formation: Formation = Formation.get("433")
     var slots: [String: SquadSlotModel] = [:]
+    /// 드래그로 옮긴 자리의 좌표(slotId → 0~100). 없으면 포메이션 기본 위치.
+    /// 빈 자리도 옮길 수 있어 선수(slots)와 따로 둔다 — 저장할 때 선수 슬롯에 x/y 로 합친다.
+    var coords: [String: PitchPoint] = [:]
+    /// 슬롯을 들어 올린 동안 true — 바깥 ScrollView 스크롤을 막는다.
+    var isDraggingSlot = false
     var name = "내 스쿼드"
     var teamTag: String? = nil
     var selectedSlot: FormationSlot?
@@ -18,6 +23,55 @@ final class SquadBuilderModel {
         let valid = Set(f.slots.map(\.id))
         slots = slots.filter { valid.contains($0.key) }
         formation = f
+        coords = [:]   // 포메이션을 직접 고르면 그 포메이션의 기본 배치로
+    }
+
+    /// 화면에 그릴 위치(옮긴 좌표 또는 포메이션 기본 위치)
+    func point(of s: FormationSlot) -> PitchPoint { coords[s.id] ?? PitchLayout.defaultPoint(s) }
+
+    /// 드래그를 다른 자리 위에서 놓음 — 두 자리의 선수만 맞바꾼다(빈 자리면 이동). 자리(좌표·라벨)는 그대로.
+    func swapSlots(_ a: String, _ b: String) {
+        guard a != b, slots[a] != nil || slots[b] != nil else { return }
+        slots = PitchLayout.swap(slots, a, b)
+        Haptic.medium()
+    }
+
+    /// 드래그를 빈 잔디에서 놓음 — 자리를 옮기고 라벨·포메이션을 다시 정한다.
+    func moveSlot(_ id: String, to p: PitchPoint) {
+        let before = formation.id
+        let r = PitchLayout.move(.init(formation: formation, slots: slots, coords: coords, movedId: id), id: id, to: p)
+        formation = r.formation
+        slots = r.slots
+        coords = r.coords
+        if r.formation.id != before { Haptic.medium() } else { Haptic.light() }
+    }
+
+    /// 옮긴 좌표를 모두 지우고 현재 포메이션의 기본 배치로
+    func resetPositions() {
+        guard !coords.isEmpty else { return }
+        coords = [:]
+        Haptic.light()
+    }
+
+    /// 저장·공유 카드용 — 옮긴 자리의 좌표를 선수 슬롯의 x/y 로 합친다.
+    var exportSlots: [String: SquadSlotModel] {
+        var out = slots
+        for (id, s0) in slots {
+            var s = s0
+            let p = coords[id]
+            s.x = p?.x; s.y = p?.y
+            out[id] = s
+        }
+        return out
+    }
+    /// 서버에서 받은 슬롯(선택적 x/y 포함)으로 선수·좌표를 채운다.
+    private func apply(_ list: [SquadSlotModel]) {
+        slots = [:]; coords = [:]
+        let valid = Set(formation.slots.map(\.id))
+        for sl in list where valid.contains(sl.slotId) {
+            slots[sl.slotId] = sl
+            if let x = sl.x, let y = sl.y { coords[sl.slotId] = PitchPoint(x: x, y: y) }
+        }
     }
     func assign(_ hit: PlayerHit, to slot: FormationSlot) {
         // 같은 실선수(pid) 중복 배치 방지
@@ -34,7 +88,7 @@ final class SquadBuilderModel {
         slots[slotId] = s
         Haptic.light()
     }
-    func clear() { slots = [:]; savedId = nil; teamTag = nil }
+    func clear() { slots = [:]; coords = [:]; savedId = nil; teamTag = nil }
 
     /// 라인별로 빈 슬롯에 순서대로 배치 (프리셋/임포트)
     func place(players: [(spid: Int, name: String, pos: String, season: String)]) {
@@ -62,8 +116,8 @@ final class SquadBuilderModel {
         busy = true; defer { busy = false }
         do {
             let r: PresetResponse = try await APIClient.shared.get("/api/squad/preset", query: ["id": id], auth: false)
-            formation = Formation.get(r.formation); slots = [:]
-            for s in r.slots { slots[s.slotId] = s }
+            formation = Formation.get(r.formation)
+            apply(r.slots)
             name = r.name; teamTag = r.teamTag; savedId = nil
             Haptic.success()
         } catch { message = error.localizedDescription }
@@ -72,7 +126,7 @@ final class SquadBuilderModel {
         busy = true; defer { busy = false }
         do {
             let r: FromUserResponse = try await APIClient.shared.get("/api/squad/from-user", query: ["nickname": nick], auth: false)
-            formation = Formation.get(r.formation); slots = [:]
+            formation = Formation.get(r.formation); slots = [:]; coords = [:]
             place(players: r.players.map { ($0.spid, $0.name, $0.pos, $0.season) })
             name = "\(r.nickname)의 스쿼드"; teamTag = nil; savedId = nil
             Haptic.success()
@@ -82,8 +136,8 @@ final class SquadBuilderModel {
         busy = true; defer { busy = false }
         do {
             let s: Squad = try await APIClient.shared.get("/api/squad/\(id)", auth: false)
-            formation = Formation.get(s.formation); slots = [:]
-            for sl in s.slots { slots[sl.slotId] = sl }
+            formation = Formation.get(s.formation)
+            apply(s.slots)
             name = s.name; teamTag = s.teamTag; savedId = s.id
         } catch { message = error.localizedDescription }
     }
@@ -91,9 +145,11 @@ final class SquadBuilderModel {
         guard filled > 0 else { message = "선수를 먼저 배치해 주세요."; return }
         busy = true; defer { busy = false }
         do {
-            var body: [String: Any] = ["name": name, "formation": formation.id, "slots": slots.values.map { s -> [String: Any] in
+            var body: [String: Any] = ["name": name, "formation": formation.id, "slots": exportSlots.values.map { s -> [String: Any] in
                 var d: [String: Any] = ["slotId": s.slotId, "spid": s.spid, "name": s.name]
                 if let img = s.imageSpid { d["imageSpid"] = img }
+                // 옮긴 자리만 좌표를 보낸다(서버는 0~100 만 받는다 — clamp 로 이미 x 8~92 · y 6~96).
+                if let x = s.x, let y = s.y { d["x"] = x; d["y"] = y }
                 return d
             }]
             if let t = teamTag { body["teamTag"] = t }
@@ -127,6 +183,15 @@ struct SquadBuilderView: View {
                     Text("\(model.filled)/11").fcScoreboard(14).foregroundStyle(model.filled == 11 ? FC.accent : FC.muted)
                 }
                 PitchView(model: model)
+                HStack(spacing: 8) {
+                    Text("길게 눌러 끌면 자리를 옮겨요").fcFont(12).foregroundStyle(FC.muted)
+                    Spacer()
+                    // 드래그로 옮긴 좌표만 지운다(선수·포메이션은 그대로). 옮긴 자리가 없으면 비활성.
+                    Button { model.resetPositions() } label: {
+                        Label("위치 초기화", systemImage: "arrow.counterclockwise").fcFont(12, weight: .semibold)
+                    }
+                    .buttonStyle(.bordered).controlSize(.small).disabled(model.coords.isEmpty)
+                }
                 // .roundedBorder 는 다크 모드에서 새까만 상자로 떠 앱 표면색과 어긋났다 — 앱 표면색으로 직접 그린다.
                 TextField("스쿼드 이름", text: Binding(get: { model.name }, set: { model.name = $0 }))
                     .textFieldStyle(.plain).fcFont(15).foregroundStyle(FC.ink)
@@ -146,15 +211,16 @@ struct SquadBuilderView: View {
                             SectionLabel("저장됨 · 공유 코드 \(id)", color: FC.accent)
                             HStack {
                                 ShareLink(item: AppConfig.absolute("/squad/\(id)")) { Label("링크 공유", systemImage: "link") }.buttonStyle(.bordered)
-                                ShareCardButton(squad: SquadCardData(name: model.name, formationId: model.formation.id, slots: model.slots, shareCode: id), label: "스쿼드 카드")
+                                ShareCardButton(squad: SquadCardData(name: model.name, formationId: model.formation.id, slots: model.exportSlots, shareCode: id), label: "스쿼드 카드")
                                 Button { router.push(.squad(id)) } label: { Text("보기 →").fcScoreboard(13).foregroundStyle(FC.accent) }
                             }
                         }
                     }
                 }
-                Text("슬롯을 탭해 선수를 검색·배치하고, 배치된 선수를 탭하면 교체·제거할 수 있어요. 같은 선수는 시즌이 달라도 한 명만.").fcFont(12).foregroundStyle(FC.muted)
+                Text("슬롯을 탭해 선수를 검색·배치하고, 배치된 선수를 탭하면 교체·제거할 수 있어요. 선수를 길게 눌러 다른 자리에 놓으면 서로 바뀌고, 빈 잔디에 놓으면 포지션과 포메이션이 자동으로 바뀌어요. 같은 선수는 시즌이 달라도 한 명만.").fcFont(12).foregroundStyle(FC.muted)
             }.padding(16)
         }
+        .scrollDisabled(model.isDraggingSlot)
         .fcScreen().navigationTitle("스쿼드 빌더").navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showFormations) { FormationPicker(model: model) }
         .sheet(isPresented: $showPresets) { PresetPicker(model: model) }
@@ -209,13 +275,28 @@ struct SquadBuilderView: View {
     }
 }
 
-/// 피치 + 슬롯 (탭-배치)
+/// 피치 + 슬롯
+///
+/// 편집 모드: 탭 = 선수 검색·교체 시트. 길게 눌러 끌기(FC온라인 방식) —
+/// 다른 자리 위에 놓으면 두 선수 교환(빈 자리면 이동), 빈 잔디에 놓으면 자리를 옮기고
+/// 좌표로 포지션 라벨을 다시 정한 뒤 포메이션을 자동 갱신한다(`PitchLayout`).
+/// 읽기 전용 모드는 드래그·탭이 없다.
 struct PitchView: View {
     @Bindable var model: SquadBuilderModel
     var readOnly = false
+
+    /// 드래그 중인 자리와 (슬롯 중심 + 손가락 이동량) 위치(피치 좌표계, pt). 끝나거나 취소되면 nil.
+    @State private var drag: PitchDrag?
+    struct PitchDrag: Equatable { let id: String; var location: CGPoint; var moved: Bool }
+
+    /// 이 거리(pt) 안에서 놓으면 그 자리와 교환
+    private static let swapRadius: CGFloat = 32
+    /// 길게 누른 뒤 이만큼도 안 움직이고 놓으면 아무 일도 없다(라벨 재계산 방지)
+    private static let moveThreshold: CGFloat = 8
+
     var body: some View {
         GeometryReader { g in
-            let w = g.size.width, h = g.size.height
+            let size = g.size
             ZStack {
                 RoundedRectangle(cornerRadius: 14).fill(LinearGradient(colors: [Color(red: 0.07, green: 0.2, blue: 0.13), Color(red: 0.05, green: 0.14, blue: 0.1)], startPoint: .top, endPoint: .bottom))
                 Canvas { ctx, size in
@@ -227,35 +308,192 @@ struct PitchView: View {
                     p.addRect(CGRect(x: size.width * 0.22, y: 8, width: size.width * 0.56, height: size.height * 0.16))
                     ctx.stroke(p, with: .color(.white.opacity(0.25)), lineWidth: 1)
                 }
+                let target = drag.flatMap { swapTarget(for: $0, size: size) }
                 ForEach(model.formation.slots) { s in
-                    let filled = model.slots[s.id]
-                    Button { if !readOnly { Haptic.light(); model.selectedSlot = s } } label: {
-                        VStack(spacing: 2) {
-                            ZStack {
-                                if let f = filled { PlayerImage(spid: f.displaySpid, size: 44, radius: 22) }
-                                else { Circle().fill(Color.white.opacity(0.12)).frame(width: 44, height: 44).overlay(Text("+").fcFont(18, weight: .bold).foregroundStyle(.white.opacity(0.7))) }
-                                Circle().stroke(filled == nil ? Color.white.opacity(0.3) : FC.accent, lineWidth: 2).frame(width: 44, height: 44)
-                            }
-                            // 64pt 폭에 전체 이름을 넣으면 "그레고르..." 처럼 잘려 누군지 몰랐다 — 마지막 단어(대개 성)만.
-                            Text(filled.map { Self.shortName($0.name) } ?? s.pos).fcFont(10, weight: .bold).foregroundStyle(.white).lineLimit(1).minimumScaleFactor(0.7).frame(width: 64)
-                                .padding(.horizontal, 2).background(Color.black.opacity(0.45), in: Capsule())
-                            if let f = filled, let season = f.season, !season.isEmpty { SeasonBadge(spid: f.spid, season: season, height: 12) }
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .position(x: w * s.x / 100, y: h * s.y / 100)
-                    .contextMenu { if !readOnly, filled != nil { Button("교체") { model.selectedSlot = s }; Button("제거", role: .destructive) { model.remove(s) } } }
+                    let lifted = drag?.id == s.id
+                    slotNode(s, highlighted: target?.id == s.id)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(accessibilityText(s))
+                        .scaleEffect(lifted ? 1.15 : target?.id == s.id ? 1.08 : 1)
+                        .shadow(color: .black.opacity(lifted ? 0.5 : 0), radius: 8, y: 4)
+                        .opacity(lifted && target != nil ? 0.8 : 1)   // 교체 대상의 금색 테두리가 비쳐 보이게
+                        .animation(.easeOut(duration: 0.15), value: target?.id == s.id)
+                        .overlay(alignment: .top) { if lifted, let d = drag { liveLabel(d, target: target, size: size) } }
+                        .modifier(SlotInteraction(
+                            enabled: !readOnly,
+                            onTap: { Haptic.light(); model.selectedSlot = s },
+                            onDrag: { t in drag = pitchDrag(s, translation: t, size: size) },
+                            onDrop: { t in drop(s, translation: t, size: size) },
+                            onCancel: { drag = nil }))
+                        .position(lifted ? liftedPosition(drag!, target: target, size: size) : screen(model.point(of: s), size))
+                        .zIndex(lifted ? 10 : 0)
                 }
             }
+            .coordinateSpace(name: "pitch")
+            .animation(.spring(duration: 0.3), value: model.coords)
         }
         .aspectRatio(0.72, contentMode: .fit)
         // 슬롯 좌표는 피치 비율 기준으로 고정이라 라벨이 커지면 옆 슬롯과 겹친다(AX5 에서 전부 겹침).
         // 피치 안 글자는 xLarge 에서 멈춘다 — 이름 전체는 교체 시트·카드에서 볼 수 있다.
         .dynamicTypeSize(...DynamicTypeSize.xLarge)
+        .onChange(of: drag?.id) { old, new in
+            if old == nil, new != nil { Haptic.light() }
+            model.isDraggingSlot = new != nil
+        }
+    }
+
+    @ViewBuilder
+    private func slotNode(_ s: FormationSlot, highlighted: Bool) -> some View {
+        let filled = model.slots[s.id]
+        VStack(spacing: 2) {
+            ZStack {
+                if let f = filled { PlayerImage(spid: f.displaySpid, size: 44, radius: 22) }
+                else { Circle().fill(Color.white.opacity(0.12)).frame(width: 44, height: 44).overlay(Text("+").fcFont(18, weight: .bold).foregroundStyle(.white.opacity(0.7))) }
+                Circle().stroke(highlighted ? FC.gold : filled == nil ? Color.white.opacity(0.3) : FC.accent, lineWidth: highlighted ? 3 : 2).frame(width: 44, height: 44)
+            }
+            // 선수가 있는 자리도 포지션을 보인다 — 드래그로 라벨·포메이션이 바뀐 걸 알 수 있게(FC온라인 스쿼드 화면처럼).
+            .overlay(alignment: .topLeading) {
+                if filled != nil {
+                    Text(s.pos).font(.system(size: 8, weight: .heavy)).foregroundStyle(FC.accentInk)
+                        .padding(.horizontal, 3).padding(.vertical, 1)
+                        .background(FC.accent, in: Capsule())
+                        .fixedSize()
+                        .offset(x: -8, y: -3)
+                }
+            }
+            // 64pt 폭에 전체 이름을 넣으면 "그레고르..." 처럼 잘려 누군지 몰랐다 — 마지막 단어(대개 성)만.
+            Text(filled.map { Self.shortName($0.name) } ?? s.pos).fcFont(10, weight: .bold).foregroundStyle(.white).lineLimit(1).minimumScaleFactor(0.7).frame(width: 64)
+                .padding(.horizontal, 2).background(Color.black.opacity(0.45), in: Capsule())
+            if let f = filled, let season = f.season, !season.isEmpty { SeasonBadge(spid: f.spid, season: season, height: 12) }
+        }
+        .contentShape(Rectangle())
+    }
+
+    /// 드래그 중 위에 뜨는 라벨 — 교환 대상 위면 "교체", 아니면 놓았을 때 받을 포지션(예: CDM).
+    private func liveLabel(_ d: PitchDrag, target: FormationSlot?, size: CGSize) -> some View {
+        let text: String
+        if let t = target { text = "↔ \(t.pos) 교체" }
+        else { text = PitchLayout.label(at: clamped(d, size: size)) }
+        return Text(text).fcScoreboard(13).foregroundStyle(FC.accentInk)
+            .padding(.horizontal, 8).padding(.vertical, 3)
+            .background(target == nil ? FC.accent : FC.gold, in: Capsule())
+            .fixedSize()
+            .offset(y: -26)
+    }
+
+    /// 놓기 — 다른 자리 위면 교환, 빈 잔디면 자리 이동(+라벨·포메이션 갱신). 거의 안 움직였으면 무시.
+    private func drop(_ s: FormationSlot, translation: CGSize, size: CGSize) {
+        let pd = pitchDrag(s, translation: translation, size: size)
+        drag = nil
+        guard pd.moved else { return }
+        if let t = swapTarget(for: pd, size: size) { model.swapSlots(s.id, t.id) }
+        else { model.moveSlot(s.id, to: pct(pd.location, size)) }
+    }
+
+    /// 슬롯 중심 + 손가락 이동량 — 손가락 위치를 그대로 쓰면 슬롯 중심이 아닌 곳을 잡았을 때 그만큼 튀었다
+    /// (길게 누르고 안 움직여도 "옮김"으로 처리됨).
+    private func pitchDrag(_ s: FormationSlot, translation t: CGSize, size: CGSize) -> PitchDrag {
+        let o = screen(model.point(of: s), size)
+        return PitchDrag(id: s.id, location: CGPoint(x: o.x + t.width, y: o.y + t.height), moved: hypot(t.width, t.height) >= Self.moveThreshold)
+    }
+
+    /// 드래그 중인 슬롯 중심에서 swapRadius 안의 가장 가까운 다른 자리
+    private func swapTarget(for d: PitchDrag, size: CGSize) -> FormationSlot? {
+        guard d.moved else { return nil }
+        var best: (FormationSlot, CGFloat)?
+        for s in model.formation.slots where s.id != d.id {
+            let p = screen(model.point(of: s), size)
+            let dist = hypot(p.x - d.location.x, p.y - d.location.y)
+            if dist <= Self.swapRadius, dist < (best?.1 ?? .infinity) { best = (s, dist) }
+        }
+        return best?.0
+    }
+
+    private func isGK(_ id: String) -> Bool { model.formation.slots.first { $0.id == id }?.pos == "GK" }
+    private func clamped(_ d: PitchDrag, size: CGSize) -> PitchPoint { PitchLayout.clamp(pct(d.location, size), isGK: isGK(d.id)) }
+    /// 교환 대상 위에선 손가락을 따라가고, 빈 잔디에선 놓일 자리(GK 규칙 적용)를 보여 준다.
+    private func liftedPosition(_ d: PitchDrag, target: FormationSlot?, size: CGSize) -> CGPoint {
+        target != nil || !d.moved ? d.location : screen(clamped(d, size: size), size)
+    }
+    private func screen(_ p: PitchPoint, _ size: CGSize) -> CGPoint { CGPoint(x: size.width * p.x / 100, y: size.height * p.y / 100) }
+    private func pct(_ p: CGPoint, _ size: CGSize) -> PitchPoint {
+        PitchPoint(x: Double(p.x / max(size.width, 1) * 100), y: Double(p.y / max(size.height, 1) * 100))
+    }
+    private func accessibilityText(_ s: FormationSlot) -> String {
+        if let f = model.slots[s.id] { return "\(s.pos), \(f.name)" }
+        return "\(s.pos), 빈 자리"
     }
 
     static func shortName(_ name: String) -> String {
         name.split(separator: " ").last.map(String.init) ?? name
+    }
+}
+
+/// 편집 모드에서만 탭·드래그를 붙인다. 읽기 전용은 제스처 없이 그림만.
+private struct SlotInteraction: ViewModifier {
+    let enabled: Bool
+    let onTap: () -> Void
+    let onDrag: (CGSize) -> Void
+    let onDrop: (CGSize) -> Void
+    let onCancel: () -> Void
+    func body(content: Content) -> some View {
+        if enabled {
+            content
+                .overlay(SlotGestureView(onTap: onTap, onDrag: onDrag, onDrop: onDrop, onCancel: onCancel))
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint("탭하면 선수를 고르고, 길게 눌러 끌면 자리를 옮기거나 교체해요.")
+                .accessibilityAction { onTap() }
+        } else {
+            content
+        }
+    }
+}
+
+/// 탭 + 길게 눌러 끌기를 UIKit 제스처로 받는다.
+///
+/// SwiftUI `LongPressGesture.sequenced(before: DragGesture)` 는 `.gesture`·`.simultaneousGesture` 어느 쪽이든
+/// 슬롯에서 시작한 스와이프가 바깥 ScrollView 스크롤을 막았다(실측). UIKit 길게 누르기는 0.25초 전에 손가락이 움직이면
+/// 실패하고 스크롤 팬이 이기며, 0.25초를 버티면 길게 누르기가 이겨 드래그가 된다 — 표준 동작 그대로.
+/// 이동량은 윈도 좌표로 잰다(슬롯이 손가락을 따라 움직여도 기준이 흔들리지 않게).
+private struct SlotGestureView: UIViewRepresentable {
+    let onTap: () -> Void
+    let onDrag: (CGSize) -> Void
+    let onDrop: (CGSize) -> Void
+    let onCancel: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> UIView {
+        let v = UIView()
+        v.backgroundColor = .clear
+        v.isAccessibilityElement = false   // VoiceOver 는 SwiftUI 요소(라벨·기본 동작)를 쓴다
+        let press = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.press(_:)))
+        press.minimumPressDuration = 0.25
+        let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.tap(_:)))
+        tap.require(toFail: press)   // 길게 누른 뒤 손을 떼도 탭(시트)이 열리지 않게
+        v.addGestureRecognizer(press)
+        v.addGestureRecognizer(tap)
+        return v
+    }
+
+    func updateUIView(_ v: UIView, context: Context) { context.coordinator.parent = self }
+
+    final class Coordinator: NSObject {
+        var parent: SlotGestureView?
+        private var start: CGPoint = .zero
+
+        @objc func tap(_ g: UITapGestureRecognizer) { if g.state == .ended { parent?.onTap() } }
+
+        @objc func press(_ g: UILongPressGestureRecognizer) {
+            let p = g.location(in: nil)
+            let t = CGSize(width: p.x - start.x, height: p.y - start.y)
+            switch g.state {
+            case .began: start = p; parent?.onDrag(.zero)
+            case .changed: parent?.onDrag(t)
+            case .ended: parent?.onDrop(t)
+            default: parent?.onCancel()
+            }
+        }
     }
 }
 
@@ -371,7 +609,7 @@ struct SquadDetailView: View {
                     PitchView(model: model, readOnly: true)
                     HStack {
                         Button { router.pendingSquadImport = .load(squadId); router.tab = .squad } label: { Text("빌더에서 수정").frame(maxWidth: .infinity) }.buttonStyle(.bordered)
-                        ShareCardButton(squad: SquadCardData(name: model.name, formationId: model.formation.id, slots: model.slots, shareCode: squadId), label: "카드")
+                        ShareCardButton(squad: SquadCardData(name: model.name, formationId: model.formation.id, slots: model.exportSlots, shareCode: squadId), label: "카드")
                         ShareLink(item: AppConfig.absolute("/squad/\(squadId)")) { Image(systemName: "link") }.buttonStyle(.bordered).accessibilityLabel("스쿼드 링크 공유")
                     }
                 } else if let m = model.message { ErrorState(title: "스쿼드를 찾을 수 없어요", message: m) } else { Skeleton(height: 400) }
