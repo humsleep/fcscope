@@ -74,8 +74,10 @@ struct SquadCardView: View {
                     ctx.stroke(p, with: .color(.white.opacity(0.14)), lineWidth: 3)
                 }
                 ForEach(formation.slots) { slot in
+                    // 드래그로 옮긴 자리는 선수 슬롯의 x/y(0~100)를 쓴다 — 빌더·공유 페이지와 같은 배치.
+                    let p = data.slots[slot.id]
                     node(slot: slot)
-                        .position(x: w * slot.x / 100, y: h * slot.y / 100)
+                        .position(x: w * (p?.x ?? slot.x) / 100, y: h * (p?.y ?? slot.y) / 100)
                 }
             }
         }
