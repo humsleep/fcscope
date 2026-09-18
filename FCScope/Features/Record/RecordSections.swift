@@ -182,7 +182,7 @@ struct PlayersSection: View {
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 6) {
                             Text(p.name).fcFont(15, weight: .bold).foregroundStyle(FC.ink).lineLimit(1)
-                            if !p.season.isEmpty { Chip(text: p.season, color: FC.gold, bg: FC.gold.opacity(0.15)) }
+                            if !p.season.isEmpty { SeasonBadge(spid: p.spId, season: p.season) }
                             if p.topPick { Chip(text: "대세픽", color: FC.win, bg: FC.win.opacity(0.15)) }
                         }
                         Text("\(p.positionLabel) · \(p.games)경기 · ⚽\(p.goals) 🅰\(p.assists) · 패스 \(Int(p.passRate))%").fcFont(12).foregroundStyle(FC.muted)

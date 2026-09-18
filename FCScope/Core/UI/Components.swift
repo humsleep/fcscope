@@ -74,6 +74,38 @@ struct RemoteImage: View {
 }
 
 /// 선수 이미지 로딩·캐시 — Nuke 파이프라인(디스크 캐시 적극 사용) 위의 얇은 래퍼.
+/// 시즌 배지 — 게임에서 쓰는 공식 아이콘. 아직 못 받았으면 기존 약어 칩으로 보인다(카드 렌더 포함).
+struct SeasonBadge: View {
+    let spid: Int
+    let season: String
+    var height: CGFloat = 16
+
+    @State private var image: UIImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                // 이름이 긴 행에서 HStack 이 배지를 줄여 아이콘이 잘렸다 — 가로는 원본 비율대로 고정.
+                Image(uiImage: image).resizable().scaledToFit().frame(height: height).fixedSize()
+            } else if !season.isEmpty {
+                Chip(text: season, color: FC.gold, bg: FC.gold.opacity(0.15))
+            }
+        }
+        .accessibilityLabel(season.isEmpty ? "시즌" : "\(season) 시즌")
+        .task(id: spid) { await load() }
+    }
+
+    private func load() async {
+        if let url = SeasonIcons.shared.url(forSpid: spid) {
+            image = try? await ImageCache.pipeline.image(for: url)
+            if image != nil { return }
+        }
+        await SeasonIcons.shared.ensureLoaded()
+        guard let url = SeasonIcons.shared.url(forSpid: spid) else { return }
+        image = try? await ImageCache.pipeline.image(for: url)
+    }
+}
+
 enum ImageCache {
     /// 넥슨 CDN 은 Cache-Control 헤더가 없어 URLCache 가 잘 안 듣는다 →
     /// Nuke DataCache(원본 바이트 디스크 캐시)를 쓰는 전용 파이프라인.

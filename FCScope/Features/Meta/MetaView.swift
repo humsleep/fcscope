@@ -20,7 +20,7 @@ struct MetaView: View {
                         VStack(spacing: 0) {
                             ForEach(hits.prefix(8)) { h in
                                 Button { router.push(.player(h.spid)); query = ""; hits = [] } label: {
-                                    HStack { PlayerImage(spid: h.spid, size: 32, radius: 8); Text(h.name).fcFont(14, weight: .semibold).foregroundStyle(FC.ink); Chip(text: h.season, color: FC.gold, bg: FC.gold.opacity(0.15)); Spacer(); Text("\(h.seasons.count)시즌").fcFont(11).foregroundStyle(FC.muted) }.padding(8)
+                                    HStack { PlayerImage(spid: h.spid, size: 32, radius: 8); Text(h.name).fcFont(14, weight: .semibold).foregroundStyle(FC.ink); SeasonBadge(spid: h.spid, season: h.season); Spacer(); Text("\(h.seasons.count)시즌").fcFont(11).foregroundStyle(FC.muted) }.padding(8)
                                 }.buttonStyle(.plain)
                             }
                         }
@@ -103,7 +103,7 @@ struct MetaView: View {
                             Text("\(i + 1)").fcScoreboard(13).foregroundStyle(i < 3 ? FC.gold : FC.muted).frame(width: 20)
                             PlayerImage(spid: r.spId, size: 34, radius: 8)
                             VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 4) { Text(r.name).fcFont(13, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1); if !r.season.isEmpty { Chip(text: r.season, color: FC.gold, bg: FC.gold.opacity(0.15)) } }
+                                HStack(spacing: 4) { Text(r.name).fcFont(13, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1); if !r.season.isEmpty { SeasonBadge(spid: r.spId, season: r.season, height: 14) } }
                                 GeometryReader { g in ZStack(alignment: .leading) { Capsule().fill(FC.surface2); Capsule().fill(FC.accent).frame(width: g.size.width * CGFloat(r.matchCount) / CGFloat(maxCount)) } }.frame(height: 4)
                             }
                             Spacer()
@@ -139,7 +139,7 @@ struct PlayerDetailView: View {
                             PlayerImage(spid: p.spid, size: 72, radius: 16)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(p.name).fcFont(22, weight: .bold).foregroundStyle(FC.ink)
-                                if !season.isEmpty { Chip(text: season, color: FC.gold, bg: FC.gold.opacity(0.15)) }
+                                if !season.isEmpty { SeasonBadge(spid: p.spid, season: season, height: 22) }
                                 Text("랭커 실사용 \(p.ranker.totalMatches)경기\(p.ranker.date.map { " · \($0)" } ?? "")").fcFont(12).foregroundStyle(FC.muted)
                             }
                         }
@@ -162,7 +162,7 @@ struct PlayerDetailView: View {
                         Panel(padding: 12) {
                             VStack(alignment: .leading, spacing: 6) {
                                 SectionLabel("다른 시즌 카드")
-                                FlowLayout(spacing: 6) { ForEach(p.seasons) { s in Button { if s.spid != p.spid { router.push(.player(s.spid)) } } label: { Chip(text: s.season, color: s.spid == p.spid ? FC.accentInk : FC.ink, bg: s.spid == p.spid ? FC.accent : FC.surface2) }.buttonStyle(.plain) } }
+                                FlowLayout(spacing: 6) { ForEach(p.seasons) { s in Button { if s.spid != p.spid { router.push(.player(s.spid)) } } label: { SeasonBadge(spid: s.spid, season: s.season, height: 18).padding(.horizontal, 6).padding(.vertical, 4).background(s.spid == p.spid ? FC.accent : FC.surface2, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(.plain) } }
                             }
                         }
                     }

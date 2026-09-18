@@ -227,7 +227,7 @@ struct PitchView: View {
                             // 64pt 폭에 전체 이름을 넣으면 "그레고르..." 처럼 잘려 누군지 몰랐다 — 마지막 단어(대개 성)만.
                             Text(filled.map { Self.shortName($0.name) } ?? s.pos).fcFont(10, weight: .bold).foregroundStyle(.white).lineLimit(1).minimumScaleFactor(0.7).frame(width: 64)
                                 .padding(.horizontal, 2).background(Color.black.opacity(0.45), in: Capsule())
-                            if let f = filled, let season = f.season, !season.isEmpty { Text(season).fcFont(8, weight: .semibold).foregroundStyle(FC.gold) }
+                            if let f = filled, let season = f.season, !season.isEmpty { SeasonBadge(spid: f.spid, season: season, height: 12) }
                         }
                     }
                     .buttonStyle(.plain)
@@ -315,7 +315,7 @@ struct PlayerSearchSheet: View {
             .sheet(item: $pick) { h in
                 NavigationStack {
                     List(h.seasons) { s in
-                        Button { model.assign(PlayerHit(spid: s.spid, pid: h.pid, name: h.name, season: s.season, seasons: h.seasons), to: slot); pick = nil; dismiss() } label: { HStack { PlayerImage(spid: s.spid, size: 36, radius: 8); Text(h.name).foregroundStyle(FC.ink); Chip(text: s.season, color: FC.gold, bg: FC.gold.opacity(0.15)) } }
+                        Button { model.assign(PlayerHit(spid: s.spid, pid: h.pid, name: h.name, season: s.season, seasons: h.seasons), to: slot); pick = nil; dismiss() } label: { HStack { PlayerImage(spid: s.spid, size: 36, radius: 8); Text(h.name).foregroundStyle(FC.ink); SeasonBadge(spid: s.spid, season: s.season) } }
                     }.navigationTitle("시즌 선택").navigationBarTitleDisplayMode(.inline)
                 }.presentationDetents([.medium])
             }
