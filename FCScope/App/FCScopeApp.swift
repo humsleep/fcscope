@@ -20,7 +20,7 @@ struct FCScopeApp: App {
                 .onChange(of: scenePhase, initial: true) { _, phase in
                     switch phase {
                     case .active:
-                        Analytics.shared.appBecameActive()
+                        AdsManager.shared.noteActive(newVisit: Analytics.shared.appBecameActive())
                         Task { await AdsManager.shared.resumeIfConsentAsked() }
                     case .background: Analytics.shared.appWentBackground()
                     default: break

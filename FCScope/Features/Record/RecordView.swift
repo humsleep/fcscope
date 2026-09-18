@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 @Observable
 @MainActor
@@ -94,8 +95,12 @@ final class RecordViewModel {
         // 폼 스냅샷(홈 내 구단·즐겨찾기 델타·위젯)은 공식경기 기준이다 — 감독모드 승률이 섞이면 델타가 튄다.
         if o.matchType == 50 {
             LocalPrefs.shared.recordForm(nick: o.profile.nickname, winRate: o.summary.winRate, score: o.score, streak: o.perf.currentStreak, form: o.matches.prefix(5).map(\.result))
+            // 홈 "지난 방문 이후 새 경기" 기준점 — 내 구단주 전적을 실제로 본 순간만 옮긴다.
+            if let latest = o.matches.first, LocalPrefs.shared.myNickname?.caseInsensitiveCompare(o.profile.nickname) == .orderedSame {
+                LocalPrefs.shared.markSeen(nick: o.profile.nickname, latestMatchDate: latest.matchDate)
+            }
         }
-        Task { await AdsManager.shared.requestConsentIfNeeded() }
+        Task { await AdsManager.shared.requestConsentIfEligible() }
     }
 
     private var typeTask: Task<Void, Never>?
@@ -162,6 +167,8 @@ struct RecordView: View {
     @State private var vm: RecordViewModel
     @State private var prefs = LocalPrefs.shared
     @Environment(AppRouter.self) private var router
+    /// 알림 권한이 아직 결정 전일 때만 true — 이미 허용·거부한 기기에 다시 묻지 않는다.
+    @State private var pushUndetermined = false
 
     init(nickname: String) {
         self.nickname = nickname
@@ -219,6 +226,7 @@ struct RecordView: View {
             }
         }
         .task { await vm.load() }
+        .task { if !prefs.pushPromptDismissed { await refreshPushStatus() } }
         .refreshable { await vm.refresh() }
     }
 
@@ -256,6 +264,7 @@ struct RecordView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 hero(o)
+                if isMine(o), pushUndetermined, !prefs.pushPromptDismissed { pushPrompt }
                 // 선택 컨트롤을 먼저 — 진단 배지가 사이에 있으면 컨트롤이 화면 아래로 밀려
                 // "탭이 있는 줄 모르는" 상태가 된다. 배지는 보조 정보라 아래로 내린다.
                 typeTabs(o)
@@ -271,6 +280,38 @@ struct RecordView: View {
             }
             .padding(16)
         }
+    }
+
+    private func isMine(_ o: UserOverview) -> Bool { prefs.myNickname?.caseInsensitiveCompare(o.profile.nickname) == .orderedSame }
+
+    /// 소프트 푸시 요청 — 온보딩에서 가치를 보기 전에 시스템 팝업을 띄우던 것을, 내 전적을 처음 본 뒤로 옮겼다.
+    /// "받기"를 눌렀을 때만 시스템 팝업이 뜬다. "괜찮아요"는 영구히 닫는다(설정에서 언제든 켤 수 있다).
+    private var pushPrompt: some View {
+        Panel(padding: 12, highlight: FC.accent.opacity(0.4)) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Text("🔔").fcFont(22)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("일요일 밤 주간 성적표 받아볼래요?").fcFont(15, weight: .bold).foregroundStyle(FC.ink)
+                        Text("이번 주 승률·연승 리캡만 보내요. 경기마다 알림하지 않아요.").fcFont(12).foregroundStyle(FC.muted)
+                    }
+                }
+                HStack(spacing: 8) {
+                    Button {
+                        Haptic.light()
+                        Task { await PushManager.shared.requestPermission(); await refreshPushStatus() }
+                    } label: { Text("받기").fcFont(14, weight: .bold).frame(maxWidth: .infinity, minHeight: 36) }
+                    .buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk)
+                    Button { prefs.pushPromptDismissed = true } label: {
+                        Text("괜찮아요").fcFont(14, weight: .semibold).foregroundStyle(FC.muted).frame(maxWidth: .infinity, minHeight: 36).contentShape(Rectangle())
+                    }.buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private func refreshPushStatus() async {
+        pushUndetermined = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus == .notDetermined
     }
 
     private func hero(_ o: UserOverview) -> some View {

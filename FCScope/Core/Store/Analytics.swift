@@ -79,12 +79,14 @@ final class Analytics {
     }
 
     /// 앱이 화면에 올라올 때 호출. 콜드 스타트이거나 30분 넘게 떠나 있었으면 방문 1회.
-    func appBecameActive() {
+    /// 새 방문이면 true — 광고 동의(ATT) 시점을 세션 수로 미루는 데도 같은 기준을 쓴다.
+    @discardableResult
+    func appBecameActive() -> Bool {
         let last = UserDefaults.standard.double(forKey: Self.lastActiveKey)
-        if last == 0 || Date().timeIntervalSince1970 - last > Self.sessionGap {
-            track(.appOpen)
-        }
+        let newVisit = last == 0 || Date().timeIntervalSince1970 - last > Self.sessionGap
+        if newVisit { track(.appOpen) }
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.lastActiveKey)
+        return newVisit
     }
 
     /// 백그라운드로 갈 때 — 마지막 활동 시각을 남기고, 큐를 파일에 저장한 뒤 쌓인 이벤트를 모두 보낸다.
