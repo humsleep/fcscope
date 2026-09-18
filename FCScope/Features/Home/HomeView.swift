@@ -243,11 +243,21 @@ struct HomeView: View {
     }
 }
 
-/// 온보딩 3화면 — 로그인 강요 없음, 구단주명 입력은 건너뛰기 가능
+/// 온보딩 3화면 — 로그인 강요 없음, 구단주명 입력은 건너뛰기 가능.
+/// 시스템 권한 팝업은 여기서 띄우지 않는다 — 가치를 보기 전에 묻던 푸시 요청은 전적 화면의 소프트 카드로 옮겼다.
 struct OnboardingView: View {
+    @Environment(AppRouter.self) private var router
     @State private var prefs = LocalPrefs.shared
     @State private var page = 0
     @State private var nick = ""
+    @State private var check: NickCheck = .idle
+
+    /// 구단주명 확인 상태. 네트워크 실패는 막지 않는다(확인 못 한 채로 저장 → 전적 화면이 최종 판정).
+    enum NickCheck: Equatable { case idle, checking, ok(String), notFound, unknown }
+
+    /// NFC 로 합친다 — 입력 경로에 따라 한글이 자모 분리(NFD)로 들어오면 화면엔 "보엠"인데 서버는 없는 구단주로 답했다.
+    private var trimmed: String { nick.trimmingCharacters(in: .whitespaces).precomposedStringWithCanonicalMapping }
+
     var body: some View {
         VStack {
             TabView(selection: $page) {
@@ -258,29 +268,58 @@ struct OnboardingView: View {
                     // 다른 페이지와 같은 좌우 여백 — 없으면 이 페이지만 설명이 화면 끝까지 붙는다.
                     Text("홈에 내 폼 카드가 고정되고, 위젯·주간 성적표에 쓰여요. 나중에 바꿀 수 있어요.").fcFont(14).foregroundStyle(FC.muted).multilineTextAlignment(.center).padding(.horizontal, 32)
                     TextField("FC온라인 구단주명", text: $nick).textFieldStyle(.roundedBorder).padding(.horizontal, 32).autocorrectionDisabled()
+                        .textInputAutocapitalization(.never).submitLabel(.done)
+                    checkLine.frame(minHeight: 20)
                 }.tag(1)
-                onboardPage(icon: "bell.badge", title: "주간 성적표를 받아볼까요?", desc: "일요일 밤 이번 주 승률·연승 리캡, 금요일엔 랭커 메타 한 줄 요약만 보내요. 경기마다 알림하지 않아요.").tag(2)
+                onboardPage(icon: "sportscourt", title: "마지막 경기부터 바로", desc: "방금 끝난 경기의 슛맵·POTM·선수 평점을 한눈에. 카드 한 장으로 공유도 돼요.").tag(2)
             }
             .tabViewStyle(.page)
             // 기본 페이지 점은 흰색이라 라이트 모드 배경(거의 흰색)에서 보이지 않았다 — 반투명 배경 캡슐을 깐다.
             .indexViewStyle(.page(backgroundDisplayMode: .always))
-            VStack(spacing: 8) {
-                Button {
-                    if page < 2 { withAnimation { page += 1 } } else { finish(requestPush: true) }
-                } label: { Text(page == 1 && nick.isEmpty ? "나중에 입력할게요" : page < 2 ? "다음" : "알림 받기").frame(maxWidth: .infinity) }
-                .buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk)
-                // HIG: 권한 요청 직전 화면에는 거절할 길이 있어야 한다. "시작하기" 하나뿐이라
-                // 누르는 순간 시스템 알림 팝업이 떠 사실상 강요였다. 거절해도 설정에서 다시 켤 수 있다.
-                if page == 2 {
-                    Button("나중에") { finish(requestPush: false) }
-                        .fcFont(15, weight: .semibold).foregroundStyle(FC.muted)
-                        .frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
-                }
-            }
+            Button {
+                if page < 2 { withAnimation { page += 1 } } else { finish() }
+            } label: { Text(primaryLabel).frame(maxWidth: .infinity) }
+            .buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk)
             .padding(.horizontal, 24).padding(.bottom, 24)
         }
         .background(FC.bg.ignoresSafeArea())
+        // 입력이 멈춘 뒤 0.6초에 확인 — 글자마다 넥슨을 치지 않게(프로필 단계는 넥슨 2콜).
+        .task(id: trimmed) { await validate(trimmed) }
     }
+
+    private var primaryLabel: String {
+        guard page == 1 else { return page < 2 ? "다음" : "시작하기" }
+        if trimmed.isEmpty { return "나중에 입력할게요" }
+        return check == .notFound ? "구단주명 없이 계속" : "다음"
+    }
+
+    @ViewBuilder private var checkLine: some View {
+        switch check {
+        case .idle: EmptyView()
+        case .checking: HStack(spacing: 6) { ProgressView().controlSize(.small); Text("확인 중…").fcFont(13).foregroundStyle(FC.muted) }
+        case .ok(let n): Text("✓ 확인됐어요 · \(n)").fcFont(13, weight: .semibold).foregroundStyle(FC.win)
+        case .notFound: Text("그런 구단주명을 찾지 못했어요").fcFont(13, weight: .semibold).foregroundStyle(FC.lose)
+        case .unknown: Text("지금은 확인할 수 없어요 · 그대로 저장돼요").fcFont(13).foregroundStyle(FC.muted)
+        }
+    }
+
+    private func validate(_ n: String) async {
+        guard !n.isEmpty else { check = .idle; return }
+        try? await Task.sleep(for: .milliseconds(600))
+        guard !Task.isCancelled else { return }
+        check = .checking
+        struct ProfileOnly: Decodable { let profile: UserProfile }
+        let enc = n.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? n
+        do {
+            let r: ProfileOnly = try await APIClient.shared.get("/api/v1/user/\(enc)", query: ["stage": "profile"], auth: false)
+            guard !Task.isCancelled else { return }
+            check = .ok(r.profile.nickname)
+        } catch {
+            guard !Task.isCancelled else { return }
+            check = (error as? APIError)?.isUserNotFound == true ? .notFound : .unknown
+        }
+    }
+
     private func onboardPage(icon: String, title: String, desc: String) -> some View {
         VStack(spacing: 16) {
             Image(systemName: icon).fcFont(56).foregroundStyle(FC.accent)
@@ -288,10 +327,17 @@ struct OnboardingView: View {
             Text(desc).fcFont(14).foregroundStyle(FC.muted).multilineTextAlignment(.center).padding(.horizontal, 32)
         }
     }
-    private func finish(requestPush: Bool) {
-        let n = nick.trimmingCharacters(in: .whitespaces)
-        if !n.isEmpty { prefs.myNickname = n }
-        if requestPush { Task { await PushManager.shared.requestPermission() } }
+
+    /// 확인된 구단주명(넥슨 표기)으로 저장하고 바로 그 전적으로 보낸다 — 홈에 남겨 두면 "이제 뭘 하지"가 된다.
+    /// 없는 구단주로 판정된 이름은 저장하지 않는다(홈 카드·위젯·주간 리캡이 빈 이름을 붙잡는다).
+    private func finish() {
+        let saved: String? = switch check {
+        case .ok(let n): n
+        case .notFound: nil
+        default: trimmed.isEmpty ? nil : trimmed
+        }
+        if let saved { prefs.myNickname = saved }
         prefs.onboardingDone = true
+        if let saved { router.tab = .home; router.homePath.append(Route.user(saved)) }
     }
 }
