@@ -17,8 +17,8 @@ enum PitchLayout {
 
     /// GK 구역 경계 — 이보다 아래(y 가 큼)는 골키퍼만.
     static let gkZoneTop: Double = 86
-    /// 피치 안쪽 여백(슬롯 원이 잘리지 않게)
-    static let minX: Double = 6, maxX: Double = 94
+    /// 피치 안쪽 여백 — x 는 포메이션 기본 좌표와 같은 8~92(64pt 이름표가 피치 밖으로 나가지 않게)
+    static let minX: Double = 8, maxX: Double = 92
     static let minY: Double = 6, maxY: Double = 96
 
     /// 드래그 위치를 피치 안으로 가두고 GK 규칙을 적용한다.
