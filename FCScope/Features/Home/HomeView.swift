@@ -26,6 +26,8 @@ struct HomeView: View {
     @State private var query = ""
     /// 검색창 활성 상태 — 제안 탭 후 닫고, "전적 · 분석 리포트" 카드에서 열 때 쓴다.
     @State private var searchPresented = false
+    /// 내 구단 "지난 방문 이후 새 경기" — 디스크 캐시에 남은 전적(백그라운드 갱신·이전 조회)으로만 계산한다. 홈에서 네트워크 0.
+    @State private var sinceLastSeen: [MatchSummary]?
 
     var body: some View {
         ScrollView {
@@ -61,6 +63,15 @@ struct HomeView: View {
         }
         .task { await vm.load() }
         .refreshable { await vm.refresh() }
+        // 전적을 보고 돌아오면 본 경기 표시가 바뀌므로 나타날 때마다 다시 센다(디스크 읽기 1회).
+        .onAppear { Task { await loadSinceLastSeen() } }
+    }
+
+    private func loadSinceLastSeen() async {
+        guard let mine = prefs.myNickname else { sinceLastSeen = nil; return }
+        let path = "/api/v1/user/\(mine.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? mine)"
+        guard let hit: (value: UserOverview, isFresh: Bool) = await APIClient.shared.cachedValue(path, query: ["type": "50"]) else { sinceLastSeen = nil; return }
+        sinceLastSeen = prefs.matchesSinceLastSeen(nick: mine, in: hit.value.matches)
     }
 
     private func search(_ raw: String) {
@@ -122,6 +133,13 @@ struct HomeView: View {
                             }
                         } else {
                             Text("탭해서 최근 폼 확인").fcFont(13).foregroundStyle(FC.muted)
+                        }
+                        if let new = sinceLastSeen, !new.isEmpty {
+                            // 30경기 창 안에서만 셀 수 있다 — 창을 넘으면 "30+"로 정직하게.
+                            let count = new.count >= 30 ? "30+" : "\(new.count)"
+                            let w = new.filter { $0.result == "승" }.count, d = new.filter { $0.result == "무" }.count, l = new.filter { $0.result == "패" }.count
+                            // 무승부가 빠지면 "6개 · 3승 1패"처럼 합이 안 맞아 보인다 — 있을 때만 끼운다.
+                            Text("지난 방문 이후 새 경기 \(count)개 · \(w)승\(d > 0 ? " \(d)무" : "") \(l)패").fcFont(12, weight: .semibold).foregroundStyle(FC.ink)
                         }
                     }
                     Spacer()
