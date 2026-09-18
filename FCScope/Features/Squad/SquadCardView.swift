@@ -11,6 +11,8 @@ struct SquadCardView: View {
     let data: SquadCardData
 
     private var formation: Formation { Formation.get(data.formationId) }
+    /// 자리 라벨(pos)·좌표까지 반영한 배치 — 칩과 같은 "커스텀 (≈4-4-2)" 문구를 쓰기 위해
+    private var layout: PitchLayout.Layout { PitchLayout.restore(formation: formation, slots: Array(data.slots.values)) }
     private var filled: Int { formation.slots.filter { data.slots[$0.id] != nil }.count }
     /// 가장 많이 쓰인 시즌 (서버 topSeason 과 동일 의도)
     private var topSeason: String? {
@@ -25,7 +27,7 @@ struct SquadCardView: View {
                 Text("FC").font(.scoreboard(44)).foregroundStyle(CardPalette.lime)
                 Text("SCOPE").font(.scoreboard(44)).foregroundStyle(CardPalette.ink)
                 Spacer()
-                Text(formation.name).font(.scoreboard(44)).foregroundStyle(CardPalette.gold)
+                Text(layout.title).font(.scoreboard(44)).lineLimit(1).minimumScaleFactor(0.5).foregroundStyle(CardPalette.gold)
             }
             Text(data.name)
                 .font(.pretendard(56, .bold))
@@ -74,8 +76,10 @@ struct SquadCardView: View {
                     ctx.stroke(p, with: .color(.white.opacity(0.14)), lineWidth: 3)
                 }
                 ForEach(formation.slots) { slot in
+                    // 드래그로 옮긴 자리는 선수 슬롯의 x/y(0~100)를 쓴다 — 빌더·공유 페이지와 같은 배치.
+                    let p = data.slots[slot.id]
                     node(slot: slot)
-                        .position(x: w * slot.x / 100, y: h * slot.y / 100)
+                        .position(x: w * (p?.x ?? slot.x) / 100, y: h * (p?.y ?? slot.y) / 100)
                 }
             }
         }
@@ -96,7 +100,7 @@ struct SquadCardView: View {
             .frame(width: 108, height: 108)
             .clipShape(Circle())
 
-            Text(player.map { short($0.name) } ?? slot.pos)
+            Text(player.map { short($0.name) } ?? layout.pos(of: slot))
                 .font(.pretendard(26, .bold))
                 .foregroundStyle(.white)
                 .lineLimit(1)
