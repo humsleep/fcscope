@@ -54,7 +54,8 @@ enum BackgroundRefresh {
         let prefs = LocalPrefs.shared
         let nicks = ([prefs.myNickname].compactMap { $0 } + prefs.favorites).prefix(4)
         for n in nicks {
-            if let o: UserOverview = try? await APIClient.shared.get("/api/v1/user/\(n.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? n)", auth: false) {
+            // 전적 화면과 같은 키(type=50)로 디스크 캐시에 남긴다 — 홈 "지난 방문 이후 새 경기"가 네트워크 없이 이 값을 읽는다.
+            if let o: UserOverview = try? await APIClient.shared.getAndCache("/api/v1/user/\(n.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? n)", query: ["type": "50"], auth: false) {
                 prefs.recordForm(nick: o.profile.nickname, winRate: o.summary.winRate, score: o.score, streak: o.perf.currentStreak)
             }
         }

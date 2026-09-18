@@ -25,6 +25,10 @@ final class LocalPrefs {
     /// 즐겨찾기 구단주별 최근 폼 스냅샷 (승률·연승) — 델타 배지 재료
     var formSnapshots: [String: FormSnapshot] { didSet { saveCodable("formSnapshots", formSnapshots) } }
     var streak: VisitStreak { didSet { saveCodable("streak", streak) } }
+    /// 전적 화면의 "주간 성적표 받아볼래요?" 카드를 "괜찮아요"로 닫았는가 — 한 번 닫으면 다시 묻지 않는다.
+    var pushPromptDismissed: Bool { didSet { Self.suite.set(pushPromptDismissed, forKey: "pushPromptDismissed") } }
+    /// 구단주별(소문자) 마지막으로 본 최신 경기 시각(서버 matchDate 원문) — 홈 "지난 방문 이후 새 경기" 재료.
+    var lastSeenMatch: [String: String] { didSet { saveCodable("lastSeenMatch", lastSeenMatch) } }
 
     struct FormSnapshot: Codable { var winRate: Int; var score: Double; var streak: Int; var updatedAt: Date; var prevWinRate: Int?; var form: [String]? }
     struct VisitStreak: Codable { var current: Int; var best: Int; var lastDay: String }
@@ -38,6 +42,8 @@ final class LocalPrefs {
         attAsked = Self.suite.bool(forKey: "attAsked")
         formSnapshots = Self.load("formSnapshots") ?? [:]
         streak = Self.load("streak") ?? VisitStreak(current: 0, best: 0, lastDay: "")
+        pushPromptDismissed = Self.suite.bool(forKey: "pushPromptDismissed")
+        lastSeenMatch = Self.load("lastSeenMatch") ?? [:]
     }
 
     private func save(_ key: String, _ v: [String]) { Self.suite.set(v, forKey: key) }
@@ -71,6 +77,18 @@ final class LocalPrefs {
         if changed, let mine = myNickname, mine.caseInsensitiveCompare(nick) == .orderedSame { WidgetBridge.reload(.myForm) }
     }
     func snapshot(for nick: String) -> FormSnapshot? { formSnapshots[nick.lowercased()] }
+
+    /// 전적 화면에서 본 최신 경기를 기록한다. 같은 값이면 쓰지 않는다(캐시 → 네트워크로 두 번 불림).
+    func markSeen(nick: String, latestMatchDate: String) {
+        let key = nick.lowercased()
+        if lastSeenMatch[key] != latestMatchDate { lastSeenMatch[key] = latestMatchDate }
+    }
+    /// 마지막으로 본 경기보다 새 경기들. 본 기록이 없으면 nil(계산 불가 → 홈에서 줄을 숨긴다).
+    /// 서버 matchDate 는 형식이 섞일 수 있어 문자열 비교 대신 날짜로 비교한다.
+    func matchesSinceLastSeen(nick: String, in matches: [MatchSummary]) -> [MatchSummary]? {
+        guard let raw = lastSeenMatch[nick.lowercased()], let seen = DateFmt.parse(raw) else { return nil }
+        return matches.filter { DateFmt.parse($0.matchDate).map { $0 > seen } ?? false }
+    }
 
     /// 방문 스트릭(하루 1회)
     func recordVisit() {

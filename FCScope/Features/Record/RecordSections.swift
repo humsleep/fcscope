@@ -23,7 +23,7 @@ struct ReportSection: View {
                             HStack(alignment: .lastTextBaseline, spacing: 20) {
                                 VStack(alignment: .leading) { Text("최근 \(r.report.played)경기 득실").fcFont(12).foregroundStyle(FC.muted)
                                     (Text("\(r.report.goalsFor)").foregroundStyle(FC.accent) + Text(" : ").foregroundStyle(FC.muted) + Text("\(r.report.goalsAgainst)").foregroundStyle(FC.lose)).font(.fcScoreboard(24, typeSize)) }
-                                VStack(alignment: .leading) { Text("평균 평점").fcFont(12).foregroundStyle(FC.muted); Text(String(format: "%.2f", r.report.avgRating)).fcScoreboard(24).foregroundStyle(FC.gold) }
+                                VStack(alignment: .leading) { Text("평균 경기 평점").fcFont(12).foregroundStyle(FC.muted); Text(String(format: "%.2f", r.report.avgRating)).fcScoreboard(24).foregroundStyle(FC.gold) }
                                 if let w = r.report.weekly, let d = w.deltaWinRate {
                                     VStack(alignment: .leading) { Text("최근 7일 승률").fcFont(12).foregroundStyle(FC.muted)
                                         (Text("\(w.recentWinRate)%") + Text(d >= 0 ? " ▲\(d)" : " ▼\(-d)").font(.fcScoreboard(13, typeSize)).foregroundStyle(d >= 0 ? FC.win : FC.lose)).font(.fcScoreboard(24, typeSize)).foregroundStyle(FC.ink) }
@@ -113,16 +113,9 @@ struct PlayersSection: View {
                     Button { router.pendingSquadImport = .owner(p.builderOwner); router.tab = .squad } label: {
                         Panel(padding: 12) { HStack { Text("🛡️ 이 스쿼드 그대로 빌더로 열기").fcFont(14, weight: .semibold).foregroundStyle(FC.ink); Spacer(); Text("열기 →").fcScoreboard(13).foregroundStyle(FC.accent) } }
                     }.buttonStyle(.plain)
-                    if let c = p.clinic { clinic(c) }
-                    if let v = p.squadVerdict {
-                        Panel {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 6) { SectionLabel("스쿼드 실전 가치"); VerdictStamp(verdict: v, large: true, showLiner: true) }
-                                Spacer()
-                                VStack(alignment: .trailing) { Text("실사용 평점").font(.fcFont(12, typeSize)).foregroundStyle(FC.muted); (Text(String(format: "%.2f", p.squadRating)) + Text("/10").font(.fcScoreboard(13, typeSize)).foregroundStyle(FC.muted)).font(.fcScoreboard(28, typeSize)).foregroundStyle(FC.accent) }
-                            }
-                        }
-                    }
+                    // "스쿼드 실전 가치" 판정 패널은 뺐다 — 클리닉 점수와 같은 재료(선수 평점)를 밈 등급으로 한 번 더 보여 줘
+                    // 숫자만 늘었다. 응답 필드(squadVerdict·squadRating)는 계약상 그대로 받는다.
+                    if let c = p.clinic { clinic(c, sampleGames: p.sampleGames) }
                     if let picks = p.picks {
                         Panel {
                             VStack(alignment: .leading, spacing: 6) {
@@ -143,19 +136,20 @@ struct PlayersSection: View {
         }
     }
 
-    private func clinic(_ c: Clinic) -> some View {
+    private func clinic(_ c: Clinic, sampleGames: Int) -> some View {
         Panel {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     SectionLabel("스쿼드 클리닉")
                     Spacer()
-                    Text("ⓘ 실사용 평점(출전 가중) · 라인 균형 · 약한 고리 3축").fcFont(10).foregroundStyle(FC.muted)
+                    Text("ⓘ 선수 평점(출전 가중) · 라인 균형 · 약한 고리 3축").fcFont(10).foregroundStyle(FC.muted)
                 }
                 HStack(alignment: .lastTextBaseline) {
                     (Text("\(Int(c.overall))") + Text("/100").font(.fcScoreboard(14, typeSize)).foregroundStyle(FC.muted)).font(.fcScoreboard(34, typeSize)).foregroundStyle(FC.accent)
                     Text(Self.bandLabel(c.band)).fcFont(12, weight: .semibold).foregroundStyle(FC.gold)
                     Spacer()
-                    Text("\(c.players)명 · \(c.sampleGames)경기 표본").fcFont(11).foregroundStyle(FC.muted)
+                    // c.sampleGames 는 선수×경기 출전 수라 "330경기"처럼 부풀어 보였다 — 실제 경기 수로 쓴다.
+                    Text("최근 \(sampleGames)경기 · \(c.players)명").fcFont(11).foregroundStyle(FC.muted)
                 }
                 ForEach(c.lines) { l in
                     HStack {
@@ -189,10 +183,10 @@ struct PlayersSection: View {
                         if let r = p.ranker {
                             Text("랭커 대비 경기당 골 \(String(format: "%+.2f", p.goalsPerGame - r.goal)) · 패스 \(Int(p.passRate) - r.passRate >= 0 ? "+" : "")\(Int(p.passRate) - r.passRate)%p (n=\(r.matchCount))").fcFont(11).foregroundStyle(FC.muted)
                         }
-                        VerdictStamp(verdict: p.verdict)
+                        // 30경기 평균에 "오늘은 좀 아쉬웠다" 같은 한 경기용 밈 등급을 찍으면 뜻이 어긋난다 — 숫자(선수 평점)만 남긴다.
                     }
                     Spacer()
-                    VStack(alignment: .trailing) { Text(String(format: "%.2f", p.avgRating)).fcScoreboard(20).foregroundStyle(p.avgRating >= 7.5 ? FC.gold : p.avgRating < 6 ? FC.lose : FC.ink); Text("평점").fcFont(11).foregroundStyle(FC.muted) }
+                    VStack(alignment: .trailing) { Text(String(format: "%.2f", p.avgRating)).fcScoreboard(20).foregroundStyle(p.avgRating >= 7.5 ? FC.gold : p.avgRating < 6 ? FC.lose : FC.ink); Text("선수 평점").fcFont(11).foregroundStyle(FC.muted) }
                 }
             }
         }.buttonStyle(.plain)

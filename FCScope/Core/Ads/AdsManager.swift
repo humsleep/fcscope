@@ -4,7 +4,7 @@ import UserMessagingPlatform
 import AppTrackingTransparency
 import Observation
 
-/// AdMob 초기화 + UMP 동의 + ATT. 회의 결정: 첫 실행 3일간 배너 0, ATT 는 첫 검색 결과를 본 뒤에만 요청.
+/// AdMob 초기화 + UMP 동의 + ATT. 회의 결정: 첫 실행 3일간 배너 0, ATT 는 두 번째 세션부터 전적 결과를 본 뒤에만 요청.
 @Observable
 @MainActor
 final class AdsManager {
@@ -57,6 +57,27 @@ final class AdsManager {
         // EEA 에서 동의를 받지 못했으면 광고를 요청하지 않는다(AdMob 정책). 그 밖의 지역은 항상 true.
         guard ConsentInformation.shared.canRequestAds else { return }
         await start()
+    }
+
+    // MARK: 세션 카운터 — ATT 를 첫 세션에 띄우지 않는다
+
+    private static let sessionCountKey = "fcscope.sessionCount"
+    /// 지금까지의 앱 사용 세션 수(이번 세션 포함). 첫 실행 또는 30분 넘게 떠났다 돌아오면 +1.
+    var sessionCount: Int { UserDefaults.standard.integer(forKey: Self.sessionCountKey) }
+
+    /// scenePhase .active 마다 호출. newVisit 은 Analytics 의 방문 판정(30분 간격)과 같다.
+    /// 콜드 스타트만으로는 세지 않는다 — 온보딩 중에 앱을 껐다 켜기만 해도 "두 번째 세션"이 돼 첫 사용에 ATT 가 떴다(시뮬레이터 실측).
+    func noteActive(newVisit: Bool) {
+        guard newVisit else { return }
+        UserDefaults.standard.set(sessionCount + 1, forKey: Self.sessionCountKey)
+    }
+
+    /// 전적 화면에서 호출 — 설치 첫 세션에는 묻지 않는다.
+    /// 앱을 처음 열자마자 추적 허용 팝업이 뜨면 거절률이 높고, 가치를 보기도 전에 시스템 팝업이 두 번(푸시·ATT) 떴다.
+    /// 두 번째 세션부터 전적 결과를 본 뒤에 묻는다. 이미 절차를 끝낸 기기는 resumeIfConsentAsked 가 맡는다.
+    func requestConsentIfEligible() async {
+        guard sessionCount >= 2 else { return }
+        await requestConsentIfNeeded()
     }
 
     /// 앱이 활성화될 때 호출 — 예전에 동의 절차를 끝낸 기기만 SDK 를 바로 시작한다.

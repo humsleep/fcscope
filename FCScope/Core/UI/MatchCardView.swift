@@ -157,7 +157,7 @@ struct MatchCardView: View {
             ("패스 성공률", m.me.stats.passRate.map { "\($0)%" } ?? "-", o.stats.passRate.map { "\($0)%" } ?? "-"),
             ("드리블", "\(m.me.stats.dribble)", "\(o.stats.dribble)"),
             ("태클 성공", "\(m.me.stats.tackleSuccess)/\(m.me.stats.tackleTry)", "\(o.stats.tackleSuccess)/\(o.stats.tackleTry)"),
-            ("평점", String(format: "%.1f", m.me.rating), String(format: "%.1f", o.rating)),
+            ("경기 평점", String(format: "%.1f", m.me.rating), String(format: "%.1f", o.rating)),
         ]
         return VStack(spacing: 12) {
             ForEach(rows, id: \.0) { r in
