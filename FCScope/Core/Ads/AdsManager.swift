@@ -72,11 +72,11 @@ final class AdsManager {
         UserDefaults.standard.set(sessionCount + 1, forKey: Self.sessionCountKey)
     }
 
-    /// 전적 화면에서 호출 — 설치 첫 세션에는 묻지 않는다.
-    /// 앱을 처음 열자마자 추적 허용 팝업이 뜨면 거절률이 높고, 가치를 보기도 전에 시스템 팝업이 두 번(푸시·ATT) 떴다.
-    /// 두 번째 세션부터 전적 결과를 본 뒤에 묻는다. 이미 절차를 끝낸 기기는 resumeIfConsentAsked 가 맡는다.
+    /// 전적 화면에서 결과가 뜬 뒤 호출 — 앱을 열자마자가 아니라 가치를 본 다음에 묻는다.
+    /// 예전엔 두 번째 세션(30분 이상 떠났다 복귀)까지 미뤘는데, 한 자리에서 앱을 보는 심사자는 ATT 를 끝내 볼 수 없어
+    /// "추적 권한 요청을 찾을 수 없음"(5.1.2) 거절 위험이 컸다. 푸시는 시스템 팝업이 아닌 앱 안 카드라 겹치지 않는다.
+    /// 이미 절차를 끝낸 기기는 resumeIfConsentAsked 가 맡는다.
     func requestConsentIfEligible() async {
-        guard sessionCount >= 2 else { return }
         await requestConsentIfNeeded()
     }
 

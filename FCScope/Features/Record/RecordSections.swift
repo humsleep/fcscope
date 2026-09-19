@@ -129,7 +129,8 @@ struct PlayersSection: View {
                             }
                         }
                     }
-                    Text("최근 \(p.sampleGames)경기 · \(p.minGames)경기 이상 출전 선수 · 랭커 평균은 같은 포지션 상위 랭커 기준").fcFont(12).foregroundStyle(FC.muted)
+                    // 랭커 비교값이 하나도 없으면 "랭커 평균은…" 안내는 없는 기능을 설명하는 셈이라 뺀다.
+                    Text("최근 \(p.sampleGames)경기 · \(p.minGames)경기 이상 출전 선수" + (p.players.contains { $0.ranker != nil } ? " · 랭커 평균은 같은 포지션 상위 랭커 기준" : "")).fcFont(12).foregroundStyle(FC.muted)
                     ForEach(p.players) { card(_: $0) }
                 }
             }

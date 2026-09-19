@@ -89,7 +89,7 @@ struct HomeView: View {
 
     private var hero: some View {
         VStack(alignment: .leading, spacing: 6) {
-            SectionLabel("EA SPORTS FC ONLINE DATA LAB", color: FC.accent)
+            SectionLabel("FC온라인 비공식 데이터 랩", color: FC.accent)
             (Text("감이 아니라, ") + Text("데이터").foregroundStyle(FC.accent) + Text("로."))
                 .fcFont(28, weight: .bold).foregroundStyle(FC.ink)
             Text("전적·슛맵·선수 성적표·플레이스타일을 구단주명 하나로.").fcFont(14).foregroundStyle(FC.muted)
