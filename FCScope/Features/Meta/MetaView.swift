@@ -7,11 +7,13 @@ struct MetaView: View {
     @State private var hits: [PlayerHit] = []
     @Environment(AppRouter.self) private var router
 
+    private var modeName: String { matchType == 52 ? "감독모드" : "공식경기" }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 SectionLabel("픽 랭킹", color: FC.accent)
-                Text("최근 공식경기에서 선발로 가장 많이 쓰인 카드와, 그 카드의 넥슨 상위 랭커 성적.\(state.value?.date.map { " (\($0) 스냅샷)" } ?? "")").fcFont(13).foregroundStyle(FC.muted)
+                Text("최근 \(modeName)에서 선발로 가장 많이 쓰인 카드와, 그 카드의 넥슨 상위 랭커 성적.\(state.value?.date.map { " (\($0) 스냅샷)" } ?? "")").fcFont(13).foregroundStyle(FC.muted)
                 // 빈 라벨이면 VoiceOver 가 이름 없는 컨트롤로 읽는다 — 라벨은 주고 화면에서만 숨긴다.
                 Picker("매치 유형", selection: $matchType) { Text("공식경기").tag(50); Text("감독모드").tag(52) }.pickerStyle(.segmented).labelsHidden()
                     .onChange(of: matchType) { _, _ in Task { await load() } }
@@ -41,7 +43,7 @@ struct MetaView: View {
                     } else {
                         if let mv = m.mover { moverCard(mv) }
                         ForEach(m.lines) { line in lineBlock(line) }
-                        Text("순위: FC Scope에 조회된 최근 공식경기에서 선발로 뛴 횟수. 골·패스는 넥슨 상위 랭커 기록(카드당 최근 20경기).").fcFont(11).foregroundStyle(FC.muted)
+                        Text("순위: FC Scope에 조회된 최근 \(modeName)에서 선발로 뛴 횟수. 골·패스는 넥슨 상위 랭커 기록(카드당 최근 20경기).").fcFont(11).foregroundStyle(FC.muted)
                     }
                 }
                 // 빈 화면에 광고만 덩그러니 있으면 광고가 본문처럼 보인다 — 데이터가 있을 때만.
@@ -140,12 +142,14 @@ struct PlayerDetailView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(p.name).fcFont(22, weight: .bold).foregroundStyle(FC.ink)
                                 if !season.isEmpty { SeasonBadge(spid: p.spid, season: season, height: 22) }
-                                Text("넥슨 상위 랭커 최근 \(p.ranker.totalMatches)경기 평균\(p.ranker.date.map { " · \($0)" } ?? "")").fcFont(12).foregroundStyle(FC.muted)
+                                if p.ranker.totalMatches > 0 {
+                                    Text("넥슨 상위 랭커 최근 \(p.ranker.totalMatches)경기 평균\(p.ranker.date.map { " · \($0)" } ?? "")").fcFont(12).foregroundStyle(FC.muted)
+                                }
                             }
                         }
                     }
                     if p.ranker.positions.isEmpty {
-                        Panel { Text("아직 랭커 실사용 데이터가 없어요. 스냅샷이 쌓이면 표시돼요.").fcFont(13).foregroundStyle(FC.muted) }
+                        Panel { Text("아직 이 카드의 랭커 기록이 없어요. 많이 쓰이는 카드부터 매일 모아요.").fcFont(13).foregroundStyle(FC.muted) }
                     }
                     ForEach(p.ranker.positions) { ps in
                         Panel(padding: 12) {

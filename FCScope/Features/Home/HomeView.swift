@@ -271,6 +271,8 @@ struct OnboardingView: View {
     @State private var page = 0
     @State private var nick = ""
     @State private var check: NickCheck = .idle
+    /// check 가 어떤 입력에 대한 결과인가 — 입력이 바뀐 뒤 옛 결과를 저장하면 남의 구단이 "내 구단"이 됐다(E2E 2026-09-20)
+    @State private var checkedFor = ""
 
     /// 구단주명 확인 상태. 네트워크 실패는 막지 않는다(확인 못 한 채로 저장 → 전적 화면이 최종 판정).
     enum NickCheck: Equatable { case idle, checking, ok(String), notFound, unknown }
@@ -324,7 +326,9 @@ struct OnboardingView: View {
     }
 
     private func validate(_ n: String) async {
-        guard !n.isEmpty else { check = .idle; return }
+        // 입력이 바뀌면 옛 결과를 즉시 지운다(디바운스 동안 "✓ 확인됐어요 · 이전값"이 남아 있었다)
+        check = .idle; checkedFor = n
+        guard !n.isEmpty else { return }
         try? await Task.sleep(for: .milliseconds(600))
         guard !Task.isCancelled else { return }
         check = .checking
@@ -332,10 +336,10 @@ struct OnboardingView: View {
         let enc = n.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? n
         do {
             let r: ProfileOnly = try await APIClient.shared.get("/api/v1/user/\(enc)", query: ["stage": "profile"], auth: false)
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, checkedFor == n else { return }
             check = .ok(r.profile.nickname)
         } catch {
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, checkedFor == n else { return }
             check = (error as? APIError)?.isUserNotFound == true ? .notFound : .unknown
         }
     }
@@ -351,8 +355,10 @@ struct OnboardingView: View {
     /// 확인된 구단주명(넥슨 표기)으로 저장하고 바로 그 전적으로 보낸다 — 홈에 남겨 두면 "이제 뭘 하지"가 된다.
     /// 없는 구단주로 판정된 이름은 저장하지 않는다(홈 카드·위젯·주간 리캡이 빈 이름을 붙잡는다).
     private func finish() {
-        let saved: String? = switch check {
-        case .ok(let n): n
+        // 결과가 지금 입력에 대한 것일 때만 믿는다. 넥슨 표기(대소문자 등)를 쓰되, 이름 자체가 다르면 입력값을 쓴다.
+        let current = checkedFor == trimmed ? check : .idle
+        let saved: String? = switch current {
+        case .ok(let n) where n.caseInsensitiveCompare(trimmed) == .orderedSame: n
         case .notFound: nil
         default: trimmed.isEmpty ? nil : trimmed
         }

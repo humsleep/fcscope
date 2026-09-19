@@ -200,7 +200,7 @@ struct SquadBuilderView: View {
             VStack(alignment: .leading, spacing: 12) {
                 // 한 줄에 다 들어가면 한 줄로, "커스텀 (≈4-2-3-1)" 처럼 길어지거나 글자를 키우면 두 줄로 접는다.
                 ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 6) { formationChip; presetChip; importChip; Spacer(minLength: 0); filledCount }
+                    HStack(spacing: 5) { formationChip; presetChip; importChip; Spacer(minLength: 0); filledCount }
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 8) { formationChip; Spacer(); filledCount }
                         HStack(spacing: 8) { presetChip; importChip; Spacer() }
@@ -295,13 +295,13 @@ struct SquadBuilderView: View {
         model.message = "\(hit.name)을(를) \(model.pos(of: slot))에 배치했어요."
     }
     private var formationChip: some View { Button { showFormations = true } label: { chipButton("⚙️ \(model.formationTitle)") } }
-    private var presetChip: some View { Button { showPresets = true } label: { chipButton("🏟 팀 프리셋") } }
+    private var presetChip: some View { Button { showPresets = true } label: { chipButton("🏟 프리셋") } }
     /// 기본은 내 구단주명(설정에 저장된 것)이 채워진 채로 열린다 — "최근 선발"만으로는 누구 선발인지 몰랐다.
     private var importChip: some View { Button { importNick = LocalPrefs.shared.myNickname ?? ""; showImport = true } label: { chipButton("⬇️ 내 최근 선발") } }
     private var filledCount: some View { Text("\(model.filled)/11").fcScoreboard(14).foregroundStyle(model.filled == 11 ? FC.accent : FC.muted) }
     private func chipButton(_ t: String) -> some View {
         // "커스텀 (≈4-4-2)" 가 두 줄로 접히면 칩 줄 높이가 흔들린다 — 한 줄로 두고 줄여서 맞춘다.
-        Text(t).fcFont(13, weight: .semibold).lineLimit(1).minimumScaleFactor(0.7).foregroundStyle(FC.ink).padding(.horizontal, 9).padding(.vertical, 8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
+        Text(t).fcFont(12.5, weight: .semibold).lineLimit(1).foregroundStyle(FC.ink).padding(.horizontal, 8).padding(.vertical, 8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
     }
 }
 

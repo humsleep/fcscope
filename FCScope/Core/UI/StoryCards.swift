@@ -119,7 +119,10 @@ struct UserCardData {
 
     var shotTotals: (goals: Int, tries: Int)? {
         guard let st = report?.report.shotTypes, !st.isEmpty else { return nil }
-        let g = st.reduce(0) { $0 + $1.goals }, t = st.reduce(0) { $0 + $1.tries }
+        // 헤딩·프리킥·PK 는 박스 안/밖의 부분집합이다 — 전부 더하면 슛이 이중으로 세졌다(65/179 → 실제 65/158).
+        let base = st.filter { $0.key == "inbox" || $0.key == "outbox" }
+        let rows = base.isEmpty ? st : base
+        let g = rows.reduce(0) { $0 + $1.goals }, t = rows.reduce(0) { $0 + $1.tries }
         return t > 0 ? (g, t) : nil
     }
 
@@ -523,7 +526,7 @@ struct WeeklyCardView: View {
             } else if w.winRate >= 45 {
                 CardStampView(text: "승률 \(w.winRate)%", color: CardPalette.lime)
             } else {
-                CardStampView(text: "이번 주 \(w.games)경기 출전", color: CardPalette.lime)
+                CardStampView(text: w.truncated == true ? "이번 주 \(w.games)경기 이상 출전" : "이번 주 \(w.games)경기 출전", color: CardPalette.lime)
             }
         } content: {
             VStack(alignment: .leading, spacing: 20) {
