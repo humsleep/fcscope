@@ -90,7 +90,8 @@ final class APIClient {
         req.setValue("application/json", forHTTPHeaderField: "Accept")
         if body != nil { req.setValue("application/json", forHTTPHeaderField: "Content-Type") }
         req.httpBody = body
-        if auth, let token = await AuthManager.shared.accessToken() {
+        // 토큰은 우리 서버로 가는 요청에만 싣는다 — 절대 URL 이 넘어와도 다른 호스트로 새지 않게.
+        if auth, req.url?.host == AppConfig.baseURL.host, let token = await AuthManager.shared.accessToken() {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         let (data, resp): (Data, URLResponse)

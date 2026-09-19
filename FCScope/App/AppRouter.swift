@@ -61,8 +61,20 @@ final class AppRouter {
             if host == "auth" { return }
             parts = [host] + url.pathComponents.filter { $0 != "/" }
         } else {
-            guard let host = url.host, host.hasSuffix("fcscope.xyz") else { return }
+            // hasSuffix 는 "evilfcscope.xyz" 도 통과시켰다 — 정확한 호스트만.
+            guard let host = url.host, host == "fcscope.xyz" || host == "www.fcscope.xyz" else { return }
             parts = url.pathComponents.filter { $0 != "/" }
+        }
+        // pathComponents 는 %2F 를 "/" 로 되살린다 — 그대로 API 경로에 끼우면 "../" 로 다른 API 를 가리킬 수 있었다.
+        // 글·스쿼드·매치 ID 는 영숫자(와 - _)만, 구단주명은 경로 구분자·".." 만 막는다(한글 허용).
+        if parts.count > 1 {
+            let id = parts[1]
+            let idRoutes: Set<String> = ["match", "community", "squad", "player"]
+            if idRoutes.contains(parts[0]) {
+                guard id.range(of: "^[A-Za-z0-9_-]{1,64}$", options: .regularExpression) != nil else { return }
+            } else if id.contains("/") || id.contains("..") || (id.removingPercentEncoding ?? id).contains("/") {
+                return
+            }
         }
         let q = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
         func query(_ k: String) -> String? { q.first { $0.name == k }?.value }
@@ -78,7 +90,7 @@ final class AppRouter {
             tab = .squad
             if parts.count > 1 { squadPath.append(Route.squad(parts[1])) }
             else if let owner = query("owner") { pendingSquadImport = .owner(owner) }
-            else if let load = query("load") { pendingSquadImport = .load(load) }
+            else if let load = query("load"), load.range(of: "^[A-Za-z0-9_-]{1,64}$", options: .regularExpression) != nil { pendingSquadImport = .load(load) }
         case "me": tab = .me
         default: tab = .home
         }
