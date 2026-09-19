@@ -198,16 +198,13 @@ struct SquadBuilderView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                // "커스텀 (≈4-4-2)" 처럼 포메이션 이름이 길어지면 한 줄에 세 칩이 다 들어가지 않아 잘렸다 — 두 줄로 나눈다.
-                HStack(spacing: 8) {
-                    Button { showFormations = true } label: { chipButton("⚙️ \(model.formationTitle)") }
-                    Spacer()
-                    Text("\(model.filled)/11").fcScoreboard(14).foregroundStyle(model.filled == 11 ? FC.accent : FC.muted)
-                }
-                HStack(spacing: 8) {
-                    Button { showPresets = true } label: { chipButton("🏟 팀 프리셋") }
-                    Button { importNick = LocalPrefs.shared.myNickname ?? ""; showImport = true } label: { chipButton("⬇️ 최근 선발") }
-                    Spacer()
+                // 한 줄에 다 들어가면 한 줄로, "커스텀 (≈4-2-3-1)" 처럼 길어지거나 글자를 키우면 두 줄로 접는다.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 6) { formationChip; presetChip; importChip; Spacer(minLength: 0); filledCount }
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) { formationChip; Spacer(); filledCount }
+                        HStack(spacing: 8) { presetChip; importChip; Spacer() }
+                    }
                 }
                 PitchView(model: model)
                 HStack(spacing: 8) {
@@ -252,11 +249,11 @@ struct SquadBuilderView: View {
         .sheet(isPresented: $showFormations) { FormationPicker(model: model) }
         .sheet(isPresented: $showPresets) { PresetPicker(model: model) }
         .sheet(item: Binding(get: { model.selectedSlot }, set: { model.selectedSlot = $0 })) { slot in PlayerSearchSheet(model: model, slot: slot) }
-        .alert("최근 공식경기 선발 불러오기", isPresented: $showImport) {
+        .alert("내 최근 공식경기 선발 불러오기", isPresented: $showImport) {
             TextField("구단주명", text: $importNick)
             Button("불러오기") { Task { await model.importFromUser(importNick) } }
             Button("취소", role: .cancel) {}
-        } message: { Text("가장 최근 공식경기에서 실제로 사용한 선발 11명을 그대로 배치해요.") }
+        } message: { Text("내 구단주명의 가장 최근 공식경기 선발 11명을 그대로 배치해요. 다른 구단주명을 넣으면 그 사람의 선발을 불러와요.") }
         .alert("알림", isPresented: Binding(get: { model.message != nil }, set: { _ in model.message = nil })) { Button("확인") {} } message: { Text(model.message ?? "") }
         .onAppear { handlePending() }
         .onChange(of: router.pendingSquadImport) { _, _ in handlePending() }
@@ -297,9 +294,14 @@ struct SquadBuilderView: View {
         model.assign(hit, to: slot, line: line)
         model.message = "\(hit.name)을(를) \(model.pos(of: slot))에 배치했어요."
     }
+    private var formationChip: some View { Button { showFormations = true } label: { chipButton("⚙️ \(model.formationTitle)") } }
+    private var presetChip: some View { Button { showPresets = true } label: { chipButton("🏟 팀 프리셋") } }
+    /// 기본은 내 구단주명(설정에 저장된 것)이 채워진 채로 열린다 — "최근 선발"만으로는 누구 선발인지 몰랐다.
+    private var importChip: some View { Button { importNick = LocalPrefs.shared.myNickname ?? ""; showImport = true } label: { chipButton("⬇️ 내 최근 선발") } }
+    private var filledCount: some View { Text("\(model.filled)/11").fcScoreboard(14).foregroundStyle(model.filled == 11 ? FC.accent : FC.muted) }
     private func chipButton(_ t: String) -> some View {
         // "커스텀 (≈4-4-2)" 가 두 줄로 접히면 칩 줄 높이가 흔들린다 — 한 줄로 두고 줄여서 맞춘다.
-        Text(t).fcFont(13, weight: .semibold).lineLimit(1).minimumScaleFactor(0.7).foregroundStyle(FC.ink).padding(.horizontal, 10).padding(.vertical, 8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
+        Text(t).fcFont(13, weight: .semibold).lineLimit(1).minimumScaleFactor(0.7).foregroundStyle(FC.ink).padding(.horizontal, 9).padding(.vertical, 8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -586,11 +588,14 @@ struct PresetPicker: View {
     var body: some View {
         NavigationStack {
             List {
-                ForEach(Array(Dictionary(grouping: PRESET_TEAMS, by: \.league).sorted { $0.key < $1.key }), id: \.key) { league, teams in
+                // 가나다순으로 묶으면 "국가대표"가 맨 위로 올라왔다 — 목록에 적은 리그 순서를 그대로 쓴다.
+                ForEach(PRESET_LEAGUES, id: \.self) { league in
+                    let teams = PRESET_TEAMS.filter { $0.league == league }
                     Section(league) { ForEach(teams) { t in Button(t.team) { dismiss(); Task { await model.loadPreset(t.id) } }.foregroundStyle(FC.ink) } }
                 }
             }
             .navigationTitle("팀 프리셋").navigationBarTitleDisplayMode(.inline)
+            .safeAreaInset(edge: .bottom) { Text("2025-26 시즌 대표 선발 기준 · 각 선수의 최신 시즌 카드로 배치해요").fcFont(11).foregroundStyle(FC.muted).frame(maxWidth: .infinity).padding(.vertical, 8).background(.bar) }
         }
         .presentationDetents([.medium, .large])
     }

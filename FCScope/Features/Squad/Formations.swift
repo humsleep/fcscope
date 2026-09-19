@@ -51,10 +51,16 @@ struct Formation: Identifiable, Hashable {
 
 /// 팀 프리셋 목록 (서버 /api/squad/preset?id= 로 spid 해석)
 ///
-/// ⚠️ 서버(웹 lib/squad/presets.ts PRESETS)에 **정의된 팀만** 둔다. 예전엔 18팀을 나열했지만 서버에는 6팀뿐이라
-/// 나머지 12팀은 누르면 404 "not found" 가 떴다. 팀을 늘리려면 서버에 먼저 추가할 것.
+/// ⚠️ 서버(웹 lib/squad/presets.ts PRESETS)에 **정의된 팀만** 둔다. 서버에 없는 팀은 누르면 404 가 뜬다 —
+/// 팀을 늘리려면 서버에 먼저 추가하고 배포한 뒤 여기에 적을 것. 순서가 곧 화면 순서다.
 struct PresetTeam: Identifiable { let id: String; let league: String; let team: String }
 let PRESET_TEAMS: [PresetTeam] = [
     ("arsenal", "프리미어리그", "아스날"), ("mancity", "프리미어리그", "맨체스터 시티"), ("liverpool", "프리미어리그", "리버풀"), ("tottenham", "프리미어리그", "토트넘"),
-    ("realmadrid", "라리가", "레알 마드리드"), ("barcelona", "라리가", "바르셀로나"),
+    ("manutd", "프리미어리그", "맨체스터 유나이티드"), ("chelsea", "프리미어리그", "첼시"), ("newcastle", "프리미어리그", "뉴캐슬"), ("astonvilla", "프리미어리그", "아스톤 빌라"),
+    ("realmadrid", "라리가", "레알 마드리드"), ("barcelona", "라리가", "바르셀로나"), ("atletico", "라리가", "아틀레티코 마드리드"),
+    ("inter", "세리에 A", "인터 밀란"), ("acmilan", "세리에 A", "AC 밀란"), ("juventus", "세리에 A", "유벤투스"), ("napoli", "세리에 A", "나폴리"),
+    ("bayern", "분데스리가", "바이에른 뮌헨"), ("dortmund", "분데스리가", "도르트문트"),
+    ("psg", "리그 1", "파리 생제르맹"),
+    ("korea", "국가대표", "대한민국"), ("argentina", "국가대표", "아르헨티나"),
 ].map { PresetTeam(id: $0.0, league: $0.1, team: $0.2) }
+let PRESET_LEAGUES: [String] = PRESET_TEAMS.reduce(into: []) { if !$0.contains($1.league) { $0.append($1.league) } }
