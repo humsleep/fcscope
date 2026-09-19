@@ -4,7 +4,7 @@ import UserMessagingPlatform
 import AppTrackingTransparency
 import Observation
 
-/// AdMob 초기화 + UMP 동의 + ATT. 회의 결정: 첫 실행 3일간 배너 0, ATT 는 두 번째 세션부터 전적 결과를 본 뒤에만 요청.
+/// AdMob 초기화 + UMP 동의 + ATT. ATT 는 첫 전적 결과를 본 뒤 요청. 배너는 설치 직후부터(2026-09-20 운영자 결정 — 3일 유예 폐지).
 @Observable
 @MainActor
 final class AdsManager {
@@ -16,7 +16,6 @@ final class AdsManager {
     /// 동의 절차(UMP → ATT)를 한 번이라도 끝낸 기기인가. 끝낸 기기는 다음 실행부터 앱이 뜨자마자 SDK 를 시작한다 —
     /// 그러지 않으면 실행마다 전적 화면을 한 번 열기 전까지 배너·전면 광고가 전혀 준비되지 않는다.
     private static let consentAskedKey = "fcscope.ads.consentAsked"
-    private static let gracePeriod: TimeInterval = 3 * 86_400
 
     private init() {
         if UserDefaults.standard.object(forKey: Self.firstLaunchKey) == nil {
@@ -25,21 +24,15 @@ final class AdsManager {
     }
 
     /// 배너를 보여도 되는가.
-    /// 조건: 실제 AdMob 계정 값이 설정됨(테스트 ID 아님) + 설치 후 3일 경과(회의 결정).
+    /// 조건: 실제 AdMob 계정 값이 설정됨(테스트 ID 아님). 설치 후 유예 기간은 없다.
     var canShowAds: Bool {
-        guard AppConfig.admobConfigured, AppConfig.bannerAdUnit != nil else { return false }
-        #if DEBUG
-        return true
-        #else
-        let first = UserDefaults.standard.double(forKey: Self.firstLaunchKey)
-        return Date().timeIntervalSince1970 - first > Self.gracePeriod
-        #endif
+        AppConfig.admobConfigured && AppConfig.bannerAdUnit != nil
     }
 
     /// 첫 유의미 화면(전적 결과) 이후 호출 — UMP(EEA 만 폼) → ATT → SDK 시작
     func requestConsentIfNeeded() async {
         // SDK 시작은 유예 기간과 무관하게 한다 — 전면광고(검색 3회차부터)는 유예 기간을 따르지 않는다.
-        // 배너 노출 여부는 여전히 canShowAds(설치 3일 유예)가 결정한다.
+        // 배너 노출 여부는 canShowAds 가 결정한다.
         guard AppConfig.admobConfigured, !consentFlowDone else { return }
         consentFlowDone = true
         do {
@@ -182,8 +175,10 @@ final class InterstitialDelegate: NSObject, FullScreenContentDelegate {
 /// - 대상은 **검색창에 직접 입력한 검색**뿐이다. 즐겨찾기·최근 검색·칩을 누르는 건 탐색이라 제외.
 @MainActor
 enum SearchGate {
-    static let freePerDay = 2
-    static let cooldown: TimeInterval = 90
+    /// 하루 첫 검색만 무료, 두 번째 검색부터는 매번 전면광고(2026-09-20 운영자 결정).
+    /// 광고가 아직 로드되지 않았으면 그 검색은 광고 없이 지나간다(검색을 막지 않음).
+    static let freePerDay = 1
+    static let cooldown: TimeInterval = 0
 
     private static let dayKey = "fcscope.search.day"
     private static let countKey = "fcscope.search.count"

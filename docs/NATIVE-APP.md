@@ -70,7 +70,7 @@ App Group `group.xyz.fcscope.app` 의 UserDefaults(`myNickname`, `formSnapshots`
 - 4.8 Apple 로그인: `LoginView` — Apple 버튼이 Google 위, 동일 크기.
 - 5.1.1(v) 계정 삭제: 설정 > 계정 삭제(2단계 확인) → `DELETE /api/me/delete`.
 - 1.2 UGC: 글쓰기 시트 하단 정책 문구, 글/댓글 신고(4사유), 작성자 차단(로컬, 설정에서 해제), 서버 자동 숨김.
-- 5.1.2 ATT: 첫 검색 결과를 본 뒤 `AdsManager.requestConsentIfNeeded()`(UMP → ATT). 설치 후 3일간 광고 미표시. 전적 화면엔 배너 없음(픽 랭킹·커뮤니티 하단만).
+- 5.1.2 ATT: 첫 검색 결과를 본 뒤 `AdsManager.requestConsentIfNeeded()`(UMP → ATT). 배너는 설치 직후부터, 전면광고는 하루 두 번째 검색부터(2026-09-20 변경). 전적 화면엔 배너 없음(픽 랭킹·커뮤니티 하단만).
 
 ## 비용·성능 최적화 (2026-09-04 적용)
 
