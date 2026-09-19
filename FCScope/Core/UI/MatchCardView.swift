@@ -63,6 +63,28 @@ struct MatchCardView: View {
         }
     }
 
+    /// 스탯에서 뽑는 한 줄 스토리 — 서버 문구("무난한 경기")는 평점만 보고 정해져 경기 내용을 못 전했다.
+    /// 슛 4 대 17로 밀리고 이긴 경기는 "효율 승리"다. 조건에 안 맞으면 서버 문구를 쓴다.
+    private var storyTag: String? {
+        guard let o = m.opponent, !m.me.forfeit else { return nil }
+        let me = m.me, won = me.result == "승", lost = me.result == "패"
+        let margin = me.goals - o.goals
+        if won {
+            if let p = m.potm, p.positionLabel == "GK", p.side == me.nickname { return "GK \(p.name) 선방쇼로 지킨 승리" }
+            if me.stats.shots > 0, me.stats.shots * 2 <= o.stats.shots { return "슛 \(me.stats.shots)개로 \(me.goals)골, 효율 승리" }
+            if margin >= 3 { return "\(margin)골 차 대승" }
+            if me.possession <= 45 { return "점유 \(me.possession)%로 따낸 역습승" }
+            if o.goals == 0 { return "무실점 승리" }
+            if margin == 1 { return "1골 차 접전 승리" }
+        } else if lost {
+            if margin == -1 { return "1골 차 아쉬운 패배" }
+            if me.stats.shots > o.stats.shots { return "슛 \(me.stats.shots) 대 \(o.stats.shots), 내용은 앞섰다" }
+        } else {
+            if me.goals + o.goals >= 6 { return "\(me.goals):\(o.goals) 난타전 무승부" }
+        }
+        return nil
+    }
+
     private var verdict: some View {
         let color = CardPalette.verdict(m.verdict.color)
         return HStack(spacing: 28) {
@@ -72,7 +94,7 @@ struct MatchCardView: View {
                 if m.verdict.label != m.verdict.grade {
                     Text(m.verdict.label).font(.pretendard(40, .bold)).foregroundStyle(color).lineLimit(1)
                 }
-                Text(m.verdict.oneLiner).font(.pretendard(30)).foregroundStyle(CardPalette.muted).lineLimit(2)
+                Text(storyTag ?? m.verdict.oneLiner).font(.pretendard(34, .bold)).foregroundStyle(storyTag == nil ? CardPalette.muted : CardPalette.ink).lineLimit(1).minimumScaleFactor(0.7)
             }
             Spacer(minLength: 0)
         }
@@ -92,7 +114,8 @@ struct MatchCardView: View {
             HStack {
                 Text("\(m.opponent?.nickname ?? "상대") 슛 \(m.opponent?.stats.shots ?? 0)").foregroundStyle(CardPalette.lose)
                 Spacer()
-                Text("SHOT MAP").font(.scoreboard(28)).kerning(4).foregroundStyle(CardPalette.muted)
+                HStack(spacing: 8) { Circle().fill(CardPalette.muted).frame(width: 16, height: 16); Text("골"); Circle().stroke(CardPalette.muted, lineWidth: 3).frame(width: 16, height: 16); Text("슛") }
+                    .foregroundStyle(CardPalette.muted)
                 Spacer()
                 Text("\(m.me.nickname) 슛 \(m.me.stats.shots)").foregroundStyle(CardPalette.lime)
             }

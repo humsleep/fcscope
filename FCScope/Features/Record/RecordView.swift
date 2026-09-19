@@ -547,7 +547,8 @@ struct MatchesSection: View {
                     Text(s.color == "lose" ? "반등을 노려봐요" : "이 기세를 이어가요").fcFont(12).foregroundStyle(FC.muted)
                 }
                 Spacer()
-                ShareCardButton(story: .streak(o), label: "폼 카드", compact: true)
+                // 연패·하락 폼은 공유할 이유가 없다 — 좋은 폼일 때만 카드 버튼
+                if s.color != "lose" { ShareCardButton(story: .streak(o), label: "폼 카드", compact: true) }
             }
         }
     }

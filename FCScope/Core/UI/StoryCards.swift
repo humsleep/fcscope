@@ -207,21 +207,34 @@ struct UserCardView: View {
     }
     private var showTier: Bool { ["gold", "win", "lime"].contains(o.tier.tone) }
 
+    /// 왼쪽 큰 숫자 — 그 유저에게 가장 좋은 지표를 올린다.
+    /// 스코어가 좋으면(티어 win/gold) FC SCORE, 아니면 몰수 제외 승률이 더 높을 때 그것, 그것도 아니면 평균 평점.
+    private var hero: (label: String, value: String, sub: String?, color: Color, gauge: Bool) {
+        if showTier { return ("FC SCORE", String(format: "%.1f", o.score), o.tier.label, scoreColor, true) }
+        if let f = o.perf.forfeits, f > 0, realWinRate > o.summary.winRate {
+            return ("실경기 승률", "\(realWinRate)%", "몰수 \(f)경기 제외", realWinRate >= 50 ? CardPalette.lime : CardPalette.ink, false)
+        }
+        return ("평균 평점", String(format: "%.2f", o.perf.avgRating), "최근 \(o.perf.played)경기", CardPalette.ink, false)
+    }
+
     private var scorePanel: some View {
-        HStack(spacing: 0) {
+        let h = hero
+        return HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
-                CardLabel(text: "FC SCORE")
-                Text(String(format: "%.1f", o.score)).font(.scoreboard(96)).foregroundStyle(scoreColor)
+                CardLabel(text: h.label)
+                Text(h.value).font(.scoreboard(96)).foregroundStyle(h.color).lineLimit(1).minimumScaleFactor(0.6)
                     .frame(height: 110, alignment: .leading)
                 Spacer(minLength: 0)
-                HStack(spacing: 6) {
-                    ForEach(0..<10, id: \.self) { i in
-                        RoundedRectangle(cornerRadius: 3).fill(i < Int(o.score.rounded()) ? (showTier ? scoreColor : CardPalette.lime) : CardPalette.line)
-                            .frame(width: 18, height: 12)
+                if h.gauge {
+                    HStack(spacing: 6) {
+                        ForEach(0..<10, id: \.self) { i in
+                            RoundedRectangle(cornerRadius: 3).fill(i < Int(o.score.rounded()) ? scoreColor : CardPalette.line)
+                                .frame(width: 18, height: 12)
+                        }
                     }
                 }
-                if showTier {
-                    Text(o.tier.label).font(.pretendard(24, .bold)).foregroundStyle(scoreColor).padding(.top, 8)
+                if let sub = h.sub {
+                    Text(sub).font(.pretendard(26, .bold)).foregroundStyle(h.gauge ? scoreColor : CardPalette.muted).padding(.top, 8)
                 }
             }
             .frame(width: 272, alignment: .leading)
@@ -230,18 +243,14 @@ struct UserCardView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 0) {
                     wdl(o.summary.win, "승"); wdl(o.summary.draw, "무"); wdl(o.summary.lose, "패")
                     Spacer(minLength: 8)
-                    Text("\(o.summary.winRate)%").font(.scoreboard(56)).foregroundStyle(o.summary.winRate >= 50 ? CardPalette.lime : CardPalette.ink)
-                    Text(" 승률").font(.pretendard(22)).foregroundStyle(CardPalette.muted)
-                }
-                if let f = o.perf.forfeits, f > 0 {
-                    Text("몰수 \(f)경기 포함 · 실경기 승률 \(realWinRate)%").font(.pretendard(22)).foregroundStyle(CardPalette.muted).padding(.top, 2)
+                    Text("\(o.summary.winRate)%").font(.scoreboard(44)).foregroundStyle(o.summary.winRate >= 50 ? CardPalette.lime : CardPalette.ink)
                 }
                 Spacer(minLength: 8)
                 HStack {
-                    Text("최근 10경기").font(.pretendard(22)).foregroundStyle(CardPalette.muted)
+                    Text("최근 10경기").font(.pretendard(24, .semibold)).foregroundStyle(CardPalette.muted)
                     Spacer()
                     if o.streak.color != "lose", o.perf.played > 0 {
-                        Text(o.streak.text).font(.pretendard(24, .bold)).foregroundStyle(o.streak.color == "gold" ? CardPalette.gold : CardPalette.lime).lineLimit(1)
+                        Text(o.streak.text).font(.pretendard(26, .bold)).foregroundStyle(o.streak.color == "gold" ? CardPalette.gold : CardPalette.lime).lineLimit(1)
                     }
                 }
                 .padding(.bottom, 10)
@@ -276,7 +285,7 @@ struct UserCardView: View {
             HStack {
                 CardLabel(text: "BEST PLAYERS")
                 Spacer()
-                Text("최근 \(d.players?.sampleGames ?? o.summary.played)경기 평균 평점").font(.pretendard(20)).foregroundStyle(CardPalette.muted)
+                Text("최근 \(d.players?.sampleGames ?? o.summary.played)경기 평균 평점").font(.pretendard(24)).foregroundStyle(CardPalette.muted)
             }
             .frame(height: 24)
             HStack(spacing: 20) {
@@ -291,7 +300,7 @@ struct UserCardView: View {
     @ViewBuilder
     private func finishing(tall: Bool) -> some View {
         let shots = d.playstyle?.shots ?? []
-        let mapH: CGFloat = tall ? 360 : 192
+        let mapH: CGFloat = tall ? 360 : 176
         let pos = d.positives
         HStack(alignment: .top, spacing: 24) {
             if !shots.isEmpty { HalfShotMap(shots: shots, height: mapH) }
@@ -302,11 +311,13 @@ struct UserCardView: View {
                         Text("\(Int((Double(t.goals) / Double(t.tries) * 100).rounded()))%").font(.scoreboard(88)).foregroundStyle(CardPalette.lime)
                         VStack(alignment: .leading, spacing: 4) {
                             Text("결정력").font(.pretendard(30, .bold)).foregroundStyle(CardPalette.ink)
-                            Text("\(t.goals)골 / \(t.tries)슛").font(.pretendard(24)).foregroundStyle(CardPalette.muted)
+                            Text("슛 \(t.tries)개 중 \(t.goals)골").font(.pretendard(26)).foregroundStyle(CardPalette.muted)
                         }
                     }
                     .frame(height: 100)
-                    miniStats(Array(pos.prefix(2)), width: shots.isEmpty ? CardLayout.contentWidth : CardLayout.contentWidth - mapH * 1.295 - 24)
+                    if let first = pos.first {
+                        HighlightChip(text: "\(first.0) \(first.1)").padding(.top, 8)
+                    }
                 } else if let first = pos.first {
                     HStack(alignment: .center, spacing: 20) {
                         Text(first.1).font(.scoreboard(88)).foregroundStyle(CardPalette.lime).lineLimit(1).minimumScaleFactor(0.6)
@@ -495,14 +506,14 @@ struct WeeklyCardView: View {
     let images: CardImages
     var body: some View {
         let w = o.week
-        TemplateCard(chip: "주간 리포트", o: o, images: images, kicker: "최근 7일 · \(w.games)경기") {
+        TemplateCard(chip: "주간 리포트", o: o, images: images, kicker: w.games >= o.summary.played && o.summary.played >= 30 ? "최근 7일 · 최근 \(w.games)경기 기준" : "최근 7일 · \(w.games)경기") {
             HStack(alignment: .firstTextBaseline, spacing: 18) {
                 big(w.win, "승"); big(w.draw, "무"); big(w.lose, "패")
             }
         } sub: {
             if w.games == 0 {
                 CardStampView(text: "이번 주 공식경기 없음", color: CardPalette.muted)
-            } else if w.bestStreak >= 2 {
+            } else if w.bestStreak >= 3 {
                 CardStampView(text: "이번 주 \(w.bestStreak)연승", color: CardPalette.gold)
             } else if w.winRate >= 45 {
                 CardStampView(text: "승률 \(w.winRate)%", color: CardPalette.lime)
@@ -535,7 +546,7 @@ struct WeeklyCardView: View {
     }
     /// 득실은 득점이 실점 이상일 때만 싣는다
     private func cells(_ w: WeeklyRecap) -> [(String, String, Color)] {
-        var c: [(String, String, Color)] = [("최고 연승", "\(w.bestStreak)", CardPalette.lime), ("득점", "\(w.goalsFor)", CardPalette.ink)]
+        var c: [(String, String, Color)] = [("최고 연승", "\(w.bestStreak)", CardPalette.lime), ("한 경기 최다 득점", "\(o.matches.map(\.me.goals).max() ?? 0)", CardPalette.ink)]
         if w.goalsFor >= w.goalsAgainst { c.append(("득실", "\(w.goalsFor):\(w.goalsAgainst)", CardPalette.ink)) }
         return c
     }

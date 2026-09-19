@@ -185,8 +185,6 @@ struct IdentityPills: View {
                         Image(uiImage: img).resizable().scaledToFit().frame(width: 40 - d, height: 40 - d)
                     }
                     Text(dv.divisionName).font(.pretendard(30 - d, .bold)).foregroundStyle(CardPalette.gold)
-                    Text(i == 0 ? "\(dv.matchType == 50 ? "공식" : dv.matchTypeName) 최고" : dv.matchTypeName)
-                        .font(.pretendard(22 - d)).foregroundStyle(CardPalette.muted)
                 }
                 .fixedSize()
                 .padding(.leading, 14).padding(.trailing, 22).frame(height: h)
@@ -235,15 +233,19 @@ struct CardFooter: View {
         VStack(spacing: 16) {
             Rectangle().fill(CardPalette.line).frame(height: 1)
             HStack {
-                Text(cta).font(.pretendard(28, .semibold)).foregroundStyle(CardPalette.ink.opacity(0.8)).lineLimit(1)
+                // 설치 안내는 인스타 답장창(1580~)에 가려지지 않도록 CTA 옆에 둔다
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(cta).font(.pretendard(28, .semibold)).foregroundStyle(CardPalette.ink.opacity(0.85)).lineLimit(1)
+                    Text("App Store에서 ‘FC Scope’ 검색").font(.pretendard(24)).foregroundStyle(CardPalette.muted).lineLimit(1)
+                }
                 Spacer()
                 Text(host).font(.scoreboard(30)).foregroundStyle(CardPalette.bg)
                     .padding(.horizontal, 20).padding(.vertical, 8)
                     .background(CardPalette.lime, in: Capsule())
             }
-            .frame(height: 56)
+            .frame(height: 64)
         }
-        .frame(height: 72)
+        .frame(height: 80)
     }
 }
 
@@ -354,9 +356,9 @@ struct PlayerTile: View {
                     .frame(width: 104, height: 104)
                     .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                     if let s = images.season(p.spId) {
-                        Image(uiImage: s).resizable().scaledToFit().frame(height: 29).offset(x: -4, y: 8)
+                        Image(uiImage: s).resizable().scaledToFit().frame(height: 40).offset(x: -6, y: 12)
                     } else if !p.season.isEmpty {
-                        Text(p.season).font(.pretendard(18, .bold)).foregroundStyle(CardPalette.gold)
+                        Text(p.season).font(.pretendard(24, .bold)).foregroundStyle(CardPalette.gold)
                             .padding(.horizontal, 6).background(CardPalette.bg.opacity(0.85), in: RoundedRectangle(cornerRadius: 6))
                             .offset(x: -4, y: 8)
                     }
@@ -421,7 +423,7 @@ struct HalfShotMap: View {
                 let ordered = shots.filter { !$0.isGoal && !$0.hitPost } + shots.filter { $0.hitPost && !$0.isGoal } + shots.filter(\.isGoal)
                 for shot in ordered {
                     let x = min(1, max(0.5, shot.x / sx)), y = min(1, max(0, shot.y / sy))
-                    let pt = CGPoint(x: y * w, y: (1 - x) * 2 * h)
+                    let pt = CGPoint(x: min(w - 8, max(8, y * w)), y: min(h - 8, max(10, (1 - x) * 2 * h)))
                     let rad: CGFloat = shot.isGoal ? 5 : 4.5
                     let rect = CGRect(x: pt.x - rad, y: pt.y - rad, width: rad * 2, height: rad * 2)
                     if shot.isGoal {
@@ -431,7 +433,7 @@ struct HalfShotMap: View {
                     }
                 }
             }
-            Text("SHOT MAP").font(.scoreboard(16)).foregroundStyle(CardPalette.muted).padding(12)
+            HStack(spacing: 8) { Circle().fill(CardPalette.lime).frame(width: 12, height: 12); Text("골").font(.pretendard(20, .semibold)); Circle().stroke(CardPalette.muted, lineWidth: 2).frame(width: 12, height: 12); Text("슛").font(.pretendard(20, .semibold)) }.foregroundStyle(CardPalette.muted).padding(12)
         }
         .frame(width: width, height: height)
         .clipShape(RoundedRectangle(cornerRadius: 20))
