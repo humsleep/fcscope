@@ -211,7 +211,7 @@ enum SearchGate {
     }
 }
 
-/// 적응형 배너 (메타·커뮤니티 하단 전용 — 전적 화면엔 두지 않는다)
+/// 적응형 배너 — 홈·전적·매치 리포트·픽 랭킹·커뮤니티 맨 아래(2026-09-20 운영자 결정으로 홈·전적 추가)
 struct BannerAdView: UIViewRepresentable {
     let width: CGFloat
     /// 받은 광고의 실제 높이. 실패하면 0 — 고정 60pt 는 큰 적응형 배너를 잘랐고, 광고가 없을 때 빈 칸을 남겼다.
@@ -250,7 +250,10 @@ struct AdSlot: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("광고").fcFont(10, weight: .semibold).foregroundStyle(FC.muted)
                 GeometryReader { geo in
-                    BannerAdView(width: geo.size.width - 16, height: $height)
+                    // 첫 배치 때 폭이 0 으로 오면 잘못된 크기로 요청해 실패 → 자리가 영구히 접혔다. 폭이 잡힌 뒤에만 만든다.
+                    if geo.size.width > 100 {
+                        BannerAdView(width: geo.size.width, height: $height)
+                    }
                 }
                 .frame(height: height ?? 60)
                 .clipShape(RoundedRectangle(cornerRadius: 10))

@@ -271,6 +271,8 @@ struct RecordView: View {
                 case .style: PlaystyleSection(state: vm.playstyle, retry: retrySection)
                 }
                 HStack { Spacer(); ShareCardButton(story: .user(o), label: "전적 카드 저장 · 공유"); Spacer() }.padding(.top, 8)
+                // 결과를 다 본 뒤 맨 아래에만 둔다(진단 사이에 끼우지 않음)
+                AdSlot()
             }
             .padding(16)
         }

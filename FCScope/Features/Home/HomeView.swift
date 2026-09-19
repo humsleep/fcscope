@@ -42,6 +42,7 @@ struct HomeView: View {
                     if !home.posts.isEmpty { latestPosts(home.posts) }
                 } else if vm.state.isLoading { Skeleton(height: 60) }
                 if !prefs.recentSearches.isEmpty { recentSection }
+                AdSlot()
                 featureGrid
             }
             .padding(16)
