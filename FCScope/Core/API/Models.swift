@@ -66,6 +66,9 @@ struct PerfStats: Decodable {
     let normalPlayed: Int?
     let normalWin: Int?
     let forfeits: Int?
+    /// 몰수 제외 득실(옛 서버엔 없음) — summary 득실은 몰수 3:0 이 섞여 부호가 뒤집히기도 했다
+    let goalsFor: Int?
+    let goalsAgainst: Int?
     let winRate: Int
     let currentStreak: Int
     let bestWinStreak: Int
@@ -93,6 +96,9 @@ struct WeeklyRecap: Decodable {
     let games, win, draw, lose, winRate, bestStreak, goalsFor, goalsAgainst: Int
     let avgScore: Double
     let best: BestMatch?
+    /// 30경기 상한에 걸려 "최근 7일"이 실제로는 "최근 30경기"인가(옛 서버엔 없음)
+    let truncated: Bool?
+    var label: String { truncated == true ? "최근 7일 중 최근 \(games)경기" : "최근 7일 \(games)경기" }
     struct BestMatch: Decodable { let matchId: String; let score: Double }
 }
 
@@ -284,11 +290,13 @@ struct Mover: Decodable, Identifiable {
     let delta: Int??
     let name: String; let season: String; let positionLabel: String; let imageUrl: String
     let lineTitle: String?
+    /// 선발 횟수(옛 서버엔 없음) — matchCount 는 넥슨 표본 수라 늘 20
+    let usage: Int?
     var id: String { "\(spId)-\(position)" }
     var isNew: Bool { if case .some(.none) = delta { return true }; return false }
     var deltaValue: Int? { if case .some(.some(let d)) = delta { return d }; return nil }
 
-    private enum CodingKeys: String, CodingKey { case spId, position, line, matchCount, delta, name, season, positionLabel, imageUrl, lineTitle }
+    private enum CodingKeys: String, CodingKey { case spId, position, line, matchCount, delta, name, season, positionLabel, imageUrl, lineTitle, usage }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         spId = try c.decode(Int.self, forKey: .spId); position = try c.decode(Int.self, forKey: .position)
@@ -297,6 +305,7 @@ struct Mover: Decodable, Identifiable {
         name = try c.decode(String.self, forKey: .name); season = try c.decode(String.self, forKey: .season)
         positionLabel = try c.decode(String.self, forKey: .positionLabel); imageUrl = try c.decode(String.self, forKey: .imageUrl)
         lineTitle = try c.decodeIfPresent(String.self, forKey: .lineTitle)
+        usage = try c.decodeIfPresent(Int.self, forKey: .usage)
     }
 }
 struct MetaLine: Decodable, Identifiable { let line: String; let title: String; let rows: [PickRow]; var id: String { line } }

@@ -85,7 +85,8 @@ final class AppRouter {
         case "meta", "report": tab = .meta
         case "community":
             tab = .community
-            if parts.count > 1 { communityPath.append(Route.post(parts[1])) }
+            // /community/new 는 글쓰기 화면(웹) — 글 ID 가 아니다
+            if parts.count > 1, parts[1] != "new" { communityPath.append(Route.post(parts[1])) }
         case "squad":
             tab = .squad
             if parts.count > 1 { squadPath.append(Route.squad(parts[1])) }

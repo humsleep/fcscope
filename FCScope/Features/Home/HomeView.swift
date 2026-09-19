@@ -42,8 +42,9 @@ struct HomeView: View {
                     if !home.posts.isEmpty { latestPosts(home.posts) }
                 } else if vm.state.isLoading { Skeleton(height: 60) }
                 if !prefs.recentSearches.isEmpty { recentSection }
-                AdSlot()
                 featureGrid
+                // 맨 아래 — 칩·카드 사이에 두면 잘못 누르기 쉽다(AdMob 오클릭 정책)
+                AdSlot().padding(.top, 8)
             }
             .padding(16)
         }

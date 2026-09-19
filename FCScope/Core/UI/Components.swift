@@ -367,7 +367,7 @@ struct MatchRow: View {
 enum DateFmt {
     private static let iso: ISO8601DateFormatter = { let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return f }()
     private static let iso2: ISO8601DateFormatter = { let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime]; return f }()
-    private static let plain: DateFormatter = { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"; f.timeZone = TimeZone(identifier: "UTC"); return f }()
+    private static let plain: DateFormatter = { let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"; f.timeZone = TimeZone(identifier: "UTC"); return f }()
     static func parse(_ raw: String) -> Date? {
         iso.date(from: raw) ?? iso2.date(from: raw) ?? plain.date(from: raw) ?? plain.date(from: String(raw.prefix(19)))
     }
@@ -383,7 +383,7 @@ enum DateFmt {
         if s < 3600 { return "\(Int(s / 60))분 전" }
         if s < 86_400 { return "\(Int(s / 3600))시간 전" }
         if s < 86_400 * 7 { return "\(Int(s / 86_400))일 전" }
-        let f = DateFormatter(); f.dateFormat = "M.d"; return f.string(from: d)
+        let f = DateFormatter(); f.locale = Locale(identifier: "ko_KR"); f.timeZone = TimeZone(identifier: "Asia/Seoul"); f.dateFormat = "M.d"; return f.string(from: d)
     }
 }
 

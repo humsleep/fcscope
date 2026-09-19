@@ -167,11 +167,11 @@ final class InterstitialDelegate: NSObject, FullScreenContentDelegate {
     func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) { finish() }
 }
 
-/// 구단주명 검색 횟수 제한 — 하루 2회까지 무료, 3회차부터 전면 광고 후 검색.
+/// 구단주명 검색 전면광고 — 하루 첫 검색만 무료, 두 번째 검색부터 매번(2026-09-20 운영자 결정).
 ///
-/// - 날짜는 KST 기준으로 매일 초기화한다(평생 2회면 이틀째부터 모든 검색이 광고가 된다).
-/// - 연속으로 광고를 보지 않도록 직전 광고 후 90초 안의 검색은 광고 없이 통과시킨다.
-///   Google 정책도 전면 광고의 과도한 빈도를 금지하고, 몇 초 간격으로 광고가 뜨면 이탈한다.
+/// - 날짜는 KST 기준으로 매일 초기화한다.
+/// - ⚠️ 쿨다운 0: 연속 검색마다 광고가 뜬다. AdMob 은 과도한 빈도를 게재 제한 사유로 볼 수 있어,
+///   노출 대비 이탈·수익을 보고 `cooldown` 을 다시 늘릴지 판단할 것(예전 값 90초).
 /// - 대상은 **검색창에 직접 입력한 검색**뿐이다. 즐겨찾기·최근 검색·칩을 누르는 건 탐색이라 제외.
 @MainActor
 enum SearchGate {

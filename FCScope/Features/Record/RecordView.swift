@@ -272,7 +272,7 @@ struct RecordView: View {
                 }
                 HStack { Spacer(); ShareCardButton(story: .user(o), label: "전적 카드 저장 · 공유"); Spacer() }.padding(.top, 8)
                 // 결과를 다 본 뒤 맨 아래에만 둔다(진단 사이에 끼우지 않음)
-                AdSlot()
+                AdSlot().padding(.top, 24)   // 공유 버튼과 붙어 있으면 광고를 잘못 누르기 쉽다
             }
             .padding(16)
         }
@@ -460,8 +460,11 @@ struct MatchesSection: View {
                 // 접근성 크기에서는 세 칸이 너무 좁아 숫자가 과하게 줄어든다 — 세로로 쌓는다.
                 let tiles = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
                 tiles {
-                    StatTile(label: "득점 / 실점", value: "\(o.summary.goalsFor) / \(o.summary.goalsAgainst)")
-                    StatTile(label: "경기당 득점", value: String(format: "%.1f", Double(o.summary.goalsFor) / Double(max(1, o.summary.played))))
+                    // 몰수(3:0)를 뺀 실제 경기 기준 — 몰수가 섞이면 득실 부호까지 뒤집혔다(데이터 감사 M1)
+                    let gf = o.perf.goalsFor ?? o.summary.goalsFor, ga = o.perf.goalsAgainst ?? o.summary.goalsAgainst
+                    let games = o.perf.normalPlayed.flatMap { $0 > 0 ? $0 : nil } ?? o.summary.played
+                    StatTile(label: (o.perf.forfeits ?? 0) > 0 ? "득점 / 실점 (몰수 제외)" : "득점 / 실점", value: "\(gf) / \(ga)")
+                    StatTile(label: "경기당 득점", value: String(format: "%.1f", Double(gf) / Double(max(1, games))))
                     StatTile(label: "평균 점유율", value: "\(o.summary.avgPossession)%")
                 }
                 if !o.rivals.isEmpty { rivals(o.rivals) }
@@ -520,7 +523,7 @@ struct MatchesSection: View {
                     // 승·무·패와 보조 지표를 한 줄에 몰아넣으니 글자를 키우자마자 "12승 7 / 무 9패"
                     // 처럼 숫자 중간에서 줄바꿈됐다. 두 줄로 나눠 각자 한 줄을 갖게 한다.
                     VStack(alignment: .leading, spacing: 3) {
-                        SectionLabel("이번 주 · 최근 7일 \(w.games)경기")
+                        SectionLabel("이번 주 · \(w.label)")
                         Text("\(w.win)승 \(w.draw)무 \(w.lose)패")
                             .fcFont(16, weight: .bold).foregroundStyle(w.winRate >= 50 ? FC.win : FC.lose)
                             .lineLimit(1).minimumScaleFactor(0.8)

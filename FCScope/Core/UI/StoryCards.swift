@@ -43,15 +43,16 @@ enum StoryCard {
 
         switch self {
         case .user:
-            async let pl: PlayersResponse? = try? APIClient.shared.getAndCache("/api/v1/user/\(enc)/players", query: q, auth: false)
-            async let rp: ReportResponse? = try? APIClient.shared.getAndCache("/api/v1/user/\(enc)/report", query: q, auth: false)
-            async let ps: PlaystyleResponse? = try? APIClient.shared.getAndCache("/api/v1/user/\(enc)/playstyle", query: q, auth: false)
+            // 부가 응답은 8초 안에 못 받으면 그 섹션만 대체 내용으로 — 카드 생성이 1분씩 묶이지 않게
+            async let pl: PlayersResponse? = withTimeout(8) { try? await APIClient.shared.getAndCache("/api/v1/user/\(enc)/players", query: q, auth: false) }
+            async let rp: ReportResponse? = withTimeout(8) { try? await APIClient.shared.getAndCache("/api/v1/user/\(enc)/report", query: q, auth: false) }
+            async let ps: PlaystyleResponse? = withTimeout(8) { try? await APIClient.shared.getAndCache("/api/v1/user/\(enc)/playstyle", query: q, auth: false) }
             let data = UserCardData(o: o, players: await pl, report: await rp, playstyle: await ps)
             let best = data.bestPlayers
             let images = await CardImages.load(players: best.map(\.spId), seasonsFor: best.map(\.spId), urls: icons)
             return ShareCardRenderer.render(view: UserCardView(d: data, images: images), size: size)
         case .rank:
-            let pl: PlayersResponse? = try? await APIClient.shared.getAndCache("/api/v1/user/\(enc)/players", query: ["type": "50"], auth: false)
+            let pl: PlayersResponse? = await withTimeout(8) { try? await APIClient.shared.getAndCache("/api/v1/user/\(enc)/players", query: ["type": "50"], auth: false) }
             let ace = UserCardData.best(players: pl, limit: 1).first
             let images = await CardImages.load(players: ace.map { [$0.spId] } ?? [], seasonsFor: ace.map { [$0.spId] } ?? [], urls: icons)
             return ShareCardRenderer.render(view: RankCardView(o: o, ace: ace, images: images), size: size)
@@ -65,9 +66,11 @@ enum StoryCard {
             let images = await CardImages.load(players: [], urls: icons)
             return ShareCardRenderer.render(view: RivalCardView(o: o, r: r, images: images), size: size)
         case .pickMatch(_, let picks):
-            let pl: PlayersResponse? = try? await APIClient.shared.getAndCache("/api/v1/user/\(enc)/players", query: q, auth: false)
+            let pl: PlayersResponse? = await withTimeout(8) { try? await APIClient.shared.getAndCache("/api/v1/user/\(enc)/players", query: q, auth: false) }
             let tops = (pl?.players ?? []).filter(\.topPick)
             let shown = Array((tops.isEmpty ? (pl?.players ?? []).sorted { $0.avgRating > $1.avgRating } : tops).prefix(6))
+            // 선수 응답을 못 받으면 사진 없는 빈 그리드 대신 예전 텍스트 카드
+            guard !shown.isEmpty else { return ShareCardRenderer.render(.pickMatch(nickname: o.profile.nickname, picks: picks)) }
             let images = await CardImages.load(players: shown.map(\.spId), seasonsFor: shown.map(\.spId), urls: icons)
             return ShareCardRenderer.render(view: PickCardView(o: o, picks: picks, shown: shown, images: images), size: size)
         }
@@ -129,14 +132,16 @@ struct UserCardData {
             if r >= 35 { out.append(("박스 안 결정력", "\(r)%")) }
         }
         if p.played > 0 {
-            let gpg = Double(o.summary.goalsFor) / Double(max(1, o.summary.played))
+            let gf = p.goalsFor ?? o.summary.goalsFor
+            let games = p.normalPlayed.flatMap { $0 > 0 ? $0 : nil } ?? o.summary.played
+            let gpg = Double(gf) / Double(max(1, games))
             if gpg >= 1.8 { out.append(("경기당 득점", String(format: "%.1f", gpg))) }
         }
         if p.bestWinStreak >= 3 { out.append(("최고 연승", "\(p.bestWinStreak)")) }
         if p.cleanSheets >= 2 { out.append(("클린시트", "\(p.cleanSheets)")) }
         if o.summary.avgPossession >= 55 { out.append(("평균 점유율", "\(o.summary.avgPossession)%")) }
         if p.avgRating >= 6.8 { out.append(("평균 평점", String(format: "%.1f", p.avgRating))) }
-        out.append(("총 득점", "\(o.summary.goalsFor)"))
+        out.append(("총 득점", "\(p.goalsFor ?? o.summary.goalsFor)"))
         out.append(("경기 수", "\(o.summary.played)"))
         return out
     }
@@ -506,13 +511,13 @@ struct WeeklyCardView: View {
     let images: CardImages
     var body: some View {
         let w = o.week
-        TemplateCard(chip: "주간 리포트", o: o, images: images, kicker: w.games >= o.summary.played && o.summary.played >= 30 ? "최근 7일 · 최근 \(w.games)경기 기준" : "최근 7일 · \(w.games)경기") {
+        TemplateCard(chip: "주간 리포트", o: o, images: images, kicker: w.label) {
             HStack(alignment: .firstTextBaseline, spacing: 18) {
                 big(w.win, "승"); big(w.draw, "무"); big(w.lose, "패")
             }
         } sub: {
             if w.games == 0 {
-                CardStampView(text: "이번 주 공식경기 없음", color: CardPalette.muted)
+                CardStampView(text: "이번 주 경기 없음", color: CardPalette.muted)
             } else if w.bestStreak >= 3 {
                 CardStampView(text: "이번 주 \(w.bestStreak)연승", color: CardPalette.gold)
             } else if w.winRate >= 45 {
@@ -527,7 +532,6 @@ struct WeeklyCardView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             CardLabel(text: "BEST MATCH")
                             Text("\(m.me.goals) : \(m.opponent?.goals ?? 0)").font(.scoreboard(72)).foregroundStyle(CardPalette.ink)
-                            Text("vs \(m.opponent?.nickname ?? "상대")").font(.pretendard(28, .semibold)).foregroundStyle(CardPalette.muted).lineLimit(1)
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 4) {

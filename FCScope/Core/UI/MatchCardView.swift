@@ -33,7 +33,7 @@ struct MatchCardView: View {
         HStack(alignment: .center, spacing: 16) {
             NicknameTitle(text: m.me.nickname, maxSize: 56, minSize: 32, boxHeight: 130, width: 330, color: CardPalette.lime, alignment: .leading)
             Text("\(m.me.goals) : \(m.opponent?.goals ?? 0)").font(.scoreboard(120)).foregroundStyle(CardPalette.ink)
-                .lineLimit(1).fixedSize().frame(maxWidth: .infinity)
+                .lineLimit(1).minimumScaleFactor(0.5).frame(maxWidth: .infinity)
             NicknameTitle(text: m.opponent?.nickname ?? "-", maxSize: 56, minSize: 32, boxHeight: 130, width: 330, color: CardPalette.ink, alignment: .trailing)
         }
     }

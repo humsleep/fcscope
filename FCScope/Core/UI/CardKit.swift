@@ -22,6 +22,17 @@ enum CardLayout {
     static var contentHeight: CGFloat { safeBottom - safeTop }
 }
 
+/// 작업이 `seconds` 안에 끝나지 않으면 nil. 카드 생성이 느린 네트워크에 묶이지 않게 한다.
+func withTimeout<T: Sendable>(_ seconds: Double, _ op: @escaping @Sendable () async -> T?) async -> T? {
+    await withTaskGroup(of: T?.self) { group in
+        group.addTask { await op() }
+        group.addTask { try? await Task.sleep(for: .seconds(seconds)); return nil }
+        let first = await group.next() ?? nil
+        group.cancelAll()
+        return first
+    }
+}
+
 // MARK: - 이미지
 
 /// 렌더 직전에 받아 둔 이미지 묶음. 없으면 자리만 남긴다(카드 생성은 막지 않음).
@@ -43,11 +54,12 @@ struct CardImages {
             seasonSpids.first { NexonCDN.seasonId(of: $0) == sid }.flatMap { SeasonIcons.shared.url(forSpid: $0) }.map { (sid, $0) }
         }
         await withTaskGroup(of: (String, Int, UIImage?).self) { group in
-            for spid in Set(spids) { group.addTask { ("p", spid, await ImageCache.load(spid: spid)) } }
-            for (sid, url) in seasonURLs { group.addTask { ("s", sid, try? await ImageCache.pipeline.image(for: url)) } }
+            // 이미지 한 장당 5초 — 못 받으면 자리만 남기고 카드는 만든다
+            for spid in Set(spids) { group.addTask { ("p", spid, await withTimeout(5) { await ImageCache.load(spid: spid) }) } }
+            for (sid, url) in seasonURLs { group.addTask { ("s", sid, await withTimeout(5) { try? await ImageCache.pipeline.image(for: url) }) } }
             for (i, u) in urls.enumerated() {
                 guard let url = URL(string: u) else { continue }
-                group.addTask { ("u", i, try? await ImageCache.pipeline.image(for: url)) }
+                group.addTask { ("u", i, await withTimeout(5) { try? await ImageCache.pipeline.image(for: url) }) }
             }
             for await (kind, key, img) in group {
                 guard let img else { continue }

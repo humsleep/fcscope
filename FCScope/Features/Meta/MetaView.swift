@@ -84,7 +84,7 @@ struct MetaView: View {
             Panel(padding: 12, highlight: FC.win.opacity(0.4)) {
                 HStack(spacing: 10) {
                     PlayerImage(spid: m.spId, size: 44)
-                    VStack(alignment: .leading, spacing: 2) { SectionLabel("⚡ 오늘의 급상승", color: FC.win); Text(m.name).fcFont(15, weight: .bold).foregroundStyle(FC.ink); Text("\(m.positionLabel) · \(m.lineTitle ?? m.line) · n=\(m.matchCount)").fcFont(12).foregroundStyle(FC.muted) }
+                    VStack(alignment: .leading, spacing: 2) { SectionLabel("⚡ 오늘의 급상승", color: FC.win); Text(m.name).fcFont(15, weight: .bold).foregroundStyle(FC.ink); Text("\(m.positionLabel) · \(m.lineTitle ?? m.line)\(m.usage.map { " · 선발 \($0)회" } ?? "")").fcFont(12).foregroundStyle(FC.muted) }
                     Spacer()
                     Text(m.isNew ? "NEW 진입" : "▲\(m.deltaValue ?? 0)").fcScoreboard(14).foregroundStyle(m.isNew ? FC.gold : FC.win).padding(.horizontal, 8).padding(.vertical, 5).background((m.isNew ? FC.gold : FC.win).opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
                 }
@@ -140,7 +140,7 @@ struct PlayerDetailView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(p.name).fcFont(22, weight: .bold).foregroundStyle(FC.ink)
                                 if !season.isEmpty { SeasonBadge(spid: p.spid, season: season, height: 22) }
-                                Text("랭커 실사용 \(p.ranker.totalMatches)경기\(p.ranker.date.map { " · \($0)" } ?? "")").fcFont(12).foregroundStyle(FC.muted)
+                                Text("넥슨 상위 랭커 최근 \(p.ranker.totalMatches)경기 평균\(p.ranker.date.map { " · \($0)" } ?? "")").fcFont(12).foregroundStyle(FC.muted)
                             }
                         }
                     }
