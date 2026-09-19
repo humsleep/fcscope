@@ -62,6 +62,10 @@ struct StreakInfo: Decodable {
 
 struct PerfStats: Decodable {
     let played: Int
+    /// 몰수 제외 경기·승 (옛 서버 응답엔 없을 수 있음)
+    let normalPlayed: Int?
+    let normalWin: Int?
+    let forfeits: Int?
     let winRate: Int
     let currentStreak: Int
     let bestWinStreak: Int

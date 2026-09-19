@@ -21,43 +21,28 @@ struct SquadCardView: View {
         return counts.max { $0.value < $1.value }?.key
     }
 
+    // 인스타 스토리 안전영역(y 264~1560) 안에 배치 — v1 은 y 70부터 그려 로고·포메이션이 가려졌다.
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 14) {
-                Text("FC").font(.scoreboard(44)).foregroundStyle(CardPalette.lime)
-                Text("SCOPE").font(.scoreboard(44)).foregroundStyle(CardPalette.ink)
-                Spacer()
-                Text(layout.title).font(.scoreboard(44)).lineLimit(1).minimumScaleFactor(0.5).foregroundStyle(CardPalette.gold)
-            }
-            Text(data.name)
-                .font(.pretendard(56, .bold))
-                .foregroundStyle(CardPalette.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .padding(.top, 18)
-            HStack(spacing: 12) {
-                Text("\(filled)명 배치").font(.pretendard(30)).foregroundStyle(CardPalette.muted)
-                if let s = topSeason {
-                    Text(s).font(.pretendard(26, .bold)).foregroundStyle(CardPalette.gold)
-                        .padding(.horizontal, 14).padding(.vertical, 6)
-                        .background(CardPalette.gold.opacity(0.15), in: Capsule())
+        CardCanvas {
+            VStack(alignment: .leading, spacing: 0) {
+                CardHeader(chip: layout.title)
+                Spacer().frame(height: 12)
+                NicknameTitle(text: data.name, maxSize: 72, minSize: 44, boxHeight: 88)
+                HStack(spacing: 12) {
+                    Text("\(filled)명 배치").font(.pretendard(28)).foregroundStyle(CardPalette.muted)
+                    if let s = topSeason {
+                        Text(s).font(.pretendard(26, .bold)).foregroundStyle(CardPalette.gold)
+                            .padding(.horizontal, 14).padding(.vertical, 6)
+                            .background(CardPalette.gold.opacity(0.15), in: Capsule())
+                    }
                 }
-            }
-            .padding(.top, 6)
-
-            pitch.padding(.top, 28)
-
-            Spacer(minLength: 0)
-            HStack {
-                Text("내 스쿼드도 만들기 →").font(.pretendard(30)).foregroundStyle(CardPalette.muted)
-                Spacer()
-                Text(AppConfig.shareHost).font(.pretendard(30, .bold)).foregroundStyle(CardPalette.lime)
+                .frame(height: 44)
+                Spacer().frame(height: 16)
+                pitch
+                Spacer(minLength: 0)
+                CardFooter(cta: "내 스쿼드도 만들기 →")
             }
         }
-        .padding(70)
-        .frame(width: ShareCardView.width, height: ShareCardView.height, alignment: .topLeading)
-        .background(CardPalette.bg)
-        .environment(\.colorScheme, .dark)
     }
 
     private var pitch: some View {
@@ -70,7 +55,7 @@ struct SquadCardView: View {
                     var p = Path()
                     p.addRect(CGRect(x: 16, y: 16, width: size.width - 32, height: size.height - 32))
                     p.move(to: CGPoint(x: 16, y: size.height / 2)); p.addLine(to: CGPoint(x: size.width - 16, y: size.height / 2))
-                    p.addEllipse(in: CGRect(x: size.width / 2 - 90, y: size.height / 2 - 90, width: 180, height: 180))
+                    p.addEllipse(in: CGRect(x: size.width / 2 - 80, y: size.height / 2 - 80, width: 160, height: 160))
                     p.addRect(CGRect(x: size.width * 0.22, y: 16, width: size.width * 0.56, height: size.height * 0.15))
                     p.addRect(CGRect(x: size.width * 0.22, y: size.height - 16 - size.height * 0.15, width: size.width * 0.56, height: size.height * 0.15))
                     ctx.stroke(p, with: .color(.white.opacity(0.14)), lineWidth: 3)
@@ -79,11 +64,11 @@ struct SquadCardView: View {
                     // 드래그로 옮긴 자리는 선수 슬롯의 x/y(0~100)를 쓴다 — 빌더·공유 페이지와 같은 배치.
                     let p = data.slots[slot.id]
                     node(slot: slot)
-                        .position(x: w * (p?.x ?? slot.x) / 100, y: h * (p?.y ?? slot.y) / 100)
+                        .position(x: w * (p?.x ?? slot.x) / 100, y: h * Self.cardY(p?.y ?? slot.y) / 100)
                 }
             }
         }
-        .frame(height: 1180)
+        .frame(height: 1010)
     }
 
     @ViewBuilder
@@ -97,7 +82,7 @@ struct SquadCardView: View {
                 }
                 Circle().stroke(player == nil ? Color.white.opacity(0.25) : CardPalette.lime, lineWidth: 4)
             }
-            .frame(width: 108, height: 108)
+            .frame(width: 96, height: 96)
             .clipShape(Circle())
 
             Text(player.map { short($0.name) } ?? layout.pos(of: slot))
@@ -112,6 +97,9 @@ struct SquadCardView: View {
         }
         .frame(width: 170)
     }
+
+    /// 카드 피치는 빌더보다 납작해 수비 라인(78)과 GK(92)가 겹쳤다 — 78 아래만 골라인 쪽으로 늘린다(92 → 93.5).
+    static func cardY(_ y: Double) -> Double { y <= 78 ? y : 78 + (y - 78) * (15.5 / 14.0) }
 
     private func short(_ name: String, _ n: Int = 6) -> String {
         name.count > n ? String(name.prefix(n)) + "…" : name

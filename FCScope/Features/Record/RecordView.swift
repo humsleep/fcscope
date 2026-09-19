@@ -267,10 +267,10 @@ struct RecordView: View {
                 switch vm.section {
                 case .matches: MatchesSection(o: o, nickname: o.profile.nickname)
                 case .report: ReportSection(state: vm.report, retry: retrySection)
-                case .players: PlayersSection(state: vm.players, nickname: o.profile.nickname, retry: retrySection)
+                case .players: PlayersSection(state: vm.players, nickname: o.profile.nickname, overview: o, retry: retrySection)
                 case .style: PlaystyleSection(state: vm.playstyle, retry: retrySection)
                 }
-                HStack { Spacer(); ShareCardButton(spec: .user(o), label: "전적 카드 저장 · 공유"); Spacer() }.padding(.top, 8)
+                HStack { Spacer(); ShareCardButton(story: .user(o), label: "전적 카드 저장 · 공유"); Spacer() }.padding(.top, 8)
             }
             .padding(16)
         }
@@ -326,7 +326,7 @@ struct RecordView: View {
                 }
                 if o.summary.played > 0 { headline(o) }
                 ForEach(o.profile.divisions) { d in divisionRow(d) }
-                if let rankSpec = ShareCardSpec.rank(o) { ShareCardButton(spec: rankSpec, label: "🏆 계급 인증 카드", compact: true) }
+                if !o.profile.divisions.isEmpty { ShareCardButton(story: .rank(o), label: "🏆 계급 인증 카드", compact: true) }
             }
         }
     }
@@ -530,9 +530,9 @@ struct MatchesSection: View {
                         .lineLimit(1).minimumScaleFactor(0.8)
                     }
                     Spacer(minLength: 0)
-                    if !stacked { ShareCardButton(spec: .weekly(o), label: "주간 카드", compact: true) }
+                    if !stacked { ShareCardButton(story: .weekly(o), label: "주간 카드", compact: true) }
                 }
-                if stacked { ShareCardButton(spec: .weekly(o), label: "주간 카드", compact: true) }
+                if stacked { ShareCardButton(story: .weekly(o), label: "주간 카드", compact: true) }
             }
         }
     }
@@ -547,7 +547,7 @@ struct MatchesSection: View {
                     Text(s.color == "lose" ? "반등을 노려봐요" : "이 기세를 이어가요").fcFont(12).foregroundStyle(FC.muted)
                 }
                 Spacer()
-                ShareCardButton(spec: .streak(o), label: "폼 카드", compact: true)
+                ShareCardButton(story: .streak(o), label: "폼 카드", compact: true)
             }
         }
     }
@@ -562,7 +562,7 @@ struct MatchesSection: View {
                         Text("\(r.nickname)에게 \(r.win)승 \(r.lose)패 — 아직 \(r.lose - r.win)점 뒤").fcFont(14, weight: .bold).foregroundStyle(FC.ink)
                     }
                     Spacer()
-                    ShareCardButton(spec: .rival(o, rival: r), label: "맞대결 카드", compact: true)
+                    ShareCardButton(story: .rival(o, r), label: "맞대결 카드", compact: true)
                 }
             }
         }.buttonStyle(.plain)

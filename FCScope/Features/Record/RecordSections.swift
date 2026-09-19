@@ -99,6 +99,8 @@ struct PlayersSection: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     let state: Loadable<PlayersResponse>
     let nickname: String
+    /// 대세픽 카드(v2)에 닉네임·레벨·등급을 싣기 위해
+    var overview: UserOverview? = nil
     var retry: (() -> Void)? = nil
     @Environment(AppRouter.self) private var router
     var body: some View {
@@ -125,7 +127,8 @@ struct PlayersSection: View {
                                     VStack(alignment: .leading) { (Text("\(picks.total - picks.topPickCount)") + Text("명").font(.fcScoreboard(14, typeSize)).foregroundStyle(FC.muted)).font(.fcScoreboard(28, typeSize)).foregroundStyle(FC.ink); Text("TOP10 외").font(.fcFont(12, typeSize)).foregroundStyle(FC.muted) }
                                 }
                                 Text("내가 쓴 \(picks.total)명 중 포지션별 인기 TOP10과 겹치는 카드\(picks.date.map { " · \($0) 스냅샷" } ?? "") · 매일 갱신").fcFont(11).foregroundStyle(FC.muted)
-                                ShareCardButton(spec: .pickMatch(nickname: nickname, picks: picks), label: "🔥 대세픽 카드", compact: true)
+                                if let overview { ShareCardButton(story: .pickMatch(overview, picks), label: "🔥 대세픽 카드", compact: true) }
+                                else { ShareCardButton(spec: .pickMatch(nickname: nickname, picks: picks), label: "🔥 대세픽 카드", compact: true) }
                             }
                         }
                     }

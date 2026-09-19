@@ -36,6 +36,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         BackgroundRefresh.register()
         // 토큰은 바뀔 수 있고, 서버에는 등록 시점의 구단주명이 저장된다 — 실행마다 다시 등록한다(Apple 권장).
         Task { @MainActor in await PushManager.shared.registerIfAuthorized() }
+        #if DEBUG
+        CardDebugExport.runIfRequested()
+        #endif
         return true
     }
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {

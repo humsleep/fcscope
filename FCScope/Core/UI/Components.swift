@@ -180,6 +180,8 @@ enum ShareCardSource {
     case spec(ShareCardSpec)
     case squad(SquadCardData)
     case match(MatchDetailResponse)
+    /// v2 스토리 카드 — 부가 응답·이미지를 받은 뒤 렌더(StoryCards.swift)
+    case story(StoryCard)
 }
 
 struct SquadCardData {
@@ -211,6 +213,11 @@ struct ShareCardButton: View {
         self.label = label
         self.compact = compact
     }
+    init(story: StoryCard, label: String = "카드 저장 · 공유", compact: Bool = false) {
+        self.source = .story(story)
+        self.label = label
+        self.compact = compact
+    }
     init(match: MatchDetailResponse, label: String = "매치 카드", compact: Bool = false) {
         self.source = .match(match)
         self.label = label
@@ -239,6 +246,7 @@ struct ShareCardButton: View {
         case .spec(let s): return s.filename
         case .squad(let s): return "fcscope-squad-\(s.shareCode ?? s.formationId)"
         case .match(let m): return "fcscope-match-\(m.matchId)"
+        case .story(let s): return s.filename
         }
     }
 
@@ -256,6 +264,8 @@ struct ShareCardButton: View {
                 view: SquadCardView(data: data),
                 size: CGSize(width: ShareCardView.width, height: ShareCardView.height)
             )
+        case .story(let s):
+            image = await s.render()
         case .match(let m):
             if let p = m.potm { await ImageCache.prefetch(spids: [p.spId]) }
             image = ShareCardRenderer.render(
