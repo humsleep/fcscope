@@ -121,8 +121,8 @@ https://www.fcscope.xyz/privacy
 
 ## 스크린샷 (6.9형 1320×2868, 최대 10장)
 `docs/screenshots/` 의 파일을 번호 순서대로 올립니다(iPhone 17 Pro Max 시뮬레이터, 1320×2868, 다크 모드, 예시 계정 보엠).
-1. `01-home.png` 홈 · 2. `02-record.png` 전적 · 3. `03-match-report.png` 매치 리포트 슛맵 · 4. `04-players.png` 스쿼드 클리닉 + 선수 성적표
-5. `05-report.png` 분석 리포트 · 6. `06-squad.png` 최근 선발 그대로 불러온 스쿼드
+1. `01-home.png` 홈 · 2. `02-record.png` 전적 · 3. `03-match-report.png` 매치 리포트 슛맵 · 4. `04-players.png` 스쿼드 클리닉 + 랭커 대비 선수 성적표
+5. `05-report.png` 분석 리포트 · 6. `06-squad.png` 최근 선발 그대로 불러온 스쿼드 · 7. `07-meta.png` 픽 랭킹(포지션별 인기 카드)
 
 > ⚠️ 01(홈 "지금 검색되는 구단주")과 03(상대 구단주명)에 다른 이용자의 **공개 게임 닉네임**이 보입니다. 불편하면 01·03을 빼고 올리세요.
 
