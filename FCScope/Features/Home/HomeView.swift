@@ -238,7 +238,7 @@ struct HomeView: View {
             SectionLabel("여기서 할 수 있는 것")
             feature("전적 · 분석 리포트", "슛맵부터 스쿼드 진단까지", "경기별 슛맵, 선수 성적표, 플레이스타일을 한 번에.") { openReportFeature() }
             feature("스쿼드 빌더", "스쿼드 만들고 공유", "포메이션에 선수 배치, 팀 프리셋, 최근 경기 선발 그대로 불러오기.") { router.tab = .squad }
-            feature("랭커 픽 랭킹 · 선수 도감", "지금 랭커는 누굴 쓸까", "상위 랭커가 많이 쓴 카드를 포지션별로 매일 갱신.") { router.tab = .meta }
+            feature("픽 랭킹 · 선수 도감", "지금 가장 많이 쓰는 카드", "포지션별 인기 카드와 랭커 성적을 매일 갱신.") { router.tab = .meta }
             feature("커뮤니티 · 배틀", "자랑하고, 모으고, 겨룬다", "스쿼드 자랑과 평가, 클럽원 모집, 투표로 겨루는 스쿼드 배틀.") { router.tab = .community }
         }
     }

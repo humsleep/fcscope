@@ -10,8 +10,8 @@ struct MetaView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                SectionLabel("랭커 픽", color: FC.accent)
-                Text("상위 랭커가 실제 경기에서 가장 많이 쓴 카드.\(state.value?.date.map { " (\($0) 스냅샷)" } ?? "")").fcFont(13).foregroundStyle(FC.muted)
+                SectionLabel("픽 랭킹", color: FC.accent)
+                Text("최근 공식경기에서 선발로 가장 많이 쓰인 카드와, 그 카드의 넥슨 상위 랭커 성적.\(state.value?.date.map { " (\($0) 스냅샷)" } ?? "")").fcFont(13).foregroundStyle(FC.muted)
                 // 빈 라벨이면 VoiceOver 가 이름 없는 컨트롤로 읽는다 — 라벨은 주고 화면에서만 숨긴다.
                 Picker("매치 유형", selection: $matchType) { Text("공식경기").tag(50); Text("감독모드").tag(52) }.pickerStyle(.segmented).labelsHidden()
                     .onChange(of: matchType) { _, _ in Task { await load() } }
@@ -33,15 +33,15 @@ struct MetaView: View {
                     if m.lines.isEmpty {
                         // 작은 패널 한 칸 + 광고만 남아 고장난 화면처럼 보였다 — 시스템 빈 상태로 이유를 설명한다.
                         ContentUnavailableView {
-                            Label("아직 랭커 데이터가 없어요", systemImage: "chart.bar.xaxis")
+                            Label("아직 픽 랭킹 데이터가 없어요", systemImage: "chart.bar.xaxis")
                         } description: {
-                            Text("상위 랭커 경기를 매일 모아 픽 랭킹을 만들어요. 오늘 스냅샷이 쌓이면 여기에 표시돼요.")
+                            Text("최근 경기와 랭커 기록을 매일 모아 픽 랭킹을 만들어요. 오늘 스냅샷이 쌓이면 여기에 표시돼요.")
                         }
                         .padding(.top, 24)
                     } else {
                         if let mv = m.mover { moverCard(mv) }
                         ForEach(m.lines) { line in lineBlock(line) }
-                        Text("표본: 각 카드의 n = 랭커 경기 수. n이 작으면 신뢰도가 낮아요.").fcFont(11).foregroundStyle(FC.muted)
+                        Text("순위: FC Scope에 조회된 최근 공식경기에서 선발로 뛴 횟수. 골·패스는 넥슨 상위 랭커 기록(카드당 최근 20경기).").fcFont(11).foregroundStyle(FC.muted)
                     }
                 }
                 // 빈 화면에 광고만 덩그러니 있으면 광고가 본문처럼 보인다 — 데이터가 있을 때만.
@@ -96,7 +96,7 @@ struct MetaView: View {
         Panel(padding: 12) {
             VStack(alignment: .leading, spacing: 6) {
                 SectionLabel(line.title)
-                let maxCount = max(1, line.rows.first?.matchCount ?? 1)
+                let maxCount = max(1, line.rows.map(\.count).max() ?? 1)
                 ForEach(Array(line.rows.enumerated()), id: \.element.id) { i, r in
                     Button { router.push(.player(r.spId)) } label: {
                         HStack(spacing: 8) {
@@ -104,11 +104,11 @@ struct MetaView: View {
                             PlayerImage(spid: r.spId, size: 34, radius: 8)
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 4) { Text(r.name).fcFont(13, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1); if !r.season.isEmpty { SeasonBadge(spid: r.spId, season: r.season, height: 14) } }
-                                GeometryReader { g in ZStack(alignment: .leading) { Capsule().fill(FC.surface2); Capsule().fill(FC.accent).frame(width: g.size.width * CGFloat(r.matchCount) / CGFloat(maxCount)) } }.frame(height: 4)
+                                GeometryReader { g in ZStack(alignment: .leading) { Capsule().fill(FC.surface2); Capsule().fill(FC.accent).frame(width: g.size.width * CGFloat(r.count) / CGFloat(maxCount)) } }.frame(height: 4)
                             }
                             Spacer()
                             VStack(alignment: .trailing, spacing: 2) {
-                                Text("n=\(r.matchCount)").fcScoreboard(11).foregroundStyle(FC.muted)
+                                Text(r.usage.map { "\($0)회" } ?? "n=\(r.matchCount)").fcScoreboard(11).foregroundStyle(FC.muted)
                                 if r.isNew { Text("NEW").fcScoreboard(11).foregroundStyle(FC.gold) }
                                 else if let d = r.deltaValue, d != 0 { Text(d > 0 ? "▲\(d)" : "▼\(-d)").fcScoreboard(11).foregroundStyle(d > 0 ? FC.win : FC.lose) }
                             }

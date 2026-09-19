@@ -298,18 +298,22 @@ struct Mover: Decodable, Identifiable {
 struct MetaLine: Decodable, Identifiable { let line: String; let title: String; let rows: [PickRow]; var id: String { line } }
 struct PickRow: Decodable, Identifiable {
     let spId: Int; let position: Int; let matchCount: Int; let goalsPerMatch: Double; let passPct: Double
+    /// 최근 경기에서 선발로 뛴 횟수(인기 순위 기준). 넥슨 matchCount 는 늘 20 이라 순위로 못 쓴다. 옛 서버엔 없음.
+    let usage: Int?
+    var count: Int { usage ?? matchCount }
     let delta: Int??
     let name: String; let season: String; let positionLabel: String; let imageUrl: String
     var id: String { "\(spId)-\(position)" }
     var isNew: Bool { if case .some(.none) = delta { return true }; return false }
     var deltaValue: Int? { if case .some(.some(let d)) = delta { return d }; return nil }
 
-    private enum CodingKeys: String, CodingKey { case spId, position, matchCount, goalsPerMatch, passPct, delta, name, season, positionLabel, imageUrl }
+    private enum CodingKeys: String, CodingKey { case spId, position, matchCount, goalsPerMatch, passPct, usage, delta, name, season, positionLabel, imageUrl }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         spId = try c.decode(Int.self, forKey: .spId); position = try c.decode(Int.self, forKey: .position)
         matchCount = try c.decode(Int.self, forKey: .matchCount)
         goalsPerMatch = try c.decode(Double.self, forKey: .goalsPerMatch); passPct = try c.decode(Double.self, forKey: .passPct)
+        usage = try c.decodeIfPresent(Int.self, forKey: .usage)
         delta = try c.decodeNullable(Int.self, forKey: .delta)
         name = try c.decode(String.self, forKey: .name); season = try c.decode(String.self, forKey: .season)
         positionLabel = try c.decode(String.self, forKey: .positionLabel); imageUrl = try c.decode(String.self, forKey: .imageUrl)

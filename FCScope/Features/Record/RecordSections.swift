@@ -119,13 +119,13 @@ struct PlayersSection: View {
                     if let picks = p.picks {
                         Panel {
                             VStack(alignment: .leading, spacing: 6) {
-                                SectionLabel("내 픽 vs 랭커 픽")
+                                SectionLabel("내 픽 vs 인기 픽")
                                 HStack(alignment: .lastTextBaseline, spacing: 24) {
-                                    VStack(alignment: .leading) { (Text("\(picks.topPickCount)") + Text("명").font(.fcScoreboard(14, typeSize)).foregroundStyle(FC.muted)).font(.fcScoreboard(28, typeSize)).foregroundStyle(FC.win); Text("랭커 대세픽").font(.fcFont(12, typeSize)).foregroundStyle(FC.muted) }
+                                    VStack(alignment: .leading) { (Text("\(picks.topPickCount)") + Text("명").font(.fcScoreboard(14, typeSize)).foregroundStyle(FC.muted)).font(.fcScoreboard(28, typeSize)).foregroundStyle(FC.win); Text("인기 TOP10").font(.fcFont(12, typeSize)).foregroundStyle(FC.muted) }
                                     VStack(alignment: .leading) { (Text("\(picks.total - picks.topPickCount)") + Text("명").font(.fcScoreboard(14, typeSize)).foregroundStyle(FC.muted)).font(.fcScoreboard(28, typeSize)).foregroundStyle(FC.ink); Text("TOP10 외").font(.fcFont(12, typeSize)).foregroundStyle(FC.muted) }
                                 }
-                                Text("내가 쓴 \(picks.total)명 중 랭커 인기 TOP10과 겹치는 카드\(picks.date.map { " · \($0) 스냅샷" } ?? "") · 매일 갱신").fcFont(11).foregroundStyle(FC.muted)
-                                ShareCardButton(spec: .pickMatch(nickname: nickname, picks: picks), label: "🔥 랭커 대세픽 카드", compact: true)
+                                Text("내가 쓴 \(picks.total)명 중 포지션별 인기 TOP10과 겹치는 카드\(picks.date.map { " · \($0) 스냅샷" } ?? "") · 매일 갱신").fcFont(11).foregroundStyle(FC.muted)
+                                ShareCardButton(spec: .pickMatch(nickname: nickname, picks: picks), label: "🔥 대세픽 카드", compact: true)
                             }
                         }
                     }
