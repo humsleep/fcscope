@@ -380,7 +380,7 @@ struct PostTypeInfo: Decodable, Identifiable, Hashable {
     let fields: [String]; let template: String; let bodyLabel: String; let bodyPlaceholder: String
     var id: String { type }
 }
-struct PostAuthor: Decodable, Hashable { let id: String; let nickname: String; let verifiedNickname: String? }
+struct PostAuthor: Decodable, Hashable { let id: String; let nickname: String; let verifiedNickname: String?; let isOperator: Bool? }
 struct Post: Decodable, Identifiable, Hashable {
     let id: String
     let authorId: String
@@ -412,7 +412,7 @@ struct Comment: Decodable, Identifiable {
     let id: String; let postId: String; let authorId: String; let body: String; let squadId: String?; let createdAt: String
     let author: CommentAuthor; let isOwn: Bool
     enum CodingKeys: String, CodingKey { case id, body, author, isOwn; case postId = "post_id", authorId = "author_id", squadId = "squad_id", createdAt = "created_at" }
-    struct CommentAuthor: Decodable { let id: String; let nickname: String }
+    struct CommentAuthor: Decodable { let id: String; let nickname: String; let isOperator: Bool? }
 }
 struct PostDetailResponse: Decodable {
     let post: Post

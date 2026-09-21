@@ -150,6 +150,7 @@ struct PostRow: View {
                 if let pv = post.preview, !pv.isEmpty { Text(pv).fcFont(13).lineSpacing(4).foregroundStyle(FC.muted).lineLimit(2) }
                 HStack(spacing: 8) {
                     Text(post.author.nickname).fcFont(12, weight: .semibold).foregroundStyle(FC.ink)
+                    if post.author.isOperator == true { OperatorBadge() }
                     if let v = post.author.verifiedNickname { Text("✓ \(v)").fcFont(11).foregroundStyle(FC.accent) }
                     Spacer()
                     if post.squadId != nil { Text("🧩 스쿼드").fcFont(11).foregroundStyle(FC.muted) }
@@ -247,7 +248,7 @@ struct PostDetailView: View {
                 comments(d)
                 Panel(padding: 12) {
                     HStack {
-                        VStack(alignment: .leading) { SectionLabel("작성자"); Text(p.author.nickname).fcFont(16, weight: .bold).foregroundStyle(FC.ink); if let v = p.author.verifiedNickname { Text("✓ FC Online: \(v)").fcFont(12).foregroundStyle(FC.accent) } }
+                        VStack(alignment: .leading) { SectionLabel("작성자"); HStack(spacing: 6) { Text(p.author.nickname).fcFont(16, weight: .bold).foregroundStyle(FC.ink); if p.author.isOperator == true { OperatorBadge() } }; if let v = p.author.verifiedNickname { Text("✓ FC Online: \(v)").fcFont(12).foregroundStyle(FC.accent) } }
                         Spacer()
                         if let v = p.author.verifiedNickname { Button("전적·진단") { router.push(.user(v)) }.buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk) }
                     }
@@ -268,6 +269,7 @@ struct PostDetailView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 6) {
                             Text(c.author.nickname).fcFont(13, weight: .semibold).foregroundStyle(FC.ink)
+                            if c.author.isOperator == true { OperatorBadge() }
                             Text(DateFmt.relative(c.createdAt)).fcFont(11).foregroundStyle(FC.muted)
                             Spacer()
                             // 12pt 텍스트 버튼(신고·차단)이 붙어 있어 탭 영역이 44pt 에 한참 못 미쳤고 오탭이 잦았다.
@@ -427,5 +429,15 @@ struct ComposeView: View {
         for (k, v) in extras where !v.isEmpty { json[k] = v }
         do { let _: IdBody = try await APIClient.shared.send("/api/community/posts", method: "POST", json: json); Haptic.success(); onDone(); dismiss() }
         catch { msg = error.localizedDescription }
+    }
+}
+
+/// 운영자 계정(서버 ADMIN_EMAILS)이 쓴 글·댓글 옆 배지 — 제목에 "[운영자]"를 적는 대신 작성자에 붙인다.
+struct OperatorBadge: View {
+    var body: some View {
+        Text("운영자").fcFont(10, weight: .bold).foregroundStyle(FC.gold)
+            .padding(.horizontal, 5).padding(.vertical, 2)
+            .background(FC.gold.opacity(0.15), in: RoundedRectangle(cornerRadius: 5))
+            .accessibilityLabel("운영자 계정")
     }
 }
