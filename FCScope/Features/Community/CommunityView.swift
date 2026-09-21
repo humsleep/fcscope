@@ -83,6 +83,9 @@ struct CommunityView: View {
                         }
                         .padding(.top, 24)
                     }
+                    // 카카오톡 채팅 목록처럼 상단 탭 바로 아래·목록 맨 위에 카드 하나(2026-09-21 운영자 결정). 화면당 1개.
+                    // 빈 목록에서는 광고가 본문처럼 보인다 — 글이 있을 때만.
+                    if !visible.isEmpty { AdSlot() }
                     LazyVStack(spacing: 12) {
                         ForEach(visible) { p in
                             Button { router.push(.post(p.id)) } label: { PostRow(post: p) }.buttonStyle(.plain)
@@ -97,8 +100,6 @@ struct CommunityView: View {
                             .frame(maxWidth: .infinity).padding(.vertical, 12)
                     }
                 }
-                // 빈 목록에서는 광고가 본문처럼 보인다 — 글이 있을 때만.
-                if !listEmpty { AdSlot() }
             }.padding(16)
         }
         .fcScreen().navigationTitle("커뮤니티").navigationBarTitleDisplayMode(.inline)
@@ -122,10 +123,6 @@ struct CommunityView: View {
             return
         }
         showCompose = true   // 확인 실패(네트워크)면 막지 않는다 — 서버가 최종 판단
-    }
-    private var listEmpty: Bool {
-        guard case .loaded = model.state else { return false }
-        return model.posts.allSatisfy { prefs.isBlocked($0.authorId) }
     }
     private func tab(_ t: String?, _ label: String) -> some View {
         Button { model.type = t; Task { await model.load(reset: true) } } label: {

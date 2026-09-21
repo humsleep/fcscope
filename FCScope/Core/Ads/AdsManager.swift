@@ -211,7 +211,7 @@ enum SearchGate {
     }
 }
 
-/// 적응형 배너 — 홈·전적·매치 리포트·픽 랭킹·커뮤니티 맨 아래(2026-09-20 운영자 결정으로 홈·전적 추가)
+/// 적응형 배너 — 홈·전적·매치 리포트·픽 랭킹·커뮤니티 목록 맨 위(카카오톡식, 2026-09-21 운영자 결정)
 struct BannerAdView: UIViewRepresentable {
     let width: CGFloat
     /// 받은 광고의 실제 높이. 실패하면 0 — 고정 60pt 는 큰 적응형 배너를 잘랐고, 광고가 없을 때 빈 칸을 남겼다.
@@ -247,8 +247,9 @@ struct AdSlot: View {
     @State private var height: CGFloat?
     var body: some View {
         if ads.ready && ads.canShowAds, height != 0 {
+            // 카카오톡 목록 상단 광고처럼 둥근 카드 + "AD" 표기(광고 소재 위에는 아무것도 겹치지 않는다 — AdMob 정책)
             VStack(alignment: .leading, spacing: 6) {
-                Text("광고").fcFont(10, weight: .semibold).foregroundStyle(FC.muted)
+                Text("AD · 광고").fcFont(10, weight: .semibold).foregroundStyle(FC.muted)
                 GeometryReader { geo in
                     // 첫 배치 때 폭이 0 으로 오면 잘못된 크기로 요청해 실패 → 자리가 영구히 접혔다. 폭이 잡힌 뒤에만 만든다.
                     if geo.size.width > 100 {
@@ -256,12 +257,11 @@ struct AdSlot: View {
                     }
                 }
                 .frame(height: height ?? 60)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .padding(8)
-            .background(FC.surface2, in: RoundedRectangle(cornerRadius: 14))
-            .padding(.top, 4)
-            .padding(.bottom, 8)
+            .padding(10)
+            .background(FC.surface2, in: RoundedRectangle(cornerRadius: 18))
+            .padding(.vertical, 2)
             .accessibilityElement(children: .contain)
             .accessibilityLabel("광고")
         }

@@ -33,6 +33,8 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 hero
+                // 카카오톡 채팅 목록처럼 상단 탭 바로 아래·목록 맨 위에 카드 하나(2026-09-21 운영자 결정). 화면당 1개.
+                AdSlot()
                 if let mine = prefs.myNickname { myFormCard(mine) }
                 else if let demo = vm.state.value?.demoNickname { demoCard(demo) }
                 if !prefs.favorites.isEmpty { favoritesSection }
@@ -43,8 +45,6 @@ struct HomeView: View {
                 } else if vm.state.isLoading { Skeleton(height: 60) }
                 if !prefs.recentSearches.isEmpty { recentSection }
                 featureGrid
-                // 맨 아래 — 칩·카드 사이에 두면 잘못 누르기 쉽다(AdMob 오클릭 정책)
-                AdSlot().padding(.top, 8)
             }
             .padding(16)
         }

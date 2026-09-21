@@ -42,6 +42,8 @@ struct MatchReportView: View {
     private func content(_ m: MatchDetailResponse) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionLabel("\(m.matchTypeName.uppercased()) · \(m.matchDateLabel)")
+            // 카카오톡 채팅 목록처럼 상단 탭 바로 아래·목록 맨 위에 카드 하나(2026-09-21 운영자 결정). 화면당 1개.
+            AdSlot()
             Panel {
                 VStack(spacing: 10) {
                     HStack(spacing: 12) {
@@ -110,8 +112,6 @@ struct MatchReportView: View {
                 Spacer()
                 ShareCardButton(match: m, label: "매치 카드")
             }
-            // 리포트를 다 읽은 뒤의 자리 — 내용을 가리지 않아 거부감이 가장 적다.
-            AdSlot()
         }.padding(16)
     }
 

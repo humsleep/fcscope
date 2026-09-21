@@ -28,6 +28,9 @@ struct MetaView: View {
                         }
                     }
                 }
+                // 카카오톡 채팅 목록처럼 상단 탭 바로 아래·목록 맨 위에 카드 하나(2026-09-21 운영자 결정). 화면당 1개.
+                // 빈 화면에 광고만 덩그러니 있으면 광고가 본문처럼 보인다 — 데이터가 있을 때만.
+                if let v = state.value, !v.lines.isEmpty { AdSlot() }
                 switch state {
                 case .idle, .loading: Skeleton(height: 300)
                 case .failed(let e): ErrorState(title: "픽 랭킹을 불러오지 못했어요", message: e.localizedDescription, error: e, retry: { Task { await load() } })
@@ -46,8 +49,6 @@ struct MetaView: View {
                         Text("순위: FC Scope에 조회된 최근 \(modeName)에서 선발로 뛴 횟수. 골·패스는 넥슨 상위 랭커 기록(카드당 최근 20경기).").fcFont(11).foregroundStyle(FC.muted)
                     }
                 }
-                // 빈 화면에 광고만 덩그러니 있으면 광고가 본문처럼 보인다 — 데이터가 있을 때만.
-                if !(state.value?.lines.isEmpty ?? false) { AdSlot() }
             }.padding(16)
         }
         .fcScreen().navigationTitle("픽 랭킹").navigationBarTitleDisplayMode(.inline)

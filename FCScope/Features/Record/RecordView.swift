@@ -263,6 +263,8 @@ struct RecordView: View {
                 // "탭이 있는 줄 모르는" 상태가 된다. 배지는 보조 정보라 아래로 내린다.
                 typeTabs(o)
                 sectionPicker
+                // 카카오톡 채팅 목록처럼 상단 탭 바로 아래·목록 맨 위에 카드 하나(2026-09-21 운영자 결정). 화면당 1개.
+                AdSlot()
                 if let mt = o.diagnosis.type { badge("⚽", mt) { vm.section = .report; Task { await vm.loadSection() } } }
                 switch vm.section {
                 case .matches: MatchesSection(o: o, nickname: o.profile.nickname)
@@ -271,8 +273,6 @@ struct RecordView: View {
                 case .style: PlaystyleSection(state: vm.playstyle, retry: retrySection)
                 }
                 HStack { Spacer(); ShareCardButton(story: .user(o), label: "전적 카드 저장 · 공유"); Spacer() }.padding(.top, 8)
-                // 결과를 다 본 뒤 맨 아래에만 둔다(진단 사이에 끼우지 않음)
-                AdSlot().padding(.top, 24)   // 공유 버튼과 붙어 있으면 광고를 잘못 누르기 쉽다
             }
             .padding(16)
         }
