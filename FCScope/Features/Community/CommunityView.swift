@@ -146,7 +146,7 @@ struct PostRow: View {
                     Text(DateFmt.relative(post.createdAt)).fcFont(11).foregroundStyle(FC.muted)
                 }
                 Text(post.title).fcFont(15, weight: .bold).foregroundStyle(FC.ink).lineLimit(2)
-                if let pv = post.preview, !pv.isEmpty { Text(pv).fcFont(13).foregroundStyle(FC.muted).lineLimit(2) }
+                if let pv = post.preview, !pv.isEmpty { Text(pv).fcFont(13).lineSpacing(4).foregroundStyle(FC.muted).lineLimit(2) }
                 HStack(spacing: 8) {
                     Text(post.author.nickname).fcFont(12, weight: .semibold).foregroundStyle(FC.ink)
                     if let v = post.author.verifiedNickname { Text("✓ \(v)").fcFont(11).foregroundStyle(FC.accent) }
@@ -210,6 +210,8 @@ struct PostDetailView: View {
     private func content(_ d: PostDetailResponse) -> some View {
         let p = d.post
         return VStack(alignment: .leading, spacing: 12) {
+            // 다른 화면과 같은 상단 카드 광고(화면당 1개) — 본문 중간에 끼우지 않는다
+            AdSlot()
             if prefs.isBlocked(p.authorId) {
                 Panel { HStack { Text("차단한 사용자의 글이에요.").foregroundStyle(FC.muted); Spacer(); Button("차단 해제") { prefs.unblock(p.authorId) } } }
             } else {
@@ -222,7 +224,8 @@ struct PostDetailView: View {
                         if let rows = p.metaRows, !rows.isEmpty {
                             ForEach(rows) { r in HStack { Text(r.label).fcFont(12).foregroundStyle(FC.muted).frame(width: 70, alignment: .leading); Text(r.value).fcFont(14, weight: .semibold).foregroundStyle(FC.ink) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8)) }
                         }
-                        Text(p.body).fcFont(15).foregroundStyle(FC.ink).textSelection(.enabled)
+                        // 기본 행간은 한글 본문이 빽빽해 읽기 어려웠다 — 줄 사이를 넉넉히(15pt 글자에 +8)
+                        Text(p.body).fcFont(16).lineSpacing(8).foregroundStyle(FC.ink).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                         if p.type == "squad_battle", let a = p.squadId, let b = p.squadB { BattleBlock(postId: p.id, squadA: a, squadB: b) }
                         else if let s = p.squadId { squadLink(s) }
                         if let c = p.contact { HStack { Text("연락").fcFont(12, weight: .semibold).foregroundStyle(FC.muted); Text(c).fcFont(14).foregroundStyle(FC.ink).textSelection(.enabled) } }
@@ -281,7 +284,7 @@ struct PostDetailView: View {
                                 .accessibilityLabel("\(c.author.nickname) 댓글 더보기")
                             }
                         }
-                        Text(c.body).fcFont(14).foregroundStyle(FC.ink).padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
+                        Text(c.body).fcFont(15).lineSpacing(6).foregroundStyle(FC.ink).frame(maxWidth: .infinity, alignment: .leading).padding(12).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
                         if let s = c.squadId { Button("🧩 제안 스쿼드 보기 →") { router.push(.squad(s)) }.fcFont(12, weight: .semibold).foregroundStyle(FC.accent) }
                     }
                 }
