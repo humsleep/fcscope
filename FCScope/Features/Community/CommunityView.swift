@@ -66,6 +66,8 @@ struct CommunityView: View {
                     tab(nil, "전체")
                     ForEach(model.types) { t in tab(t.type, "\(t.emoji) \(t.label)") }
                 }
+                // 카카오톡 채팅 목록처럼 글 종류 탭 바로 아래·목록 맨 위에 카드 하나(2026-09-21 운영자 결정)
+                if case .loaded = model.state { AdSlot() }
                 switch model.state {
                 case .idle, .loading: Skeleton(height: 300)
                 case .failed(let e): ErrorState(title: "커뮤니티를 불러오지 못했어요", message: e.localizedDescription, error: e, retry: { Task { await model.load(reset: true) } })
@@ -83,9 +85,6 @@ struct CommunityView: View {
                         }
                         .padding(.top, 24)
                     }
-                    // 카카오톡 채팅 목록처럼 상단 탭 바로 아래·목록 맨 위에 카드 하나(2026-09-21 운영자 결정). 화면당 1개.
-                    // 빈 목록에서는 광고가 본문처럼 보인다 — 글이 있을 때만.
-                    if !visible.isEmpty { AdSlot() }
                     LazyVStack(spacing: 12) {
                         ForEach(visible) { p in
                             Button { router.push(.post(p.id)) } label: { PostRow(post: p) }.buttonStyle(.plain)

@@ -16,6 +16,8 @@ struct MyPageView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 accountCard
+                // 카카오톡식 상단 카드 광고(화면당 1개) — 로그인 버튼과 붙지 않게 계정 카드 다음에 둔다
+                AdSlot()
                 if let s = profile?.snapshot { snapshotCard(s) }
                 if let n = notif, n.total > 0 {
                     Panel(padding: 12) {
