@@ -66,8 +66,9 @@ struct CommunityView: View {
                     tab(nil, "전체")
                     ForEach(model.types) { t in tab(t.type, "\(t.emoji) \(t.label)") }
                 }
-                // 카카오톡 채팅 목록처럼 글 종류 탭 바로 아래·목록 맨 위에 카드 하나(2026-09-21 운영자 결정)
-                if case .loaded = model.state { AdSlot() }
+                // 카카오톡 채팅 목록처럼 글 종류 탭 바로 아래·목록 맨 위에 카드 하나(2026-09-21 운영자 결정).
+                // 글이 하나도 없는 탭에는 두지 않는다(콘텐츠 없는 화면의 광고 — AdMob 정책). 로드 중엔 이전 목록 기준으로 유지.
+                if model.posts.contains(where: { !prefs.isBlocked($0.authorId) }) { AdSlot() }
                 switch model.state {
                 case .idle, .loading: Skeleton(height: 300)
                 case .failed(let e): ErrorState(title: "커뮤니티를 불러오지 못했어요", message: e.localizedDescription, error: e, retry: { Task { await model.load(reset: true) } })
@@ -203,15 +204,16 @@ struct PostDetailView: View {
     }
 
     private func load() async {
-        state = .loading
+        // 댓글 작성·삭제 후 재로드 때 화면(과 광고)을 통째로 갈아 끼우지 않는다 — 이미 있으면 그 위에서 갱신
+        if state.value == nil { state = .loading }
         do { state = .loaded(try await APIClient.shared.get("/api/v1/community/posts/\(postId)")) } catch { state = .failed(error) }
     }
 
     private func content(_ d: PostDetailResponse) -> some View {
         let p = d.post
         return VStack(alignment: .leading, spacing: 12) {
-            // 다른 화면과 같은 상단 카드 광고(화면당 1개) — 본문 중간에 끼우지 않는다
-            AdSlot()
+            // 다른 화면과 같은 상단 카드 광고(화면당 1개) — 본문 중간에 끼우지 않는다. 차단한 글(안내 한 줄)엔 두지 않는다.
+            if !prefs.isBlocked(p.authorId) { AdSlot() }
             if prefs.isBlocked(p.authorId) {
                 Panel { HStack { Text("차단한 사용자의 글이에요.").foregroundStyle(FC.muted); Spacer(); Button("차단 해제") { prefs.unblock(p.authorId) } } }
             } else {

@@ -245,19 +245,24 @@ struct AdSlot: View {
     @State private var ads = AdsManager.shared
     /// nil = 로딩 중(예상 높이만큼 자리 확보), 0 = 광고 없음(접힘)
     @State private var height: CGFloat?
+    /// 적응형 배너 높이는 폭만으로 정해진다 — 60pt 로 잡아 두면 실제 높이(보통 90pt+)로 바뀌며 아래 콘텐츠가 뛰었다.
+    private var expectedHeight: CGFloat {
+        largeAnchoredAdaptiveBanner(width: UIScreen.main.bounds.width - 52).size.height
+    }
     var body: some View {
-        if ads.ready && ads.canShowAds, height != 0 {
+        // 상단 배치라 광고가 나중에 끼어들면 탭·버튼이 손가락 밑에서 밀린다(오클릭) — SDK 준비 전에도 같은 높이의 자리를 먼저 잡는다.
+        if ads.canShowAds, height != 0 {
             // 카카오톡 목록 상단 광고처럼 둥근 카드 + "AD" 표기(광고 소재 위에는 아무것도 겹치지 않는다 — AdMob 정책)
             VStack(alignment: .leading, spacing: 6) {
                 Text("AD · 광고").fcFont(10, weight: .semibold).foregroundStyle(FC.muted)
                 GeometryReader { geo in
                     // 첫 배치 때 폭이 0 으로 오면 잘못된 크기로 요청해 실패 → 자리가 영구히 접혔다. 폭이 잡힌 뒤에만 만든다.
-                    if geo.size.width > 100 {
+                    if ads.ready, geo.size.width > 100 {
                         BannerAdView(width: geo.size.width, height: $height)
                     }
                 }
-                .frame(height: height ?? 60)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .frame(height: height ?? expectedHeight)
+                // 배너 자체는 클리핑하지 않는다 — 우상단 AdChoices 아이콘이 잘리면 소재 변형(정책 위반)
             }
             .padding(10)
             .background(FC.surface2, in: RoundedRectangle(cornerRadius: 18))
