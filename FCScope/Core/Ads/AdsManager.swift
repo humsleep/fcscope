@@ -10,6 +10,9 @@ import Observation
 final class AdsManager {
     static let shared = AdsManager()
     private(set) var ready = false
+    /// SDK 시작이 결정된 순간(동의 절차 끝) true — 이때부터 광고 자리를 미리 잡는다(준비 완료 시 콘텐츠가 밀리지 않게).
+    /// SDK 를 시작하지 못하는 경로(첫 검색 전·EEA 동의 거부)에서는 false 라 빈 카드가 남지 않는다.
+    private(set) var starting = false
     private var consentFlowDone = false
 
     private static let firstLaunchKey = "fcscope.firstLaunchAt"
@@ -82,6 +85,7 @@ final class AdsManager {
 
     private func start() async {
         guard !ready else { return }
+        starting = true
         await MobileAds.shared.start()
         ready = true
         await preloadInterstitial()
@@ -250,8 +254,9 @@ struct AdSlot: View {
         largeAnchoredAdaptiveBanner(width: UIScreen.main.bounds.width - 52).size.height
     }
     var body: some View {
-        // 상단 배치라 광고가 나중에 끼어들면 탭·버튼이 손가락 밑에서 밀린다(오클릭) — SDK 준비 전에도 같은 높이의 자리를 먼저 잡는다.
-        if ads.canShowAds, height != 0 {
+        // 상단 배치라 광고가 나중에 끼어들면 탭·버튼이 손가락 밑에서 밀린다(오클릭) — SDK 시작이 결정되면 같은 높이의 자리를 먼저 잡는다.
+        // 시작 전(첫 검색 전)·시작 불가(동의 거부)에는 아무것도 그리지 않는다(빈 회색 카드 회귀 방지, E2E 2026-09-22).
+        if ads.starting, ads.canShowAds, height != 0 {
             // 카카오톡 목록 상단 광고처럼 둥근 카드 + "AD" 표기(광고 소재 위에는 아무것도 겹치지 않는다 — AdMob 정책)
             VStack(alignment: .leading, spacing: 6) {
                 Text("AD · 광고").fcFont(10, weight: .semibold).foregroundStyle(FC.muted)

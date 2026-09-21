@@ -264,7 +264,8 @@ struct RecordView: View {
                 typeTabs(o)
                 sectionPicker
                 // 카카오톡 채팅 목록처럼 상단 탭 바로 아래·목록 맨 위에 카드 하나(2026-09-21 운영자 결정). 화면당 1개.
-                AdSlot()
+                // 기록이 없는 모드(빈 상태 한 줄)에는 두지 않는다 — 콘텐츠 없는 화면의 광고(AdMob 정책)
+                if o.summary.played > 0 { AdSlot() }
                 if let mt = o.diagnosis.type { badge("⚽", mt) { vm.section = .report; Task { await vm.loadSection() } } }
                 switch vm.section {
                 case .matches: MatchesSection(o: o, nickname: o.profile.nickname)
@@ -530,7 +531,7 @@ struct MatchesSection: View {
                         HStack(spacing: 6) {
                             // 서버 주간 avgScore 는 최근 스코어와 척도가 달라 나란히 두면 헷갈린다 — 승률만.
                             Text("승률 \(w.winRate)%").fcFont(12).foregroundStyle(FC.muted)
-                            if w.bestStreak >= 2 { Text("🔥\(w.bestStreak)연승").fcFont(12, weight: .bold).foregroundStyle(FC.win) }
+                            if w.bestStreak >= 2 { Text("🔥최다 \(w.bestStreak)연승").fcFont(12, weight: .bold).foregroundStyle(FC.win) }
                         }
                         .lineLimit(1).minimumScaleFactor(0.8)
                     }

@@ -200,6 +200,10 @@ struct PlayersSection: View {
 // MARK: - 플레이스타일
 
 struct PlaystyleSection: View {
+    /// 서버 controller 코드 → 표시 문구("unknown" 이 그대로 보였다)
+    static func controllerLabel(_ c: String) -> String {
+        ["gamepad": "패드", "keyboard": "키보드", "unknown": "조작 미확인"][c] ?? c
+    }
     let state: Loadable<PlaystyleResponse>
     var retry: (() -> Void)? = nil
     var body: some View {
@@ -216,7 +220,7 @@ struct PlaystyleSection: View {
                         Text(r.archetype.tagline).fcFont(14).foregroundStyle(FC.muted)
                         HStack(spacing: 6) { Text("강점").fcFont(12, weight: .bold).foregroundStyle(FC.win); Text(r.archetype.baseStrength).fcFont(13).foregroundStyle(FC.ink) }
                         HStack(spacing: 6) { Text("취약").fcFont(12, weight: .bold).foregroundStyle(FC.lose); Text(r.archetype.baseWeakness).fcFont(13).foregroundStyle(FC.ink) }
-                        Text("\(r.games)경기 · \(r.controller) · 성향(주황)≠실력").fcFont(11).foregroundStyle(FC.muted)
+                        Text("\(r.games)경기 · \(Self.controllerLabel(r.controller)) · 성향(주황)≠실력").fcFont(11).foregroundStyle(FC.muted)
                     }
                 }
                 Panel {
