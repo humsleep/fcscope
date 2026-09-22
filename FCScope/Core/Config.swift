@@ -33,7 +33,7 @@ enum AppConfig {
 
     static let bundleId = "xyz.fcscope.app"
     static let oauthCallback = URL(string: "fcscope://auth/callback")!
-    static let contactEmail = "boheme88@naver.com"
+    static let contactEmail = "humsleep@naver.com"
     static let termsURL = URL(string: "https://www.fcscope.xyz/terms")!
     static let privacyURL = URL(string: "https://www.fcscope.xyz/privacy")!
     static var appVersion: String { (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "-" }
