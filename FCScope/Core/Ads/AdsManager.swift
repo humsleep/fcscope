@@ -4,7 +4,9 @@ import UserMessagingPlatform
 import AppTrackingTransparency
 import Observation
 
-/// AdMob 초기화 + UMP 동의 + ATT. ATT 는 첫 전적 결과를 본 뒤 요청. 배너는 설치 직후부터(2026-09-20 운영자 결정 — 3일 유예 폐지).
+/// AdMob 초기화 + UMP 동의 + ATT. ATT 는 온보딩을 마치고 메인 탭이 처음 뜰 때 요청. 배너는 설치 직후부터(2026-09-20 운영자 결정 — 3일 유예 폐지).
+/// ⚠️ 2026-09-30 심사 거절(2.1, iPad Air): ATT 를 "첫 전적 결과 이후"로 미뤘더니 검색을 하지 않은 심사자가 팝업을 끝내 못 봤다.
+/// 가치를 먼저 보여 주려고 다시 늦추지 말 것 — 심사자가 앱을 열자마자 볼 수 있어야 한다.
 @Observable
 @MainActor
 final class AdsManager {
@@ -32,7 +34,7 @@ final class AdsManager {
         AppConfig.admobConfigured && AppConfig.bannerAdUnit != nil
     }
 
-    /// 첫 유의미 화면(전적 결과) 이후 호출 — UMP(EEA 만 폼) → ATT → SDK 시작
+    /// UMP(EEA 만 폼) → ATT → SDK 시작. 한 실행에 한 번만 돈다.
     func requestConsentIfNeeded() async {
         // SDK 시작은 유예 기간과 무관하게 한다 — 전면광고(검색 3회차부터)는 유예 기간을 따르지 않는다.
         // 배너 노출 여부는 canShowAds 가 결정한다.
@@ -55,7 +57,7 @@ final class AdsManager {
         await start()
     }
 
-    // MARK: 세션 카운터 — ATT 를 첫 세션에 띄우지 않는다
+    // MARK: 세션 카운터
 
     private static let sessionCountKey = "fcscope.sessionCount"
     /// 지금까지의 앱 사용 세션 수(이번 세션 포함). 첫 실행 또는 30분 넘게 떠났다 돌아오면 +1.
@@ -68,11 +70,10 @@ final class AdsManager {
         UserDefaults.standard.set(sessionCount + 1, forKey: Self.sessionCountKey)
     }
 
-    /// 전적 화면에서 결과가 뜬 뒤 호출 — 앱을 열자마자가 아니라 가치를 본 다음에 묻는다.
-    /// 예전엔 두 번째 세션(30분 이상 떠났다 복귀)까지 미뤘는데, 한 자리에서 앱을 보는 심사자는 ATT 를 끝내 볼 수 없어
-    /// "추적 권한 요청을 찾을 수 없음"(5.1.2) 거절 위험이 컸다. 푸시는 시스템 팝업이 아닌 앱 안 카드라 겹치지 않는다.
-    /// 이미 절차를 끝낸 기기는 resumeIfConsentAsked 가 맡는다.
-    func requestConsentIfEligible() async {
+    /// 메인 탭이 처음 뜰 때 호출(온보딩 이후). 앱이 활성 상태가 아니면 ATT 요청은 시스템이 조용히 무시하므로
+    /// 활성 상태에서만 절차를 시작한다 — 비활성일 때 consentFlowDone 을 켜 버리면 이번 실행 내내 팝업이 다시 뜨지 않는다.
+    func requestConsentOnLaunch() async {
+        guard UIApplication.shared.applicationState == .active else { return }
         await requestConsentIfNeeded()
     }
 

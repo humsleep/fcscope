@@ -100,7 +100,6 @@ final class RecordViewModel {
                 LocalPrefs.shared.markSeen(nick: o.profile.nickname, latestMatchDate: latest.matchDate)
             }
         }
-        Task { await AdsManager.shared.requestConsentIfEligible() }
     }
 
     private var typeTask: Task<Void, Never>?
