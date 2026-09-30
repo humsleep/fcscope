@@ -47,14 +47,50 @@ struct PlayerImage: View {
     }
 }
 
+/// 비율 막대의 한 구간. 행마다 GeometryReader 를 두던 막대를 대체한다 —
+/// Shape 는 `path(in:)` 로 실제 폭을 받으므로 측정 패스 없이 같은 모양을 그린다.
+/// `from`~`to` 는 0...1 비율(범위 밖은 잘라냄), `leadingGap` 은 구간 앞 여백(pt).
+struct BarSegment: Shape {
+    var from: CGFloat = 0
+    var to: CGFloat
+    var leadingGap: CGFloat = 0
+    var capsule = false
+
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(from, to) }
+        set { from = newValue.first; to = newValue.second }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let clamp: (CGFloat) -> CGFloat = { $0.isFinite ? max(0, min(1, $0)) : 0 }
+        let x0 = rect.minX + rect.width * clamp(from) + leadingGap
+        let x1 = rect.minX + rect.width * clamp(to)
+        let r = CGRect(x: x0, y: rect.minY, width: max(0, x1 - x0), height: rect.height)
+        return capsule ? Capsule().path(in: r) : Path(r)
+    }
+}
+
+/// 트랙 + 앞에서부터 채운 캡슐 막대 (진행률·사용률 등).
+struct RatioBar: View {
+    let ratio: CGFloat
+    var color: Color = FC.accent
+    var track: Color = FC.surface2
+    var height: CGFloat = 8
+    var body: some View {
+        Capsule().fill(track)
+            .overlay(BarSegment(to: ratio, capsule: true).fill(color))
+            .frame(height: height)
+    }
+}
+
 /// 선수 실루엣 폴백 (서버 프록시의 SVG 와 동일 형태)
 struct PlayerSilhouette: View {
     var body: some View {
         GeometryReader { g in
             let s = min(g.size.width, g.size.height)
             ZStack {
-                Circle().fill(Color(hex: 0x223042)).frame(width: s * 0.33, height: s * 0.33).offset(y: -s * 0.15)
-                Capsule().fill(Color(hex: 0x223042)).frame(width: s * 0.66, height: s * 0.42).offset(y: s * 0.28)
+                Circle().fill(FC.line).frame(width: s * 0.33, height: s * 0.33).offset(y: -s * 0.15)
+                Capsule().fill(FC.line).frame(width: s * 0.66, height: s * 0.42).offset(y: s * 0.28)
             }
             .frame(width: g.size.width, height: g.size.height)
         }
@@ -368,13 +404,14 @@ enum DateFmt {
     private static let iso: ISO8601DateFormatter = { let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return f }()
     private static let iso2: ISO8601DateFormatter = { let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime]; return f }()
     private static let plain: DateFormatter = { let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"; f.timeZone = TimeZone(identifier: "UTC"); return f }()
+    private static let shortFmt: DateFormatter = { let f = DateFormatter(); f.locale = Locale(identifier: "ko_KR"); f.timeZone = TimeZone(identifier: "Asia/Seoul"); f.dateFormat = "M.d HH:mm"; return f }()
+    private static let dayFmt: DateFormatter = { let f = DateFormatter(); f.locale = Locale(identifier: "ko_KR"); f.timeZone = TimeZone(identifier: "Asia/Seoul"); f.dateFormat = "M.d"; return f }()
     static func parse(_ raw: String) -> Date? {
         iso.date(from: raw) ?? iso2.date(from: raw) ?? plain.date(from: raw) ?? plain.date(from: String(raw.prefix(19)))
     }
     static func short(_ raw: String) -> String {
         guard let d = parse(raw) else { return raw }
-        let f = DateFormatter(); f.locale = Locale(identifier: "ko_KR"); f.timeZone = TimeZone(identifier: "Asia/Seoul"); f.dateFormat = "M.d HH:mm"
-        return f.string(from: d)
+        return shortFmt.string(from: d)
     }
     static func relative(_ raw: String) -> String {
         guard let d = parse(raw) else { return raw }
@@ -383,7 +420,7 @@ enum DateFmt {
         if s < 3600 { return "\(Int(s / 60))분 전" }
         if s < 86_400 { return "\(Int(s / 3600))시간 전" }
         if s < 86_400 * 7 { return "\(Int(s / 86_400))일 전" }
-        let f = DateFormatter(); f.locale = Locale(identifier: "ko_KR"); f.timeZone = TimeZone(identifier: "Asia/Seoul"); f.dateFormat = "M.d"; return f.string(from: d)
+        return dayFmt.string(from: d)
     }
 }
 

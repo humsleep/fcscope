@@ -336,7 +336,11 @@ struct BattleBlock: View {
                 side("🅰️ A팀", squadA, FC.accent); side("🅱️ B팀", squadB, FC.lose)
             }
             let a = votes?.a ?? 0, b = votes?.b ?? 0, total = max(1, a + b)
-            GeometryReader { g in HStack(spacing: 2) { Rectangle().fill(FC.accent).frame(width: g.size.width * CGFloat(a) / CGFloat(total)); Rectangle().fill(FC.lose) } }.frame(height: 10).clipShape(Capsule())
+            ZStack {
+                let ratio = CGFloat(a) / CGFloat(total)
+                BarSegment(to: ratio).fill(FC.accent)
+                BarSegment(from: ratio, to: 1, leadingGap: 2).fill(FC.lose)  // 예전 HStack(spacing: 2) 의 틈
+            }.frame(height: 10).clipShape(Capsule())
             HStack { Text("A \(a)표").fcScoreboard(12).foregroundStyle(FC.accent); Spacer(); Text("B \(b)표").fcScoreboard(12).foregroundStyle(FC.lose) }
             HStack(spacing: 8) {
                 Button("A에 투표") { Task { await vote("A") } }.buttonStyle(.bordered).tint(FC.accent).disabled(myPick != nil)

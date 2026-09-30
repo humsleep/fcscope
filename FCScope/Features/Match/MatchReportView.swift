@@ -54,7 +54,7 @@ struct MatchReportView: View {
                     if m.me.forfeit { Text("몰수 경기").fcFont(12).foregroundStyle(FC.lose) }
                     VerdictStamp(verdict: m.verdict, large: true, showLiner: true)
                     VStack(spacing: 3) {
-                        GeometryReader { g in HStack(spacing: 0) { Rectangle().fill(FC.accent).frame(width: g.size.width * CGFloat(m.me.possession) / 100); Rectangle().fill(FC.lose.opacity(0.7)) } }.frame(height: 8).clipShape(Capsule())
+                        Rectangle().fill(FC.lose.opacity(0.7)).overlay(BarSegment(to: CGFloat(m.me.possession) / 100).fill(FC.accent)).frame(height: 8).clipShape(Capsule())
                         HStack { Text("\(m.me.possession)%").foregroundStyle(FC.accent); Spacer(); Text("점유율").foregroundStyle(FC.muted); Spacer(); Text("\(100 - m.me.possession)%").foregroundStyle(FC.lose) }.fcScoreboard(12, weight: .semibold)
                     }
                 }
@@ -225,6 +225,9 @@ struct ShotMapView: View {
             .background(Circle().fill(s.isGoal ? (s.hitPost ? FC.gold : tone) : Color.clear))
             .frame(width: s.isGoal ? 14 : 11, height: s.isGoal ? 14 : 11)
             .shadow(color: s.isGoal ? tone.opacity(0.7) : .clear, radius: 5)
+            // 11~14pt 점만 탭 영역이면 거의 안 눌린다 — 보이는 점은 그대로, 히트 영역만 28pt 원으로(.position 은 중심 기준).
+            .frame(width: 28, height: 28)
+            .contentShape(Circle())
             .onTapGesture {
                 Haptic.light()
                 if selected?.id == s.id && selectedIsMine == isMine { selected = nil }

@@ -30,10 +30,10 @@ struct MyPageView: View {
                 myClubCard
                 if !prefs.favorites.isEmpty { favoritesCard }
                 if let sq = profile?.squads, !sq.isEmpty {
-                    Panel(padding: 12) { VStack(alignment: .leading, spacing: 6) { SectionLabel("내 스쿼드"); ForEach(sq) { s in Button { router.push(.squad(s.id)) } label: { HStack { Text(s.name).foregroundStyle(FC.ink); Spacer(); Text(s.formation).fcScoreboard(12).foregroundStyle(FC.muted) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(.plain) } } }
+                    Panel(padding: 12) { VStack(alignment: .leading, spacing: 6) { SectionLabel("내 스쿼드"); ForEach(sq) { s in Button { router.push(.squad(s.id)) } label: { HStack { Text(s.name).fcFont(14, weight: .semibold).foregroundStyle(FC.ink); Spacer(); Text(s.formation).fcScoreboard(12).foregroundStyle(FC.muted) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(.plain) } } }
                 }
                 if let posts = profile?.posts, !posts.isEmpty {
-                    Panel(padding: 12) { VStack(alignment: .leading, spacing: 6) { SectionLabel("내가 쓴 글"); ForEach(posts) { p in Button { router.push(.post(p.id)) } label: { HStack { Text(p.title).foregroundStyle(FC.ink).lineLimit(1); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(.plain) } } }
+                    Panel(padding: 12) { VStack(alignment: .leading, spacing: 6) { SectionLabel("내가 쓴 글"); ForEach(posts) { p in Button { router.push(.post(p.id)) } label: { HStack { Text(p.title).fcFont(14, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(.plain) } } }
                 }
                 if prefs.streak.current >= 2 { Text("🔥 \(prefs.streak.current)일 연속 방문 (최고 \(prefs.streak.best)일)").fcFont(13, weight: .semibold).foregroundStyle(FC.gold) }
                 // 시스템 기본 폰트는 AX5 까지 3배로 커져 이 한 줄이 화면 절반을 차지했다 — 앱 공통 배율(1.6배 상한)을 쓴다.
@@ -111,7 +111,7 @@ struct MyPageView: View {
                 SectionLabel("⭐ 즐겨찾기 구단주")
                 ForEach(prefs.favorites, id: \.self) { n in
                     HStack {
-                        Button { router.push(.user(n)) } label: { Text(n).foregroundStyle(FC.ink) }.buttonStyle(.plain)
+                        Button { router.push(.user(n)) } label: { Text(n).fcFont(14, weight: .semibold).foregroundStyle(FC.ink) }.buttonStyle(.plain)
                         Spacer()
                         if let s = prefs.snapshot(for: n) { Text("\(s.winRate)%").fcScoreboard(12).foregroundStyle(FC.accent) }
                         // 11pt 아이콘 크기 그대로가 탭 영역이라 거의 안 눌렸다 — 44pt 영역(행 높이도 44로 맞춘다).

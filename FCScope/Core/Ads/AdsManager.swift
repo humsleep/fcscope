@@ -81,6 +81,9 @@ final class AdsManager {
     /// 새로 설치한 기기는 가치를 보기 전에 시스템 팝업이 뜨지 않도록 첫 전적 화면을 기다린다.
     func resumeIfConsentAsked() async {
         guard UserDefaults.standard.bool(forKey: Self.consentAskedKey) else { return }
+        // 아직 ATT 에 답하지 않았으면(팝업 중 앱이 종료된 경우 등) 여기서 묻지 않는다 — 실행 인트로 위에 팝업이 겹친다.
+        // 그 경우는 인트로가 끝난 뒤 requestConsentOnLaunch 가 묻는다.
+        guard ATTrackingManager.trackingAuthorizationStatus != .notDetermined else { return }
         await requestConsentIfNeeded()
     }
 

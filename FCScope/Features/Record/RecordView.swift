@@ -559,19 +559,24 @@ struct MatchesSection: View {
     }
 
     private func revenge(_ r: Rival) -> some View {
-        Button { router.push(.user(r.nickname)) } label: {
-            Panel(padding: 12, highlight: FC.lose.opacity(0.4)) {
-                HStack(spacing: 10) {
-                    Text("🎯").fcFont(24)
-                    VStack(alignment: .leading, spacing: 2) {
-                        SectionLabel("천적 복수전", color: FC.lose)
-                        Text("\(r.nickname)에게 \(r.win)승 \(r.lose)패 — 아직 \(r.lose - r.win)점 뒤").fcFont(14, weight: .bold).foregroundStyle(FC.ink)
+        // 버튼 안에 공유 버튼을 중첩하면 탭이 어느 쪽으로 갈지 불안정하다 — 형제로 분리한다.
+        // 왼쪽 영역(이모지·문구·여백)만 프로필 이동 버튼이고, 레이아웃은 이전과 동일.
+        Panel(padding: 12, highlight: FC.lose.opacity(0.4)) {
+            HStack(spacing: 10) {
+                Button { router.push(.user(r.nickname)) } label: {
+                    HStack(spacing: 10) {
+                        Text("🎯").fcFont(24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            SectionLabel("천적 복수전", color: FC.lose)
+                            Text("\(r.nickname)에게 \(r.win)승 \(r.lose)패 — 아직 \(r.lose - r.win)점 뒤").fcFont(14, weight: .bold).foregroundStyle(FC.ink)
+                        }
+                        Spacer()
                     }
-                    Spacer()
-                    ShareCardButton(story: .rival(o, r), label: "맞대결 카드", compact: true)
-                }
+                    .contentShape(Rectangle())
+                }.buttonStyle(.plain)
+                ShareCardButton(story: .rival(o, r), label: "맞대결 카드", compact: true)
             }
-        }.buttonStyle(.plain)
+        }
     }
 
     private func rivals(_ rs: [Rival]) -> some View {

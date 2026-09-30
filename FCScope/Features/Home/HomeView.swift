@@ -110,7 +110,7 @@ struct HomeView: View {
                         Text("실제 구단주 \(nick)의 전적·슛맵·진단을 그대로 볼 수 있어요.").fcFont(13).foregroundStyle(FC.muted)
                     }
                     Spacer()
-                    Image(systemName: "chevron.right").foregroundStyle(FC.muted)
+                    Image(systemName: "chevron.right").fcFont(12).foregroundStyle(FC.muted)
                 }
             }
         }
@@ -145,7 +145,7 @@ struct HomeView: View {
                         }
                     }
                     Spacer()
-                    Image(systemName: "chevron.right").foregroundStyle(FC.muted)
+                    Image(systemName: "chevron.right").fcFont(12).foregroundStyle(FC.muted)
                 }
             }
         }
@@ -300,8 +300,8 @@ struct OnboardingView: View {
             .indexViewStyle(.page(backgroundDisplayMode: .always))
             Button {
                 if page < 2 { withAnimation { page += 1 } } else { finish() }
-            } label: { Text(primaryLabel).frame(maxWidth: .infinity) }
-            .buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk)
+            } label: { Text(primaryLabel).fcFont(16, weight: .bold).frame(maxWidth: .infinity) }
+            .buttonStyle(.borderedProminent).controlSize(.large).tint(FC.accent).foregroundStyle(FC.accentInk)
             .padding(.horizontal, 24).padding(.bottom, 24)
         }
         .background(FC.bg.ignoresSafeArea())

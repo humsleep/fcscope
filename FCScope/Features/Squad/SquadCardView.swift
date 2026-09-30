@@ -50,7 +50,7 @@ struct SquadCardView: View {
             let w = g.size.width, h = g.size.height
             ZStack {
                 RoundedRectangle(cornerRadius: 28)
-                    .fill(LinearGradient(colors: [Color(hex: 0x123322), Color(hex: 0x0d2419)], startPoint: .top, endPoint: .bottom))
+                    .fill(LinearGradient(colors: [FC.pitchTop, FC.pitchBottom], startPoint: .top, endPoint: .bottom))
                 Canvas { ctx, size in
                     var p = Path()
                     p.addRect(CGRect(x: 16, y: 16, width: size.width - 32, height: size.height - 32))

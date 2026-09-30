@@ -336,7 +336,7 @@ struct PitchView: View {
         GeometryReader { g in
             let size = g.size
             ZStack {
-                RoundedRectangle(cornerRadius: 14).fill(LinearGradient(colors: [Color(red: 0.07, green: 0.2, blue: 0.13), Color(red: 0.05, green: 0.14, blue: 0.1)], startPoint: .top, endPoint: .bottom))
+                RoundedRectangle(cornerRadius: 14).fill(LinearGradient(colors: [FC.pitchTop, FC.pitchBottom], startPoint: .top, endPoint: .bottom))
                 Canvas { ctx, size in
                     var p = Path()
                     p.addRect(CGRect(x: 8, y: 8, width: size.width - 16, height: size.height - 16))
@@ -404,7 +404,7 @@ struct PitchView: View {
                 if filled != nil {
                     // GK 가 필드 자리에, 필드 선수가 GK 자리에 있으면 빨간 배지(허용은 하되 경고)
                     let warn = model.isMisplaced(s)
-                    Text(model.pos(of: s)).font(.system(size: 8, weight: .heavy)).foregroundStyle(warn ? Color.white : FC.accentInk)
+                    Text(model.pos(of: s)).fcScoreboard(9, weight: .bold).foregroundStyle(warn ? Color.white : FC.accentInk)
                         .padding(.horizontal, 3).padding(.vertical, 1)
                         .background(warn ? FC.lose : FC.accent, in: Capsule())
                         .fixedSize()

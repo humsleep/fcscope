@@ -15,6 +15,9 @@ enum FC {
     static let win = dyn(0x4ade80, 0x15803d)
     static let draw = dyn(0x9aabc0, 0x566579)
     static let lose = dyn(0xfb7185, 0xd61f45)
+    /// 피치 그라디언트 (스쿼드 빌더·공유 카드 공용). 라이트 모드에서도 잔디색은 고정.
+    static let pitchTop = Color(UIColor(hex: 0x123322))
+    static let pitchBottom = Color(UIColor(hex: 0x0d2419))
 
     private static func dyn(_ dark: UInt32, _ light: UInt32) -> Color {
         Color(UIColor { trait in
@@ -257,10 +260,10 @@ struct ErrorState: View {
             case .network: Image(systemName: "wifi.exclamationmark").fcFont(36).foregroundStyle(FC.muted)
             case .other: Image(systemName: "exclamationmark.triangle").fcFont(36).foregroundStyle(FC.muted)
             }
-            Text(title).font(.headline).foregroundStyle(FC.ink)
-            if let message { Text(message).font(.subheadline).foregroundStyle(FC.muted).multilineTextAlignment(.center) }
+            Text(title).fcFont(17, weight: .semibold).foregroundStyle(FC.ink)
+            if let message { Text(message).fcFont(14).foregroundStyle(FC.muted).multilineTextAlignment(.center) }
             if let retry {
-                Button("다시 시도", action: retry).buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk)
+                Button("다시 시도", action: retry).buttonStyle(.borderedProminent).controlSize(.large).tint(FC.accent).foregroundStyle(FC.accentInk)
             }
         }
         .frame(maxWidth: .infinity).padding(.vertical, 40).padding(.horizontal, 24)

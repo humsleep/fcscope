@@ -58,12 +58,7 @@ struct ReportSection: View {
                             ForEach(r.report.shotTypes.filter { $0.tries > 0 }) { s in
                                 HStack {
                                     Text(s.label).fcFont(13).foregroundStyle(FC.ink).frame(width: 90, alignment: .leading)
-                                    GeometryReader { g in
-                                        ZStack(alignment: .leading) {
-                                            Capsule().fill(FC.surface2)
-                                            Capsule().fill(FC.accent).frame(width: g.size.width * CGFloat(s.goals) / CGFloat(max(1, s.tries)))
-                                        }
-                                    }.frame(height: 8)
+                                    RatioBar(ratio: CGFloat(s.goals) / CGFloat(max(1, s.tries)), color: FC.accent, height: 8)
                                     Text("\(s.goals)/\(s.tries)").fcScoreboard(12).foregroundStyle(FC.muted).frame(width: 50, alignment: .trailing)
                                 }
                             }
@@ -158,7 +153,7 @@ struct PlayersSection: View {
                 ForEach(c.lines) { l in
                     HStack {
                         Text(l.label).fcFont(13).foregroundStyle(FC.ink).frame(width: 60, alignment: .leading)
-                        GeometryReader { g in ZStack(alignment: .leading) { Capsule().fill(FC.surface2); Capsule().fill(l.score >= 60 ? FC.win : l.score >= 40 ? FC.gold : FC.lose).frame(width: g.size.width * CGFloat(l.score) / 100) } }.frame(height: 8)
+                        RatioBar(ratio: CGFloat(l.score) / 100, color: l.score >= 60 ? FC.win : l.score >= 40 ? FC.gold : FC.lose, height: 8)
                         Text(String(format: "%.2f", l.avgRating)).fcScoreboard(12).foregroundStyle(FC.muted).frame(width: 40, alignment: .trailing)
                     }
                 }
@@ -228,12 +223,12 @@ struct PlaystyleSection: View {
                         SectionLabel("5축 성향")
                         ForEach(r.axes) { a in
                             VStack(alignment: .leading, spacing: 3) {
-                                HStack { Text(a.label).fcFont(13, weight: .semibold).foregroundStyle(FC.ink); Spacer(); Text("\(Int(a.value))").fcScoreboard(12).foregroundStyle(a.lowConf ? FC.muted : Color.orange) }
+                                HStack { Text(a.label).fcFont(13, weight: .semibold).foregroundStyle(FC.ink); Spacer(); Text("\(Int(a.value))").fcScoreboard(12).foregroundStyle(a.lowConf ? FC.muted : FC.gold) }
                                 GeometryReader { g in
                                     ZStack(alignment: .leading) {
                                         Capsule().fill(FC.surface2)
                                         if a.bipolar { Rectangle().fill(FC.line).frame(width: 1).offset(x: g.size.width / 2) }
-                                        Circle().fill(a.lowConf ? FC.muted : Color.orange).frame(width: 12, height: 12).offset(x: g.size.width * CGFloat(a.value) / 100 - 6)
+                                        Circle().fill(a.lowConf ? FC.muted : FC.gold).frame(width: 12, height: 12).offset(x: g.size.width * CGFloat(a.value) / 100 - 6)
                                     }
                                 }.frame(height: 12)
                                 if a.bipolar { HStack { Text(a.leftLabel ?? "").fcFont(10).foregroundStyle(FC.muted); Spacer(); Text(a.rightLabel ?? "").fcFont(10).foregroundStyle(FC.muted) } }

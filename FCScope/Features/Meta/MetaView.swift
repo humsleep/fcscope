@@ -107,7 +107,7 @@ struct MetaView: View {
                             PlayerImage(spid: r.spId, size: 34, radius: 8)
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 4) { Text(r.name).fcFont(13, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1); if !r.season.isEmpty { SeasonBadge(spid: r.spId, season: r.season, height: 14) } }
-                                GeometryReader { g in ZStack(alignment: .leading) { Capsule().fill(FC.surface2); Capsule().fill(FC.accent).frame(width: g.size.width * CGFloat(r.count) / CGFloat(maxCount)) } }.frame(height: 4)
+                                RatioBar(ratio: CGFloat(r.count) / CGFloat(maxCount), color: FC.accent, height: 4)
                             }
                             Spacer()
                             VStack(alignment: .trailing, spacing: 2) {
