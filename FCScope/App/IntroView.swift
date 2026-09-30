@@ -4,8 +4,8 @@ import SwiftUI
 ///
 /// - 콜드 스타트마다 한 번(RootView 의 @State). 백그라운드 복귀에서는 다시 뜨지 않는다.
 /// - 전체 약 1.4초. 탭하면 바로 넘어간다. "동작 줄이기"가 켜져 있으면 그리기 없이 짧게 페이드만 한다.
-/// - 런치 스크린(LaunchBackground = #0A1119)과 같은 색에서 시작해 이음새가 보이지 않게 한다.
-///   라이트 모드여도 인트로는 브랜드 다크 고정이다.
+/// - 런치 스크린(LaunchBackground = FC.bg, 라이트 #EEF1F6 / 다크 #0A1119)과 같은 색에서 시작해
+///   이음새가 보이지 않게 한다. 색은 모두 FC 토큰이라 라이트·다크를 따른다.
 struct IntroView: View {
     var onFinish: () -> Void
 
@@ -16,15 +16,19 @@ struct IntroView: View {
     @State private var leaving = false
     @State private var finished = false
 
-    private static let bg = Color(UIColor(hex: 0x0a1119))
-    private static let glow = Color(UIColor(hex: 0x17304a))
-    private static let lime = Color(UIColor(hex: 0xc8f542))
-    private static let muted = Color(UIColor(hex: 0x9aabc0))
+    @Environment(\.colorScheme) private var scheme
+    private static let bg = FC.bg
+    private static let lime = FC.accent
+    private static let muted = FC.muted
+    /// 위쪽 은은한 빛 — 다크는 아이콘의 남색 글로우, 라이트는 라임 톤을 아주 옅게.
+    private var glow: Color {
+        scheme == .dark ? Color(UIColor(hex: 0x17304a)).opacity(0.9) : FC.accent.opacity(0.10)
+    }
 
     var body: some View {
         ZStack {
             Self.bg
-            RadialGradient(colors: [Self.glow.opacity(0.9), .clear], center: .top, startRadius: 0, endRadius: 520)
+            RadialGradient(colors: [glow, .clear], center: .top, startRadius: 0, endRadius: 520)
             VStack(spacing: 22) {
                 ZStack {
                     FCScopeMark.Outline()
@@ -36,11 +40,11 @@ struct IntroView: View {
                         .opacity(ballIn ? 1 : 0)
                 }
                 .frame(width: 120, height: 120)
-                .shadow(color: Self.lime.opacity(ballIn ? 0.35 : 0), radius: 24)
+                .shadow(color: Self.lime.opacity(ballIn ? (scheme == .dark ? 0.35 : 0.18) : 0), radius: 24)
 
                 VStack(spacing: 6) {
                     // 로그인 화면과 같은 워드마크(Chakra Petch, "FC " 라임 + "SCOPE" 흰색)
-                    (Text("FC ").foregroundStyle(Self.lime) + Text("SCOPE").foregroundStyle(.white))
+                    (Text("FC ").foregroundStyle(Self.lime) + Text("SCOPE").foregroundStyle(FC.ink))
                         .font(.scoreboard(32))
                         .tracking(1.5)
                     (Text("감이 아니라, ") + Text("데이터").foregroundStyle(Self.lime) + Text("로."))

@@ -193,7 +193,7 @@ struct ShotMapView: View {
                 }
             }
             .aspectRatio(Self.pitchRatio, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.control))
             if let s = selected {
                 Text("\(s.minute.map { "\($0)\' " } ?? "")\(s.player ?? "") — \(s.isGoal ? "골" : s.hitPost ? "골대" : "노골")\(s.inPenalty == true ? " · 박스 안" : "")")
                     .fcFont(12, weight: .semibold)
@@ -294,7 +294,7 @@ struct MiniShotMap: View {
             }
         }
         .aspectRatio(ShotMapView.pitchRatio, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.chip))
         .accessibilityLabel("슛맵 · 내 슛 \(mine.count)개, 상대 슛 \(theirs.count)개")
     }
 }

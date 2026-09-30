@@ -62,7 +62,7 @@ struct CommunityView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 // 글 종류는 전체를 한눈에 봐야 고를 수 있다 — 가로 스크롤 금지, 줄바꿈.
-                FlowLayout(spacing: 6, lineSpacing: 6) {
+                FlowLayout(spacing: 6, lineSpacing: 0) {
                     tab(nil, "전체")
                     ForEach(model.types) { t in tab(t.type, "\(t.emoji) \(t.label)") }
                 }
@@ -127,7 +127,7 @@ struct CommunityView: View {
     private func tab(_ t: String?, _ label: String) -> some View {
         Button { model.type = t; Task { await model.load(reset: true) } } label: {
             Text(label).fcFont(13, weight: .semibold).padding(.horizontal, 10).padding(.vertical, 7)
-                .background(model.type == t ? FC.accent : FC.surface2, in: Capsule()).foregroundStyle(model.type == t ? FC.accentInk : FC.muted)
+                .background(model.type == t ? FC.accent : FC.surface2, in: Capsule()).foregroundStyle(model.type == t ? FC.accentInk : FC.muted).tapTarget()
         }
         // 선택 여부가 색으로만 표현돼 VoiceOver 는 어떤 필터가 켜졌는지 알 수 없었다.
         .accessibilityAddTraits(model.type == t ? .isSelected : [])
@@ -225,7 +225,7 @@ struct PostDetailView: View {
                         Text(DateFmt.relative(p.createdAt)).fcFont(12).foregroundStyle(FC.muted)
                         if !p.positions.isEmpty { FlowLayout(spacing: 4) { ForEach(p.positions, id: \.self) { Chip(text: $0, color: FC.ink) } } }
                         if let rows = p.metaRows, !rows.isEmpty {
-                            ForEach(rows) { r in HStack { Text(r.label).fcFont(12).foregroundStyle(FC.muted).frame(width: 70, alignment: .leading); Text(r.value).fcFont(14, weight: .semibold).foregroundStyle(FC.ink) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8)) }
+                            ForEach(rows) { r in HStack { Text(r.label).fcFont(12).foregroundStyle(FC.muted).frame(width: 70, alignment: .leading); Text(r.value).fcFont(14, weight: .semibold).foregroundStyle(FC.ink) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.chip)) }
                         }
                         // 기본 행간은 한글 본문이 빽빽해 읽기 어려웠다 — 줄 사이를 넉넉히(15pt 글자에 +8)
                         Text(p.body).fcFont(16).lineSpacing(8).foregroundStyle(FC.ink).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
@@ -258,7 +258,7 @@ struct PostDetailView: View {
     }
 
     private func squadLink(_ id: String) -> some View {
-        Button { router.push(.squad(id)) } label: { HStack { Text("🧩 첨부 스쿼드 보기").fcFont(14, weight: .semibold).foregroundStyle(FC.accent); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) }.padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10)) }.buttonStyle(.plain)
+        Button { router.push(.squad(id)) } label: { HStack { Text("🧩 첨부 스쿼드 보기").fcFont(14, weight: .semibold).foregroundStyle(FC.accent); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) }.padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control)) }.buttonStyle(.plain)
     }
 
     private func comments(_ d: PostDetailResponse) -> some View {
@@ -288,7 +288,7 @@ struct PostDetailView: View {
                                 .accessibilityLabel("\(c.author.nickname) 댓글 더보기")
                             }
                         }
-                        Text(c.body).fcFont(15).lineSpacing(6).foregroundStyle(FC.ink).frame(maxWidth: .infinity, alignment: .leading).padding(12).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
+                        Text(c.body).fcFont(15).lineSpacing(6).foregroundStyle(FC.ink).frame(maxWidth: .infinity, alignment: .leading).padding(12).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control))
                         if let s = c.squadId { Button("🧩 제안 스쿼드 보기 →") { router.push(.squad(s)) }.fcFont(12, weight: .semibold).foregroundStyle(FC.accent) }
                     }
                 }
@@ -351,7 +351,7 @@ struct BattleBlock: View {
         .task { votes = try? await APIClient.shared.get("/api/community/battle", query: ["postId": postId]) }
     }
     private func side(_ t: String, _ id: String, _ c: Color) -> some View {
-        Button { router.push(.squad(id)) } label: { VStack { Text(t).fcScoreboard(13).foregroundStyle(c); Text("스쿼드 보기").fcFont(12).foregroundStyle(FC.muted) }.frame(maxWidth: .infinity).padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10)) }.buttonStyle(.plain)
+        Button { router.push(.squad(id)) } label: { VStack { Text(t).fcScoreboard(13).foregroundStyle(c); Text("스쿼드 보기").fcFont(12).foregroundStyle(FC.muted) }.frame(maxWidth: .infinity).padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control)) }.buttonStyle(.plain)
     }
     private func vote(_ pick: String) async {
         let device = UIDevice.current.identifierForVendor?.uuidString ?? "anon"

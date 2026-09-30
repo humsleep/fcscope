@@ -193,7 +193,7 @@ struct VerdictStamp: View {
             }
             .foregroundStyle(FC.tone(verdict.color))
             .padding(.horizontal, 10).padding(.vertical, 5)
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(FC.tone(verdict.color), lineWidth: 2))
+            .overlay(RoundedRectangle(cornerRadius: Radius.chip).stroke(FC.tone(verdict.color), lineWidth: 2))
             .rotationEffect(.degrees(-3))
             if showLiner { Text(verdict.oneLiner).fcFont(13).foregroundStyle(FC.muted) }
         }
@@ -269,8 +269,11 @@ struct ShareCardButton: View {
                 Text(busy ? "만드는 중…" : label).fcFont(compact ? 12 : 14, weight: .bold)
             }
             .padding(.horizontal, compact ? 10 : 14).padding(.vertical, compact ? 7 : 10)
-            .background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
+            .background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control))
             .foregroundStyle(FC.ink)
+            // 작은 버튼도 탭 영역은 44pt — 보이는 알약 크기는 그대로
+            .frame(minHeight: compact ? 44 : nil)
+            .contentShape(Rectangle())
         }
         .disabled(busy)
         .sheet(isPresented: $showSheet) { if let image { ShareCardSheet(image: image, filename: filename) } }
@@ -364,6 +367,42 @@ enum InstagramShare {
     }
 }
 
+extension View {
+    /// 칩처럼 작은 버튼의 탭 영역을 44pt(HIG 최소)로 넓힌다. 배경을 먼저 입힌 라벨 뒤에 붙이면
+    /// 보이는 알약 크기는 그대로고 투명한 히트 영역만 커진다.
+    func tapTarget(minHeight: CGFloat = 44) -> some View {
+        frame(minHeight: minHeight).contentShape(Rectangle())
+    }
+}
+
+/// 급상승 선수 카드 (홈·메타 공용)
+struct MoverCard: View {
+    let m: Mover
+    /// 메타 화면처럼 선발 횟수를 함께 보여줄지
+    var showUsage = false
+    @Environment(AppRouter.self) private var router
+
+    var body: some View {
+        Button { router.push(.player(m.spId)) } label: {
+            Panel(padding: 12, highlight: FC.win.opacity(0.4)) {
+                HStack(spacing: 10) {
+                    PlayerImage(spid: m.spId, size: 44)
+                    VStack(alignment: .leading, spacing: 2) {
+                        SectionLabel("⚡ 오늘의 급상승", color: FC.win)
+                        Text(m.name).fcFont(15, weight: .bold).foregroundStyle(FC.ink)
+                        Text("\(m.positionLabel) · \(m.lineTitle ?? m.line)\(showUsage ? (m.usage.map { " · 선발 \($0)회" } ?? "") : "")")
+                            .fcFont(12).foregroundStyle(FC.muted)
+                    }
+                    Spacer()
+                    Text(m.isNew ? "NEW 진입" : "▲\(m.deltaValue ?? 0)").fcScoreboard(14).foregroundStyle(m.isNew ? FC.gold : FC.win)
+                        .padding(.horizontal, 8).padding(.vertical, 5)
+                        .background((m.isNew ? FC.gold : FC.win).opacity(0.15), in: RoundedRectangle(cornerRadius: Radius.chip))
+                }
+            }
+        }.buttonStyle(.plain)
+    }
+}
+
 /// 경기 행
 struct MatchRow: View {
     let m: MatchSummary
@@ -395,8 +434,8 @@ struct MatchRow: View {
             Image(systemName: "chevron.right").fcFont(12).foregroundStyle(FC.muted)
         }
         .padding(12)
-        .background(FC.surface, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(FC.line))
+        .background(FC.surface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(FC.line))
     }
 }
 
@@ -438,7 +477,7 @@ struct RuleBadge: View {
             : AnyLayout(HStackLayout(alignment: .top, spacing: 8))
         layout {
             Text("\(prefix)\(rule.title)").fcScoreboard(12, weight: .semibold).foregroundStyle(FC.tone(rule.tone))
-                .padding(.horizontal, 8).padding(.vertical, 4).background(FC.tone(rule.tone).opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
+                .padding(.horizontal, 8).padding(.vertical, 4).background(FC.tone(rule.tone).opacity(0.15), in: RoundedRectangle(cornerRadius: Radius.chip))
                 .fixedSize()
             Text(rule.desc).fcFont(13).foregroundStyle(FC.muted)
                 .frame(maxWidth: .infinity, alignment: .leading)

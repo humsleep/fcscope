@@ -30,10 +30,10 @@ struct MyPageView: View {
                 myClubCard
                 if !prefs.favorites.isEmpty { favoritesCard }
                 if let sq = profile?.squads, !sq.isEmpty {
-                    Panel(padding: 12) { VStack(alignment: .leading, spacing: 6) { SectionLabel("내 스쿼드"); ForEach(sq) { s in Button { router.push(.squad(s.id)) } label: { HStack { Text(s.name).fcFont(14, weight: .semibold).foregroundStyle(FC.ink); Spacer(); Text(s.formation).fcScoreboard(12).foregroundStyle(FC.muted) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(.plain) } } }
+                    Panel(padding: 12) { VStack(alignment: .leading, spacing: 6) { SectionLabel("내 스쿼드"); ForEach(sq) { s in Button { router.push(.squad(s.id)) } label: { HStack { Text(s.name).fcFont(14, weight: .semibold).foregroundStyle(FC.ink); Spacer(); Text(s.formation).fcScoreboard(12).foregroundStyle(FC.muted) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.chip)) }.buttonStyle(.plain) } } }
                 }
                 if let posts = profile?.posts, !posts.isEmpty {
-                    Panel(padding: 12) { VStack(alignment: .leading, spacing: 6) { SectionLabel("내가 쓴 글"); ForEach(posts) { p in Button { router.push(.post(p.id)) } label: { HStack { Text(p.title).fcFont(14, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(.plain) } } }
+                    Panel(padding: 12) { VStack(alignment: .leading, spacing: 6) { SectionLabel("내가 쓴 글"); ForEach(posts) { p in Button { router.push(.post(p.id)) } label: { HStack { Text(p.title).fcFont(14, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.chip)) }.buttonStyle(.plain) } } }
                 }
                 if prefs.streak.current >= 2 { Text("🔥 \(prefs.streak.current)일 연속 방문 (최고 \(prefs.streak.best)일)").fcFont(13, weight: .semibold).foregroundStyle(FC.gold) }
                 // 시스템 기본 폰트는 AX5 까지 3배로 커져 이 한 줄이 화면 절반을 차지했다 — 앱 공통 배율(1.6배 상한)을 쓴다.
@@ -116,7 +116,7 @@ struct MyPageView: View {
                         if let s = prefs.snapshot(for: n) { Text("\(s.winRate)%").fcScoreboard(12).foregroundStyle(FC.accent) }
                         // 11pt 아이콘 크기 그대로가 탭 영역이라 거의 안 눌렸다 — 44pt 영역(행 높이도 44로 맞춘다).
                         Button { prefs.toggleFavorite(n) } label: { Image(systemName: "xmark").fcFont(11).foregroundStyle(FC.muted).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle()) }.buttonStyle(.plain).accessibilityLabel("\(n) 즐겨찾기 해제")
-                    }.padding(.leading, 8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8))
+                    }.padding(.leading, 8).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.chip))
                 }
             }
         }
@@ -167,7 +167,7 @@ struct LoginView: View {
                         guard agreed else { error = "약관에 동의해 주세요."; return }
                         Task { do { try await auth.completeApple(result); dismiss() } catch { if !"\(error)".contains("1001") { self.error = error.localizedDescription } } }
                     }
-                    .signInWithAppleButtonStyle(.white).frame(height: 48).clipShape(RoundedRectangle(cornerRadius: 12))
+                    .signInWithAppleButtonStyle(.white).frame(height: 48).clipShape(RoundedRectangle(cornerRadius: Radius.row))
                     // 동의 전에 Apple 인증(Face ID)까지 다 끝낸 뒤 거절하면 "Apple 로그인이 안 된다"로 보인다.
                     .disabled(!agreed).opacity(agreed ? 1 : 0.4)
                     Button { guard agreed else { error = "약관에 동의해 주세요."; return }; busy = true; Task { do { try await auth.signInWithGoogle(); dismiss() } catch { self.error = error.localizedDescription }; busy = false } } label: {

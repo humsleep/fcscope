@@ -39,7 +39,7 @@ struct HomeView: View {
                 else if let demo = vm.state.value?.demoNickname { demoCard(demo) }
                 if !prefs.favorites.isEmpty { favoritesSection }
                 if let home = vm.state.value {
-                    if let mover = home.mover { moverCard(mover) }
+                    if let mover = home.mover { MoverCard(m: mover) }
                     if !home.liveSearches.isEmpty { liveChips(home.liveSearches) }
                     if !home.posts.isEmpty { latestPosts(home.posts) }
                 } else if vm.state.isLoading { Skeleton(height: 60) }
@@ -170,37 +170,20 @@ struct HomeView: View {
                                     }
                                 } else { Text("폼 미확인").fcFont(11).foregroundStyle(FC.muted) }
                             }
-                            .padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
+                            .padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control))
                         }.buttonStyle(.plain)
                     }
             }
         }
     }
 
-    private func moverCard(_ m: Mover) -> some View {
-        Button { router.push(.player(m.spId)) } label: {
-            Panel(padding: 12, highlight: FC.win.opacity(0.4)) {
-                HStack(spacing: 10) {
-                    PlayerImage(spid: m.spId, size: 44)
-                    VStack(alignment: .leading, spacing: 2) {
-                        SectionLabel("⚡ 오늘의 급상승", color: FC.win)
-                        Text(m.name).fcFont(15, weight: .bold).foregroundStyle(FC.ink)
-                        Text("\(m.positionLabel) · \(m.lineTitle ?? m.line)").fcFont(12).foregroundStyle(FC.muted)
-                    }
-                    Spacer()
-                    Text(m.isNew ? "NEW" : "▲\(m.deltaValue ?? 0)").fcScoreboard(14).foregroundStyle(m.isNew ? FC.gold : FC.win)
-                        .padding(.horizontal, 8).padding(.vertical, 5).background((m.isNew ? FC.gold : FC.win).opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
-                }
-            }
-        }.buttonStyle(.plain)
-    }
 
     private func liveChips(_ names: [String]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("지금 검색되는 구단주")
-            FlowLayout(spacing: 6) {
+            FlowLayout(spacing: 6, lineSpacing: 0) {
                 ForEach(names, id: \.self) { n in
-                    Button { router.push(.user(n)) } label: { Chip(text: n, color: FC.ink) }.buttonStyle(.plain)
+                    Button { router.push(.user(n)) } label: { Chip(text: n, color: FC.ink, size: .large).tapTarget() }.buttonStyle(.plain)
                 }
             }
         }
@@ -217,7 +200,7 @@ struct HomeView: View {
                         if let c = p.commentCount, c > 0 { Text("💬\(c)").fcFont(12).foregroundStyle(FC.muted) }
                         Text(DateFmt.relative(p.createdAt)).fcFont(12).foregroundStyle(FC.muted)
                     }
-                    .padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
+                    .padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control))
                 }.buttonStyle(.plain)
             }
         }
@@ -226,9 +209,9 @@ struct HomeView: View {
     private var recentSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("최근 검색")
-            FlowLayout(spacing: 6) {
+            FlowLayout(spacing: 6, lineSpacing: 0) {
                 ForEach(prefs.recentSearches, id: \.self) { n in
-                    Button { router.push(.user(n)) } label: { Chip(text: n, color: FC.ink) }.buttonStyle(.plain)
+                    Button { router.push(.user(n)) } label: { Chip(text: n, color: FC.ink, size: .large).tapTarget() }.buttonStyle(.plain)
                         .contextMenu { Button("삭제", role: .destructive) { prefs.recentSearches.removeAll { $0 == n } } }
                 }
             }

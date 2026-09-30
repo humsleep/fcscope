@@ -44,7 +44,7 @@ struct MetaView: View {
                         }
                         .padding(.top, 24)
                     } else {
-                        if let mv = m.mover { moverCard(mv) }
+                        if let mv = m.mover { MoverCard(m: mv, showUsage: true) }
                         ForEach(m.lines) { line in lineBlock(line) }
                         Text("순위: FC Scope에 조회된 최근 \(modeName)에서 선발로 뛴 횟수. 골·패스는 넥슨 상위 랭커 기록(카드당 최근 20경기).").fcFont(11).foregroundStyle(FC.muted)
                     }
@@ -82,18 +82,6 @@ struct MetaView: View {
         hits = r?.players ?? []
     }
 
-    private func moverCard(_ m: Mover) -> some View {
-        Button { router.push(.player(m.spId)) } label: {
-            Panel(padding: 12, highlight: FC.win.opacity(0.4)) {
-                HStack(spacing: 10) {
-                    PlayerImage(spid: m.spId, size: 44)
-                    VStack(alignment: .leading, spacing: 2) { SectionLabel("⚡ 오늘의 급상승", color: FC.win); Text(m.name).fcFont(15, weight: .bold).foregroundStyle(FC.ink); Text("\(m.positionLabel) · \(m.lineTitle ?? m.line)\(m.usage.map { " · 선발 \($0)회" } ?? "")").fcFont(12).foregroundStyle(FC.muted) }
-                    Spacer()
-                    Text(m.isNew ? "NEW 진입" : "▲\(m.deltaValue ?? 0)").fcScoreboard(14).foregroundStyle(m.isNew ? FC.gold : FC.win).padding(.horizontal, 8).padding(.vertical, 5).background((m.isNew ? FC.gold : FC.win).opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
-                }
-            }
-        }.buttonStyle(.plain)
-    }
 
     private func lineBlock(_ line: MetaLine) -> some View {
         Panel(padding: 12) {
@@ -167,7 +155,7 @@ struct PlayerDetailView: View {
                         Panel(padding: 12) {
                             VStack(alignment: .leading, spacing: 6) {
                                 SectionLabel("다른 시즌 카드")
-                                FlowLayout(spacing: 6) { ForEach(p.seasons) { s in Button { if s.spid != p.spid { router.push(.player(s.spid)) } } label: { SeasonBadge(spid: s.spid, season: s.season, height: 18).padding(.horizontal, 6).padding(.vertical, 4).background(s.spid == p.spid ? FC.accent : FC.surface2, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(.plain) } }
+                                FlowLayout(spacing: 6) { ForEach(p.seasons) { s in Button { if s.spid != p.spid { router.push(.player(s.spid)) } } label: { SeasonBadge(spid: s.spid, season: s.season, height: 18).padding(.horizontal, 6).padding(.vertical, 4).background(s.spid == p.spid ? FC.accent : FC.surface2, in: RoundedRectangle(cornerRadius: Radius.chip)) }.buttonStyle(.plain) } }
                             }
                         }
                     }
@@ -196,7 +184,7 @@ struct PlayerDetailView: View {
         catch { if state.value == nil { state = .failed(error) } }
     }
     private func mini(_ l: String, _ v: String) -> some View {
-        VStack(alignment: .leading, spacing: 1) { Text(l).fcFont(10).foregroundStyle(FC.muted); Text(v).fcScoreboard(14).foregroundStyle(FC.ink) }.frame(maxWidth: .infinity, alignment: .leading).padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 8))
+        VStack(alignment: .leading, spacing: 1) { Text(l).fcFont(10).foregroundStyle(FC.muted); Text(v).fcScoreboard(14).foregroundStyle(FC.ink) }.frame(maxWidth: .infinity, alignment: .leading).padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.chip))
     }
 }
 

@@ -201,7 +201,7 @@ struct SquadBuilderView: View {
                 // 한 줄에 다 들어가면 한 줄로, "커스텀 (≈4-2-3-1)" 처럼 길어지거나 글자를 키우면 두 줄로 접는다.
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 5) { formationChip; presetChip; importChip; Spacer(minLength: 0); filledCount }
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 0) {
                         HStack(spacing: 8) { formationChip; Spacer(); filledCount }
                         HStack(spacing: 8) { presetChip; importChip; Spacer() }
                     }
@@ -220,7 +220,7 @@ struct SquadBuilderView: View {
                 TextField("스쿼드 이름", text: Binding(get: { model.name }, set: { model.name = $0 }))
                     .textFieldStyle(.plain).fcFont(15).foregroundStyle(FC.ink)
                     .padding(.horizontal, 12).padding(.vertical, 10)
-                    .background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
+                    .background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control))
                 HStack(spacing: 8) {
                     let canSave = !(model.busy || model.filled == 0)
                     // 잉크색을 항상 덮어쓰면 비활성 상태의 회색 배경 위에서 흰 글자가 사라졌다 — 활성일 때만 적용.
@@ -301,7 +301,7 @@ struct SquadBuilderView: View {
     private var filledCount: some View { Text("\(model.filled)/11").fcScoreboard(14).foregroundStyle(model.filled == 11 ? FC.accent : FC.muted) }
     private func chipButton(_ t: String) -> some View {
         // "커스텀 (≈4-4-2)" 가 두 줄로 접히면 칩 줄 높이가 흔들린다 — 한 줄로 두고 줄여서 맞춘다.
-        Text(t).fcFont(12.5, weight: .semibold).lineLimit(1).foregroundStyle(FC.ink).padding(.horizontal, 8).padding(.vertical, 8).background(FC.surface2, in: RoundedRectangle(cornerRadius: 10))
+        Text(t).fcFont(12.5, weight: .semibold).lineLimit(1).foregroundStyle(FC.ink).padding(.horizontal, 8).padding(.vertical, 8).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control)).tapTarget()
     }
 }
 
@@ -336,7 +336,7 @@ struct PitchView: View {
         GeometryReader { g in
             let size = g.size
             ZStack {
-                RoundedRectangle(cornerRadius: 14).fill(LinearGradient(colors: [FC.pitchTop, FC.pitchBottom], startPoint: .top, endPoint: .bottom))
+                RoundedRectangle(cornerRadius: Radius.card).fill(LinearGradient(colors: [FC.pitchTop, FC.pitchBottom], startPoint: .top, endPoint: .bottom))
                 Canvas { ctx, size in
                     var p = Path()
                     p.addRect(CGRect(x: 8, y: 8, width: size.width - 16, height: size.height - 16))

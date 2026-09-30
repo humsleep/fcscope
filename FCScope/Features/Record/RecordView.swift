@@ -384,7 +384,7 @@ struct RecordView: View {
     /// 세그먼트 컨트롤에 네 개의 긴 한글 라벨을 넣으니 글자가 뭉개져 안 보였다.
     /// 짧은 라벨 + 선택 상태가 분명한 칩으로 바꾸고, 줄바꿈으로 전부 노출한다.
     private var sectionPicker: some View {
-        FlowLayout(spacing: 6, lineSpacing: 6) {
+        FlowLayout(spacing: 6, lineSpacing: 0) {
             ForEach(RecordViewModel.Section.allCases) { sec in
                 Button {
                     guard vm.section != sec else { return }
@@ -400,6 +400,7 @@ struct RecordView: View {
                     .padding(.horizontal, 12).padding(.vertical, 9)
                     .background(vm.section == sec ? FC.accent : FC.surface2, in: Capsule())
                     .foregroundStyle(vm.section == sec ? FC.accentInk : FC.ink)
+                    .tapTarget()
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(sec.rawValue)
@@ -428,7 +429,7 @@ struct MatchesSection: View {
         } else {
             if o.loaded < o.requested {
                 Text("⚠️ 최근 \(o.requested)경기 중 \(o.loaded)경기만 불러와 \(o.loaded)경기 기준으로 계산했어요.").fcFont(13).foregroundStyle(FC.muted)
-                    .padding(10).background(FC.gold.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+                    .padding(10).background(FC.gold.opacity(0.1), in: RoundedRectangle(cornerRadius: Radius.control))
             }
             // 전적을 여는 가장 흔한 이유는 "방금 그 경기" — 맨 위에 슛맵·POTM 까지 바로 보여 준다.
             if let last = o.matches.first { LastMatchCard(m: last, me: o.profile.ouid) }
@@ -451,7 +452,7 @@ struct MatchesSection: View {
                     Image(systemName: moreDiagnosis ? "chevron.up" : "chevron.down").fcFont(12)
                 }
                 .foregroundStyle(FC.ink).padding(12)
-                .background(FC.surface2, in: RoundedRectangle(cornerRadius: 12))
+                .background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.row))
             }.buttonStyle(.plain)
             if moreDiagnosis {
                 formPanel

@@ -173,6 +173,14 @@ enum PretendardName {
     }
 }
 
+/// 모서리 반경 토큰 — 카드(Panel)·행·컨트롤·칩 네 단계만 쓴다.
+enum Radius {
+    static let card: CGFloat = 14
+    static let row: CGFloat = 12
+    static let control: CGFloat = 10
+    static let chip: CGFloat = 8
+}
+
 /// 카드 컨테이너 (웹 .panel)
 struct Panel<Content: View>: View {
     var padding: CGFloat = 16
@@ -182,8 +190,8 @@ struct Panel<Content: View>: View {
         content()
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(FC.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(highlight ?? FC.line, lineWidth: 1))
+            .background(FC.surface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(highlight ?? FC.line, lineWidth: 1))
     }
 }
 
@@ -207,9 +215,12 @@ struct Chip: View {
     let text: String
     var color: Color = FC.muted
     var bg: Color = FC.surface2
+    /// 버튼으로 쓰는 칩은 크게(.large) — 44pt 탭 영역 안에서 칩이 너무 작으면 줄 사이가 휑해 보인다.
+    var size: Size = .regular
+    enum Size { case regular, large }
     var body: some View {
-        Text(text).fcFont(12, weight: .semibold).foregroundStyle(color)
-            .padding(.horizontal, 8).padding(.vertical, 4)
+        Text(text).fcFont(size == .large ? 13 : 12, weight: .semibold).foregroundStyle(color)
+            .padding(.horizontal, size == .large ? 12 : 8).padding(.vertical, size == .large ? 8 : 4)
             .background(bg, in: Capsule())
     }
 }
@@ -276,7 +287,7 @@ struct Skeleton: View {
     /// "동작 줄이기"를 켠 사용자에게 무한 반복 깜빡임은 멀미·주의 분산 요인이다 — 정지 상태로 둔다.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        RoundedRectangle(cornerRadius: 12).fill(FC.surface2).frame(height: height)
+        RoundedRectangle(cornerRadius: Radius.row).fill(FC.surface2).frame(height: height)
             .opacity(on && !reduceMotion ? 0.5 : 1)
             .onAppear { if !reduceMotion { withAnimation(.easeInOut(duration: 0.9).repeatForever()) { on = true } } }
             .accessibilityLabel("불러오는 중")
