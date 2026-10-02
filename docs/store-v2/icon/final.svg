@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><title>FC Scope — Kickoff Reticle (light)</title><rect width="1024" height="1024" fill="#C8F542"/>
+<line x1="512" y1="0" x2="512" y2="1024" stroke="#0A1119" stroke-width="44"/>
+<circle cx="512" cy="512" r="290" fill="none" stroke="#0A1119" stroke-width="92"/>
+<g stroke="#0A1119" stroke-width="44"><line x1="244" y1="512" x2="352" y2="512"/><line x1="672" y1="512" x2="780" y2="512"/></g>
+<circle cx="512" cy="512" r="64" fill="#0A1119"/>
+</svg>
