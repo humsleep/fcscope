@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1024" height="1024" viewBox="0 0 1024 1024"><defs><filter id="b4" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="4"/></filter><filter id="b8" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="8"/></filter><filter id="b14" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="14"/></filter><filter id="b22" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="22"/></filter><filter id="b30" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="30"/></filter><filter id="b45" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="45"/></filter><filter id="b60" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="60"/></filter><filter id="b90" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="90"/></filter><filter id="b130" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="130"/></filter></defs>
+    
+  <defs>
+    <linearGradient id="bgG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1A1733"/><stop offset="0.6" stop-color="#0B0A16"/><stop offset="1" stop-color="#050509"/></linearGradient>
+    <radialGradient id="bgL" cx="230" cy="120" r="760" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.08"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="bgV" cx="512" cy="470" r="800" gradientUnits="userSpaceOnUse">
+      <stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.5"/></radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bgG)"/>
+  <circle cx="512" cy="540" r="330" fill="#6D3BFF" opacity=".35" filter="url(#b130)"/>
+  <rect width="1024" height="1024" fill="url(#bgL)"/>
+  <rect width="1024" height="1024" fill="url(#bgV)"/>
+    <g fill="none" stroke="#fff" stroke-linejoin="round">
+      <path d="M512.0 195.0 L797.8 360.0 L797.8 690.0 L512.0 855.0 L226.2 690.0 L226.2 360.0 Z" stroke-width="10" opacity=".22"/><path d="M512.0 320.4 L689.2 422.7 L689.2 627.3 L512.0 729.6 L334.8 627.3 L334.8 422.7 Z" stroke-width="7" opacity=".12"/>
+      <g stroke-width="5" opacity=".1"><line x1="512" y1="195" x2="512" y2="855"/><line x1="797.7883832488648" y1="360" x2="226.21161675113524" y2="690"/><line x1="797.7883832488648" y1="690" x2="226.21161675113524" y2="360"/></g>
+    </g>
+    <defs><linearGradient id="hexG" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#43F3FF"/><stop offset=".5" stop-color="#7B5CFF"/><stop offset="1" stop-color="#FF4FC8"/></linearGradient></defs>
+    <path d="M512.0 201.6 L734.9 396.3 L774.9 676.8 L512.0 723.0 L266.2 666.9 L306.2 406.2 Z" fill="url(#hexG)" opacity=".7" filter="url(#b60)"/>
+    
+  <defs>
+    <path d="M512.0 201.6 L734.9 396.3 L774.9 676.8 L512.0 723.0 L266.2 666.9 L306.2 406.2 Z" stroke-linejoin="round" id="hx"/>
+    <clipPath id="hxc"><use href="#hx"/></clipPath>
+    <linearGradient id="hxf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0.2"/></linearGradient>
+    <linearGradient id="hxr" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset=".4" stop-color="#fff" stop-opacity=".12"/>
+      <stop offset=".8" stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#fff" stop-opacity=".7"/></linearGradient>
+    
+  </defs>
+  <use href="#hx" fill="#000" opacity="0.5" filter="url(#b30)" transform="translate(0 30)"/>
+  
+  <use href="#hx" fill="url(#hxf)"/>
+  <g clip-path="url(#hxc)">
+    
+    <path d="M512.0 201.6 L734.9 396.3 L774.9 676.8 L512.0 723.0 L266.2 666.9 L306.2 406.2 Z" fill="url(#hexG)" opacity=".75"/>
+    <ellipse cx="430" cy="330" rx="140" ry="70" fill="#fff" opacity="0.55" filter="url(#b30)"/>
+    <use href="#hx" fill="none" stroke="url(#hxr)" stroke-width="12"/>
+  </g>
+    <circle cx="512" cy="201.60000000000002" r="20" fill="#fff"/><circle cx="734.9149389341146" cy="396.3" r="20" fill="#fff"/><circle cx="774.9253125889556" cy="676.8" r="20" fill="#fff"/><circle cx="512" cy="723" r="20" fill="#fff"/><circle cx="266.22199040597627" cy="666.9" r="20" fill="#fff"/><circle cx="306.2323640608174" cy="406.2" r="20" fill="#fff"/>
+  </svg>

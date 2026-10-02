@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1024" height="1024" viewBox="0 0 1024 1024"><defs><filter id="b4" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="4"/></filter><filter id="b8" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="8"/></filter><filter id="b14" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="14"/></filter><filter id="b22" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="22"/></filter><filter id="b30" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="30"/></filter><filter id="b45" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="45"/></filter><filter id="b60" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="60"/></filter><filter id="b90" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="90"/></filter><filter id="b130" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="130"/></filter></defs>
+    
+  <defs>
+    <linearGradient id="bgG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4A86FF"/><stop offset="0.5" stop-color="#3A2AE8"/><stop offset="1" stop-color="#1C0766"/></linearGradient>
+    <radialGradient id="bgL" cx="230" cy="120" r="760" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.22"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="bgV" cx="512" cy="470" r="800" gradientUnits="userSpaceOnUse">
+      <stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.35"/></radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bgG)"/>
+  <circle cx="480" cy="560" r="300" fill="#7FA2FF" opacity=".35" filter="url(#b130)"/>
+  <rect width="1024" height="1024" fill="url(#bgL)"/>
+  <rect width="1024" height="1024" fill="url(#bgV)"/>
+    <g transform="translate(470 545) scale(.8) skewX(-8) translate(-512 -512)">
+      <defs><path id="s" d="M 330 716 C 420 800 690 790 676 636 C 662 494 340 528 352 384 C 362 266 548 248 640 318" fill="none"/><linearGradient id="se" gradientUnits="userSpaceOnUse" x1="330" y1="780" x2="640" y2="300"><stop offset="0" stop-color="#fff" stop-opacity="0.22"/><stop offset="0.4" stop-color="#fff" stop-opacity="0.82"/><stop offset="1" stop-color="#fff" stop-opacity="1"/></linearGradient><linearGradient id="sb" gradientUnits="userSpaceOnUse" x1="330" y1="780" x2="640" y2="300"><stop offset="0" stop-color="#fff" stop-opacity="0.0924"/><stop offset="0.4" stop-color="#fff" stop-opacity="0.3444"/><stop offset="1" stop-color="#fff" stop-opacity="0.42"/></linearGradient></defs>
+  <use href="#s" stroke="#000" stroke-width="132" stroke-linecap="round" opacity=".28" filter="url(#b30)" transform="translate(0 30)"/>
+  <use href="#s" stroke="#A9BCFF" stroke-width="172" stroke-linecap="round" opacity=".42" filter="url(#b60)"/>
+  <use href="#s" stroke="url(#se)" stroke-width="132" stroke-linecap="round"/>
+  <use href="#s" stroke="#3A2AE8" stroke-width="110" stroke-linecap="round" opacity=".3"/>
+  <use href="#s" stroke="url(#sb)" stroke-width="110" stroke-linecap="round"/>
+  <use href="#s" stroke="#fff" stroke-width="29.04" stroke-linecap="round" opacity=".55" filter="url(#b8)" transform="translate(-10.56 -26.400000000000002)"/>
+    </g>
+    <circle cx="638" cy="346" r="12" fill="#fff" opacity=".5"/>
+    <circle cx="680" cy="314" r="15" fill="#fff" opacity=".75"/>
+    <circle cx="756" cy="262" r="110" fill="#A9BCFF" opacity=".5" filter="url(#b45)"/>
+    
+  <defs>
+    <circle cx="758" cy="258" r="68" id="ball"/>
+    <clipPath id="ballc"><use href="#ball"/></clipPath>
+    <linearGradient id="ballf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset="1" stop-color="#fff" stop-opacity="0.88"/></linearGradient>
+    <linearGradient id="ballr" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset=".4" stop-color="#fff" stop-opacity=".12"/>
+      <stop offset=".8" stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#fff" stop-opacity=".7"/></linearGradient>
+    <linearGradient id="ballt" x1="0" y1="0" x2="0.4" y2="1"><stop offset=".2" stop-color="#5B4BFF" stop-opacity="0"/><stop offset="1" stop-color="#5B4BFF" stop-opacity="0.4"/></linearGradient>
+  </defs>
+  <use href="#ball" fill="#000" opacity="0.25" filter="url(#b30)" transform="translate(0 18)"/>
+  
+  <use href="#ball" fill="url(#ballf)"/>
+  <g clip-path="url(#ballc)">
+    <use href="#ball" fill="url(#ballt)"/>
+    
+    <ellipse cx="735" cy="232" rx="26" ry="15" fill="#fff" opacity="0.95" filter="url(#b30)"/>
+    <use href="#ball" fill="none" stroke="url(#ballr)" stroke-width="10"/>
+  </g>
+  </svg>

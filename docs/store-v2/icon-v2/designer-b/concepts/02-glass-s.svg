@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+<filter id="b8" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter>
+<filter id="b20" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="20"/></filter>
+<filter id="b40" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40"/></filter>
+<filter id="b90" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="90"/></filter>
+<filter id="drop" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceAlpha" stdDeviation="22"/><feOffset dy="26"/><feComponentTransfer><feFuncA type="linear" slope="0.45"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.035 0"/></filter>
+
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF8A4C"/><stop offset="0.5" stop-color="#F0306E"/><stop offset="1" stop-color="#5A0F6E"/></linearGradient>
+  <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".85"/><stop offset=".5" stop-color="#FFE3EE" stop-opacity=".45"/><stop offset="1" stop-color="#fff" stop-opacity=".75"/></linearGradient>
+</defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="800" cy="200" r="260" fill="#FFD27A" opacity=".45" filter="url(#b90)"/>
+  <path d="M690,300 C640,230 420,215 370,320 C320,430 690,450 670,620 C650,780 420,790 330,700" fill="none" stroke="#3A0030" stroke-opacity=".35" stroke-width="170" stroke-linecap="round" transform="translate(0,34)" filter="url(#b40)"/>
+  <path d="M690,300 C640,230 420,215 370,320 C320,430 690,450 670,620 C650,780 420,790 330,700" fill="none" stroke="url(#sg)" stroke-width="160" stroke-linecap="round"/>
+  <path d="M690,300 C640,230 420,215 370,320 C320,430 690,450 670,620 C650,780 420,790 330,700" fill="none" stroke="#fff" stroke-opacity=".9" stroke-width="160" stroke-linecap="round" stroke-dasharray="0" opacity=".0"/>
+  <path d="M690,300 C640,230 420,215 370,320 C320,430 690,450 670,620 C650,780 420,790 330,700" fill="none" stroke="#FF3D7F" stroke-opacity=".35" stroke-width="110" stroke-linecap="round" filter="url(#b20)"/>
+  <path d="M690,300 C640,230 420,215 370,320 C320,430 690,450 670,620 C650,780 420,790 330,700" fill="none" stroke="#fff" stroke-opacity=".9" stroke-width="10" stroke-linecap="round" transform="translate(-22,-40)"/>
+  <circle cx="330" cy="700" r="40" fill="#fff"/>
+<rect width="1024" height="1024" filter="url(#grain)"/>
+</svg>

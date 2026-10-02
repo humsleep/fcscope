@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+<filter id="b8" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter>
+<filter id="b20" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="20"/></filter>
+<filter id="b40" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40"/></filter>
+<filter id="b90" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="90"/></filter>
+<filter id="drop" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceAlpha" stdDeviation="22"/><feOffset dy="26"/><feComponentTransfer><feFuncA type="linear" slope="0.45"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.035 0"/></filter>
+
+  <radialGradient id="bg" cx=".5" cy=".35" r=".9"><stop offset="0" stop-color="#2A1B0A"/><stop offset=".6" stop-color="#120C06"/><stop offset="1" stop-color="#060403"/></radialGradient>
+  <linearGradient id="am" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE29A"/><stop offset="1" stop-color="#FF8A00"/></linearGradient>
+  
+  <linearGradient id="gfc" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#FFD089" stop-opacity="0.32"/><stop offset="1" stop-color="#FFD089" stop-opacity="0.05"/></linearGradient>
+  <linearGradient id="gec" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.9"/><stop offset="0.45" stop-color="#fff" stop-opacity="0.08"/><stop offset="1" stop-color="#fff" stop-opacity="0.49500000000000005"/></linearGradient>
+  <clipPath id="gcc"><path d="M512,170 L600,215 L760,215 L760,700 Q760,770 690,800 L512,872 L334,800 Q264,770 264,700 L264,215 L424,215 Z"/></clipPath>
+</defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="512" cy="520" r="300" fill="#FF9F1C" opacity=".35" filter="url(#b90)"/>
+  
+  <path d="M512,170 L600,215 L760,215 L760,700 Q760,770 690,800 L512,872 L334,800 Q264,770 264,700 L264,215 L424,215 Z" fill="url(#gfc)"/>
+  <g clip-path="url(#gcc)">
+    <path d="M512,170 L600,215 L760,215 L760,700 Q760,770 690,800 L512,872 L334,800 Q264,770 264,700 L264,215 L424,215 Z" fill="none" stroke="#fff" stroke-opacity="0.35" stroke-width="18" filter="url(#b8)"/>
+  </g>
+  <path d="M512,170 L600,215 L760,215 L760,700 Q760,770 690,800 L512,872 L334,800 Q264,770 264,700 L264,215 L424,215 Z" fill="none" stroke="url(#gec)" stroke-width="5"/>
+  <path d="M372,600 L512,460 L652,600" fill="none" stroke="#FFB020" stroke-width="80" stroke-linecap="round" stroke-linejoin="round" filter="url(#b40)"/>
+  <path d="M372,600 L512,460 L652,600" fill="none" stroke="url(#am)" stroke-width="70" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M372,420 L512,280 L652,420" fill="none" stroke="#FFE29A" stroke-opacity=".35" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+<rect width="1024" height="1024" filter="url(#grain)"/>
+</svg>

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+<filter id="b8" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter>
+<filter id="b20" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="20"/></filter>
+<filter id="b40" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40"/></filter>
+<filter id="b90" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="90"/></filter>
+<filter id="drop" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceAlpha" stdDeviation="22"/><feOffset dy="26"/><feComponentTransfer><feFuncA type="linear" slope="0.45"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.035 0"/></filter>
+
+  <radialGradient id="bg" cx="0.5" cy="0.2" r="1"><stop offset="0" stop-color="#2B1385"/><stop offset="0.5" stop-color="#110838"/><stop offset="1" stop-color="#04030F"/></radialGradient>
+  <linearGradient id="statg" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0" stop-color="#7DF3FF"/><stop offset=".5" stop-color="#6D7BFF"/><stop offset="1" stop-color="#A43BFF"/></linearGradient>
+  <linearGradient id="spec" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".7"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  <clipPath id="sc"><path d="M512.0,196.8L757.0,386.6L685.3,628.0L512.0,783.3L374.6,607.4L249.1,376.2Z"/></clipPath>
+  
+  <linearGradient id="gfo" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity="0.2"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.04"/></linearGradient>
+  <linearGradient id="geo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.9"/><stop offset="0.45" stop-color="#fff" stop-opacity="0.08"/><stop offset="1" stop-color="#fff" stop-opacity="0.49500000000000005"/></linearGradient>
+  <clipPath id="gco"><path d="M512.0,183.0L810.8,355.5L810.8,700.5L512.0,873.0L213.2,700.5L213.2,355.5Z"/></clipPath>
+</defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="420" cy="430" r="300" fill="#7C3AED" opacity=".6" filter="url(#b90)"/>
+  <circle cx="660" cy="680" r="260" fill="#06B6D4" opacity=".45" filter="url(#b90)"/>
+  <path d="M512.0,183.0L810.8,355.5L810.8,700.5L512.0,873.0L213.2,700.5L213.2,355.5Z" fill="#000" opacity=".35" transform="translate(0,28)" filter="url(#b40)"/>
+  
+  <path d="M512.0,183.0L810.8,355.5L810.8,700.5L512.0,873.0L213.2,700.5L213.2,355.5Z" fill="url(#gfo)"/>
+  <g clip-path="url(#gco)">
+    <path d="M512.0,183.0L810.8,355.5L810.8,700.5L512.0,873.0L213.2,700.5L213.2,355.5Z" fill="none" stroke="#fff" stroke-opacity="0.35" stroke-width="18" filter="url(#b8)"/>
+  </g>
+  <path d="M512.0,183.0L810.8,355.5L810.8,700.5L512.0,873.0L213.2,700.5L213.2,355.5Z" fill="none" stroke="url(#geo)" stroke-width="5"/>
+  <path d="M512.0,183.0L810.8,355.5L810.8,700.5L512.0,873.0L213.2,700.5L213.2,355.5Z" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="3" transform="translate(512 528) scale(.62) translate(-512 -528)"/>
+  <path d="M512.0,196.8L757.0,386.6L685.3,628.0L512.0,783.3L374.6,607.4L249.1,376.2Z" fill="url(#statg)" stroke="url(#statg)" stroke-width="40" stroke-linejoin="round" filter="url(#b40)" opacity=".9"/>
+  <path d="M512.0,196.8L757.0,386.6L685.3,628.0L512.0,783.3L374.6,607.4L249.1,376.2Z" fill="url(#statg)" stroke="url(#statg)" stroke-width="30" stroke-linejoin="round"/>
+  <g clip-path="url(#sc)"><path d="M512.0,196.8L757.0,386.6L685.3,628.0L512.0,783.3L374.6,607.4L249.1,376.2Z" fill="url(#spec)" transform="translate(0,-6)"/></g>
+  <path d="M512.0,196.8L757.0,386.6L685.3,628.0L512.0,783.3L374.6,607.4L249.1,376.2Z" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="5" stroke-linejoin="round"/>
+  <circle cx="512" cy="196.8" r="56" fill="#9BF6FF" filter="url(#b20)"/>
+  <circle cx="512" cy="196.8" r="26" fill="#fff"/>
+<rect width="1024" height="1024" filter="url(#grain)"/>
+</svg>

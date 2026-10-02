@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+<filter id="b8" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter>
+<filter id="b20" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="20"/></filter>
+<filter id="b40" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40"/></filter>
+<filter id="b90" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="90"/></filter>
+<filter id="drop" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceAlpha" stdDeviation="22"/><feOffset dy="26"/><feComponentTransfer><feFuncA type="linear" slope="0.45"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.035 0"/></filter>
+
+  <radialGradient id="bg" cx=".5" cy=".3" r=".9"><stop offset="0" stop-color="#0F5E56"/><stop offset=".6" stop-color="#062B2A"/><stop offset="1" stop-color="#021412"/></radialGradient>
+  <linearGradient id="arc" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#5EEAD4" stop-opacity=".2"/><stop offset="1" stop-color="#F0FDFA"/></linearGradient>
+  
+  <linearGradient id="gft" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#A7F3D0" stop-opacity="0.3"/><stop offset="1" stop-color="#A7F3D0" stop-opacity="0.08"/></linearGradient>
+  <linearGradient id="get" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.9"/><stop offset="0.45" stop-color="#fff" stop-opacity="0.08"/><stop offset="1" stop-color="#fff" stop-opacity="0.49500000000000005"/></linearGradient>
+  <clipPath id="gct"><path d="M250,380 L774,380 L880,760 L144,760 Z"/></clipPath>
+</defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="512" cy="600" r="300" fill="#14B8A6" opacity=".45" filter="url(#b90)"/>
+  
+  <path d="M250,380 L774,380 L880,760 L144,760 Z" fill="url(#gft)"/>
+  <g clip-path="url(#gct)"><line x1="512" y1="380" x2="512" y2="760" stroke="#fff" stroke-opacity=".25" stroke-width="5"/><ellipse cx="512" cy="570" rx="110" ry="60" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="5"/>
+    <path d="M250,380 L774,380 L880,760 L144,760 Z" fill="none" stroke="#fff" stroke-opacity="0.35" stroke-width="18" filter="url(#b8)"/>
+  </g>
+  <path d="M250,380 L774,380 L880,760 L144,760 Z" fill="none" stroke="url(#get)" stroke-width="5"/>
+  <path d="M300,700 Q520,140 760,470" fill="none" stroke="#2DD4BF" stroke-width="40" stroke-linecap="round" filter="url(#b20)"/>
+  <path d="M300,700 Q520,140 760,470" fill="none" stroke="url(#arc)" stroke-width="26" stroke-linecap="round"/>
+  <circle cx="760" cy="470" r="70" fill="#5EEAD4" filter="url(#b40)"/>
+  <circle cx="760" cy="470" r="34" fill="#fff"/>
+<rect width="1024" height="1024" filter="url(#grain)"/>
+</svg>

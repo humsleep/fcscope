@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+<filter id="b8" filterUnits="userSpaceOnUse" x="-200" y="-200" width="1424" height="1424"><feGaussianBlur stdDeviation="8"/></filter>
+<filter id="b20" filterUnits="userSpaceOnUse" x="-200" y="-200" width="1424" height="1424"><feGaussianBlur stdDeviation="20"/></filter>
+<filter id="b40" filterUnits="userSpaceOnUse" x="-200" y="-200" width="1424" height="1424"><feGaussianBlur stdDeviation="40"/></filter>
+<filter id="b90" filterUnits="userSpaceOnUse" x="-200" y="-200" width="1424" height="1424"><feGaussianBlur stdDeviation="90"/></filter>
+<filter id="drop" filterUnits="userSpaceOnUse" x="-200" y="-200" width="1424" height="1424"><feGaussianBlur in="SourceAlpha" stdDeviation="22"/><feOffset dy="26"/><feComponentTransfer><feFuncA type="linear" slope="0.45"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.035 0"/></filter>
+
+  <radialGradient id="bg" cx="0.5" cy="0.15" r="1.05"><stop offset="0" stop-color="#4318D1"/><stop offset="0.45" stop-color="#140A45"/><stop offset="1" stop-color="#04030F"/></radialGradient>
+  <linearGradient id="statf" x1="0.3" y1="0" x2="0.7" y2="1"><stop offset="0" stop-color="#5EF0FF" stop-opacity=".85"/><stop offset="1" stop-color="#8B3DFF" stop-opacity=".7"/></linearGradient>
+  <linearGradient id="state" x1="0.3" y1="0" x2="0.7" y2="1"><stop offset="0" stop-color="#C8FBFF"/><stop offset=".5" stop-color="#7DD3FF"/><stop offset="1" stop-color="#C084FC"/></linearGradient>
+  <linearGradient id="spec" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  <clipPath id="sc"><path d="M512.0,188.0L736.5,400.4L792.6,692.0L512.0,702.8L250.1,681.2L237.6,371.6Z"/></clipPath>
+  
+  <linearGradient id="gfo" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.03"/></linearGradient>
+  <linearGradient id="geo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.9"/><stop offset="0.45" stop-color="#fff" stop-opacity="0.08"/><stop offset="1" stop-color="#fff" stop-opacity="0.49500000000000005"/></linearGradient>
+  <clipPath id="gco"><path d="M512.0,170.0L823.8,350.0L823.8,710.0L512.0,890.0L200.2,710.0L200.2,350.0Z"/></clipPath>
+</defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="430" cy="420" r="320" fill="#7C3AED" opacity=".7" filter="url(#b90)"/>
+  <circle cx="650" cy="690" r="260" fill="#06B6D4" opacity=".4" filter="url(#b90)"/>
+  <path d="M512.0,170.0L823.8,350.0L823.8,710.0L512.0,890.0L200.2,710.0L200.2,350.0Z" fill="#000" opacity=".35" transform="translate(0,28)" filter="url(#b40)"/>
+  
+  <path d="M512.0,170.0L823.8,350.0L823.8,710.0L512.0,890.0L200.2,710.0L200.2,350.0Z" fill="url(#gfo)"/>
+  <g clip-path="url(#gco)">
+    <path d="M512.0,170.0L823.8,350.0L823.8,710.0L512.0,890.0L200.2,710.0L200.2,350.0Z" fill="none" stroke="#fff" stroke-opacity="0.35" stroke-width="18" filter="url(#b8)"/>
+  </g>
+  <path d="M512.0,170.0L823.8,350.0L823.8,710.0L512.0,890.0L200.2,710.0L200.2,350.0Z" fill="none" stroke="url(#geo)" stroke-width="5"/>
+  <path d="M512.0,170.0L823.8,350.0L823.8,710.0L512.0,890.0L200.2,710.0L200.2,350.0Z" fill="none" stroke="#C9D6FF" stroke-opacity=".45" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M512.0,332.0L683.5,431.0L683.5,629.0L512.0,728.0L340.5,629.0L340.5,431.0Z" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="4"/>
+  <path d="M512.0,249.2L755.2,389.6L755.2,670.4L512.0,810.8L268.8,670.4L268.8,389.6Z" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="4"/>
+  <path d="M512.0,414.8L611.8,472.4L611.8,587.6L512.0,645.2L412.2,587.6L412.2,472.4Z" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="4"/>
+  <path d="M512.0,188.0L736.5,400.4L792.6,692.0L512.0,702.8L250.1,681.2L237.6,371.6Z" fill="#7C5CFF" opacity=".75" filter="url(#b40)"/>
+  <path d="M512.0,188.0L736.5,400.4L792.6,692.0L512.0,702.8L250.1,681.2L237.6,371.6Z" fill="url(#statf)"/>
+  <g clip-path="url(#sc)"><path d="M512.0,188.0L736.5,400.4L792.6,692.0L512.0,702.8L250.1,681.2L237.6,371.6Z" fill="url(#spec)"/></g>
+  <path d="M512.0,188.0L736.5,400.4L792.6,692.0L512.0,702.8L250.1,681.2L237.6,371.6Z" fill="none" stroke="#9BEFFF" stroke-width="22" stroke-linejoin="round" filter="url(#b20)" opacity=".8"/>
+  <path d="M512.0,188.0L736.5,400.4L792.6,692.0L512.0,702.8L250.1,681.2L237.6,371.6Z" fill="none" stroke="url(#state)" stroke-width="12" stroke-linejoin="round"/>
+  <circle cx="736.4737846609265" cy="400.4" r="15" fill="#fff"/><circle cx="792.5922308261581" cy="692" r="15" fill="#fff"/><circle cx="512" cy="702.8" r="15" fill="#fff"/><circle cx="250.11391789558581" cy="681.2" r="15" fill="#fff"/><circle cx="237.64315208108985" cy="371.59999999999997" r="15" fill="#fff"/>
+  <circle cx="512" cy="188" r="70" fill="#7DF3FF" filter="url(#b20)"/>
+  <circle cx="512" cy="188" r="30" fill="#fff"/>
+<rect width="1024" height="1024" filter="url(#grain)"/>
+</svg>

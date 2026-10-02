@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1024" height="1024" viewBox="0 0 1024 1024"><defs><filter id="b4" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="4"/></filter><filter id="b8" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="8"/></filter><filter id="b14" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="14"/></filter><filter id="b22" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="22"/></filter><filter id="b30" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="30"/></filter><filter id="b45" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="45"/></filter><filter id="b60" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="60"/></filter><filter id="b90" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="90"/></filter><filter id="b130" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="130"/></filter></defs>
+  
+  <defs>
+    <linearGradient id="bgG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2BF0A6"/><stop offset="0.5" stop-color="#0BAE8C"/><stop offset="1" stop-color="#044A57"/></linearGradient>
+    <radialGradient id="bgL" cx="230" cy="120" r="760" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.22"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="bgV" cx="512" cy="470" r="800" gradientUnits="userSpaceOnUse">
+      <stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.35"/></radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bgG)"/>
+  
+  <rect width="1024" height="1024" fill="url(#bgL)"/>
+  <rect width="1024" height="1024" fill="url(#bgV)"/>
+  
+  <defs>
+    <circle cx="512" cy="520" r="300" id="orb"/>
+    <clipPath id="orbc"><use href="#orb"/></clipPath>
+    <linearGradient id="orbf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.42"/><stop offset="1" stop-color="#fff" stop-opacity="0.14"/></linearGradient>
+    <linearGradient id="orbr" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset=".4" stop-color="#fff" stop-opacity=".12"/>
+      <stop offset=".8" stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#fff" stop-opacity=".7"/></linearGradient>
+    <linearGradient id="orbt" x1="0" y1="0" x2="0.4" y2="1"><stop offset=".2" stop-color="#00342F" stop-opacity="0"/><stop offset="1" stop-color="#00342F" stop-opacity="0.25"/></linearGradient>
+  </defs>
+  <use href="#orb" fill="#000" opacity="0.32" filter="url(#b30)" transform="translate(0 30)"/>
+  <use href="#orb" fill="#7DFFD0" opacity="0.3" filter="url(#b60)"/>
+  <use href="#orb" fill="url(#orbf)"/>
+  <g clip-path="url(#orbc)">
+    <use href="#orb" fill="url(#orbt)"/>
+    
+      <path d="M 212 548 Q 512 470 812 548" fill="none" stroke="#fff" stroke-width="24" opacity=".95"/>
+      <ellipse cx="512" cy="509" rx="118" ry="84" fill="none" stroke="#fff" stroke-width="24" opacity=".95"/>
+      <circle cx="512" cy="509" r="30" fill="#fff"/>
+      <circle cx="512" cy="509" r="70" fill="#E6FFF6" opacity=".6" filter="url(#b22)"/>
+    <ellipse cx="400" cy="340" rx="120" ry="60" fill="#fff" opacity="0.6" filter="url(#b30)"/>
+    <use href="#orb" fill="none" stroke="url(#orbr)" stroke-width="14"/>
+  </g>
+</svg>

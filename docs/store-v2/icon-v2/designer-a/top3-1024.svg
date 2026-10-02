@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1024" height="1024" viewBox="0 0 1024 1024"><defs><filter id="b4" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="4"/></filter><filter id="b8" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="8"/></filter><filter id="b14" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="14"/></filter><filter id="b22" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="22"/></filter><filter id="b30" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="30"/></filter><filter id="b45" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="45"/></filter><filter id="b60" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="60"/></filter><filter id="b90" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="90"/></filter><filter id="b130" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="130"/></filter></defs>
+    
+  <defs>
+    <linearGradient id="bgG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2A2F7A"/><stop offset="0.55" stop-color="#14154A"/><stop offset="1" stop-color="#07071F"/></linearGradient>
+    <radialGradient id="bgL" cx="230" cy="120" r="760" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="bgV" cx="512" cy="470" r="800" gradientUnits="userSpaceOnUse">
+      <stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.45"/></radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bgG)"/>
+  
+  <rect width="1024" height="1024" fill="url(#bgL)"/>
+  <rect width="1024" height="1024" fill="url(#bgV)"/>
+    <g filter="url(#b90)" opacity=".8"><circle cx="560" cy="420" r="200" fill="#FF3D6E"/><circle cx="410" cy="580" r="150" fill="#FF8A3D"/></g>
+    
+  <defs>
+    <rect x="228" y="214" width="568" height="600" rx="84" id="pt"/>
+    <clipPath id="ptc"><use href="#pt"/></clipPath>
+    <linearGradient id="ptf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.32"/><stop offset="1" stop-color="#fff" stop-opacity="0.1"/></linearGradient>
+    <linearGradient id="ptr" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset=".4" stop-color="#fff" stop-opacity=".12"/>
+      <stop offset=".8" stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#fff" stop-opacity=".7"/></linearGradient>
+    
+  </defs>
+  <use href="#pt" fill="#000" opacity="0.45" filter="url(#b30)" transform="translate(0 30)"/>
+  
+  <use href="#pt" fill="url(#ptf)"/>
+  <g clip-path="url(#ptc)">
+    
+    
+        <g filter="url(#b45)">
+          <ellipse cx="520" cy="470" rx="260" ry="220" fill="#6B3BFF" opacity=".75"/>
+          <ellipse cx="560" cy="440" rx="180" ry="150" fill="#FF3D6E"/>
+          <circle cx="410" cy="590" r="105" fill="#FF3D9A" opacity=".75"/>
+          <circle cx="556" cy="424" r="96" fill="#FFC24D"/>
+          <circle cx="556" cy="420" r="42" fill="#FFF6D0"/>
+        </g>
+        <g fill="none" stroke="#fff" stroke-width="22" opacity=".78" stroke-linejoin="round">
+          <path d="M 352 214 V 384 H 672 V 214"/>
+          <path d="M 432 384 A 80 80 0 0 0 592 384"/>
+          <path d="M 386 814 A 126 126 0 0 1 638 814"/>
+        </g>
+    <ellipse cx="380" cy="262" rx="190" ry="46" fill="#fff" opacity="0.5" filter="url(#b30)"/>
+    <use href="#pt" fill="none" stroke="url(#ptr)" stroke-width="14"/>
+  </g>
+  </svg>

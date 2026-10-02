@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+<filter id="b8" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter>
+<filter id="b20" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="20"/></filter>
+<filter id="b40" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40"/></filter>
+<filter id="b90" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="90"/></filter>
+<filter id="drop" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceAlpha" stdDeviation="22"/><feOffset dy="26"/><feComponentTransfer><feFuncA type="linear" slope="0.45"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.035 0"/></filter>
+
+  <radialGradient id="bg" cx=".5" cy=".25" r="1"><stop offset="0" stop-color="#3A3E46"/><stop offset=".55" stop-color="#16181C"/><stop offset="1" stop-color="#08090B"/></radialGradient>
+  <linearGradient id="ti" x1="0.1" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="#FAFBFC"/><stop offset=".3" stop-color="#A3AAB4"/><stop offset=".5" stop-color="#EEF1F4"/><stop offset=".72" stop-color="#6B727D"/><stop offset="1" stop-color="#D6DAE0"/></linearGradient>
+  <linearGradient id="hl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient>
+</defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <ellipse cx="512" cy="820" rx="300" ry="90" fill="#FF5A1F" opacity=".25" filter="url(#b90)"/>
+  <path d="M620.1280698461469,311.2879104016619 A132,132 0 1 0 512,519 A132,132 0 1 1 403.8719301538531,726.712089598338" fill="none" stroke="#000" stroke-opacity=".6" stroke-width="134" transform="translate(0,30)" filter="url(#b40)"/>
+  <path d="M620.1280698461469,311.2879104016619 A132,132 0 1 0 512,519 A132,132 0 1 1 403.8719301538531,726.712089598338" fill="none" stroke="url(#ti)" stroke-width="124"/>
+  <path d="M620.1280698461469,311.2879104016619 A132,132 0 1 0 512,519 A132,132 0 1 1 403.8719301538531,726.712089598338" fill="none" stroke="url(#hl)" stroke-width="124" opacity=".35"/>
+  <path d="M620.1280698461469,311.2879104016619 A132,132 0 1 0 512,519 A132,132 0 1 1 403.8719301538531,726.712089598338" fill="none" stroke="#000" stroke-opacity=".25" stroke-width="2"/>
+  <circle cx="373.8719301538531" cy="786.712089598338" r="90" fill="#FF5A1F" filter="url(#b40)"/>
+  <circle cx="373.8719301538531" cy="786.712089598338" r="48" fill="#FF6A2B"/>
+  <circle cx="363.8719301538531" cy="774.712089598338" r="18" fill="#FFD9C4"/>
+<rect width="1024" height="1024" filter="url(#grain)"/>
+</svg>
