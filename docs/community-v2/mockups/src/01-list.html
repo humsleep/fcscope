@@ -1,0 +1,51 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"></head><body>
+<div class="sheet">
+  <div class="col"><div class="tag-h">LIST · DARK</div><div class="phone"><div class="app" data-tab="comm" id="d"></div></div></div>
+  <div class="col"><div class="tag-h">LIST · LIGHT · 스쿼드 탭</div><div class="phone"><div class="app light" data-tab="comm" id="l"></div></div></div>
+  <div class="notes">
+    <h1>목록은 <em>제목 한 줄</em>.<br>한 화면에 3개 → 10개.</h1>
+    <p class="lead">카드·본문 미리보기·이모지 칩을 걷어내고 에펨·인벤·더쿠처럼 "제목 + 메타 한 줄" 행으로. 글자는 실제 렌더 15pt(지금 17.3pt).</p>
+    <div class="note"><span class="num">1</span><span><b>1차 탭 4개</b> — 전체 · 인기 · 스쿼드 · 클럽·대회. 말머리 7종은 탭 안의 2차 칩으로 내려 3줄짜리 칩 더미를 없앴다. 선택 밑줄은 잉크색 — 그라디언트는 글쓰기 버튼 하나만(토스 리뷰).</span></div>
+    <div class="note"><span class="num">2</span><span><b>지금 뜨는 글 3줄</b> — 인벤 "지금 뜨는 글" 패턴. 전체 탭 맨 위에만, 스크롤하면 사라진다.</span></div>
+    <div class="note"><span class="num">3</span><span><b>말머리 태그 + 제목 + [댓글수]</b> — 태그색은 3계열뿐(스쿼드=바이올렛·배틀=코랄·클럽/대회=틸). 댓글수는 제목 바로 뒤 바이올렛 Chakra — 커뮤 문법 그대로. 스쿼드 첨부는 방패 글리프 하나.</span></div>
+    <div class="note"><span class="num">4</span><span><b>메타 한 줄 12pt</b> — 닉네임 ✓ · 시간 · 조회 · 추천. 조회·추천은 백엔드 필드 추가 후 노출(없으면 그 칸만 빠진다).</span></div>
+    <div class="note"><span class="num">5</span><span><b>읽은 글은 흐리게</b>(로컬 기록) · <b>글쓰기 FAB</b>는 CTA라 그라디언트. 아래로 스크롤하면 원형으로 줄어든다.</span></div>
+  </div>
+</div>
+<script src="icons.js"></script>
+<script>
+const POSTS = [
+  ['rate','평가','도르트문트 팀컬러 4-2-3-1 평가 부탁드려요',12,'보엠',1,0,'3분 전','248','9',true,false,false],
+  ['battle','배틀','26TOTS 케인 vs 24UCL 홀란, 누가 더 셈?',47,'피파탐색이',0,0,'12분 전','1.2만','61',false,false,false],
+  ['make','만들어줘','3천억으로 EPL 4-3-3 짜줘요 (월클 목표)',5,'몽키스패누',0,0,'25분 전','310','2',false,false,true],
+  ['show','자랑','드디어 맞춘 리버풀 풀금카 ㅋㅋㅋ 인증',31,'신카레49',1,0,'41분 전','2,104','38',true,false,true],
+  ['club','클럽모집','경기권 월클 이상 클럽원 2명 구해요 (주 3회)',3,'낭만축구동호회',0,0,'1시간 전','187','',false,false,false],
+  ['cup','대회','10월 3주차 FC Scope 컵 — 32강 토너먼트 모집',88,'보엠',0,1,'2시간 전','5,812','104',false,false,false],
+  ['rate','평가','이 스쿼드 몇 점인가요 솔직하게',3,'R카를로스UFO슛팅',0,0,'2시간 전','96','',true,false,true],
+  ['make','만들어줘','손흥민·이강인·김민재 넣은 국대 스쿼드, 나머지 자리 추천해 주세요',0,'SEPTEMBERSKY',1,0,'3시간 전','74','',false,false,false],
+  ['closed','마감','토요일 밤 9시 클럽전 상대 구함 (5:5)',9,'호나우지성',0,0,'5시간 전','412','',false,true,false],
+  ['show','자랑','화폐개혁 후 첫 1조 스쿼드 완성했습니다',64,'데용인데용',0,0,'어제','8,930','212',true,false,true],
+];
+function row(p, read){
+  const [k,lab,t,c,nk,vf,op,tm,v,up,sq,cl] = p;
+  return `<div class="row ${read?'read':''}"><div class="l1"><span class="mh m-${k}">${lab}</span><span class="t">${t}</span>${sq?`<span class="glyph">${I.squad}</span>`:''}${c?`<span class="cc">[${c}]</span>`:''}</div>
+  <div class="l2"><span class="nk">${nk}</span>${vf?'<span class="vf">✓</span>':''}${op?'<span class="op">운영자</span>':''}<span class="dot">${tm}</span><span class="dot">조회 ${v}</span>${up?`<span class="dot ${+up.replace(',','')>=50?'up':''}">추천 ${up}</span>`:''}</div></div>`;
+}
+function nav(){ return `<div class="navL"><h2>커뮤니티</h2><div class="acts"><div class="iconbtn">${I.search}</div><div class="iconbtn">${I.bell}</div></div></div>`; }
+const fab = `<div class="fab">${I.pen}글쓰기</div>`;
+document.getElementById('d').insertAdjacentHTML('beforeend', nav() + `
+<div class="tabs"><div class="on">전체</div><div>인기<span class="hot">HOT</span></div><div>스쿼드</div><div>클럽·대회</div></div>
+<div class="hotbox"><div class="h">${'<span style="width:14px;height:14px;display:inline-block">'+I.fire+'</span>'}지금 뜨는 글<span class="more">더보기</span></div>
+ <div class="r"><span class="rk">1</span><span class="t">26TOTS 케인 vs 24UCL 홀란, 누가 더 셈?</span><span class="cc">[47]</span></div>
+ <div class="r"><span class="rk">2</span><span class="t">화폐개혁 후 첫 1조 스쿼드 완성했습니다</span><span class="cc">[64]</span></div>
+ <div class="r"><span class="rk">3</span><span class="t">10월 3주차 FC Scope 컵 — 32강 토너먼트</span><span class="cc">[88]</span></div></div>
+<div class="adrow"><div class="img"></div><div><div style="color:var(--ink);font-weight:600;font-size:13px">광고 제목 자리</div><div>네이티브 광고 · 행 높이에 맞춤</div></div><span class="ad">AD</span></div>
+` + POSTS.slice(0,7).map((p,i)=>row(p, i===3)).join('') + fab);
+document.getElementById('l').insertAdjacentHTML('beforeend', nav() + `
+<div class="tabs"><div>전체</div><div>인기<span class="hot">HOT</span></div><div class="on">스쿼드</div><div>클럽·대회</div></div>
+<div class="subchips"><div class="sc on">전체</div><div class="sc">자랑</div><div class="sc">평가</div><div class="sc">만들어줘</div><div class="sc">배틀</div></div>
+<div class="sortrow"><span>새 글 <b>24</b>개 · 오늘</span><span><b>최신순</b> ▾</span></div>
+` + [0,1,2,3,6,7,9,2,0].map((i,j)=>row(POSTS[i], j===3)).join('') + fab);
+</script>
+<script src="common.js"></script>
+</body></html>

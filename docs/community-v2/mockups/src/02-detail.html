@@ -1,0 +1,44 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"></head><body>
+<div class="sheet">
+  <div class="col"><div class="tag-h">DETAIL · 본문</div><div class="phone"><div class="app" id="a"></div></div></div>
+  <div class="col"><div class="tag-h">DETAIL · 댓글 + 답글 입력</div><div class="phone"><div class="app" id="b"></div></div></div>
+  <div class="notes">
+    <h1>읽히는 본문,<br><em>대화가 되는</em> 댓글.</h1>
+    <p class="lead">작성자를 맨 아래에서 제목 바로 밑으로 올리고, 신고·차단은 ⋯ 메뉴로. 댓글은 말풍선 박스를 걷어내고 인스타·스레드식 평면 + 1단 답글.</p>
+    <div class="note"><span class="num">1</span><span><b>제목 20pt / 본문 16pt·행간 26</b>(지금 22 / 18.4pt). 본문 색은 ink2로 한 단계 낮춰 제목과 위계 분리.</span></div>
+    <div class="note"><span class="num">2</span><span><b>작성자 줄</b> — 아바타(닉 첫 글자) · 닉 ✓ · 시간 · 조회. 인증 닉이면 오른쪽에 "전적 보기" — FC Scope만의 연결고리.</span></div>
+    <div class="note"><span class="num">3</span><span><b>메타는 2칸 표</b>, 첨부 스쿼드는 미니 피치 썸네일 카드(이름·포메이션은 /api/squad/:id 로 이미 받을 수 있다).</span></div>
+    <div class="note"><span class="num">4</span><span><b>추천 · 댓글 · 공유</b> 행동 줄. 공유만 그라디언트(브랜드 순간). 광고는 이 아래 1개 — 본문 중간은 여전히 금지.</span></div>
+    <div class="note"><span class="num">5</span><span><b>BEST 댓글</b>(추천 3↑ 상위 2개)을 맨 위에 골드 띠로. <b>작성자</b> 배지, 운영자 배지, 1단 답글(ㄴ 연결선 + @멘션), 답글 3개 넘으면 접기.</span></div>
+    <div class="note"><span class="num">6</span><span><b>입력창은 화면 바닥 고정</b>(상세에선 탭바를 숨긴다). 답글 모드 띠, 비어 있으면 전송 버튼 회색.</span></div>
+  </div>
+</div>
+<script src="icons.js"></script>
+<script>
+const navD = `<div class="navD"><div class="iconbtn">${I.back}</div><div class="c">스쿼드 평가</div><div class="iconbtn">${I.more}</div></div>`;
+const pitch = `<div class="mini">${[[23,6],[10,18],[36,18],[6,32],[18,30],[30,30],[42,32],[12,44],[34,44],[23,52],[23,58]].map(([x,y])=>`<i style="left:${x}px;top:${y}px"></i>`).join('')}</div>`;
+document.getElementById('a').insertAdjacentHTML('beforeend', navD + `
+<div class="d-head"><span class="mh m-rate">스쿼드 평가</span><div class="d-title">도르트문트 팀컬러 4-2-3-1 평가 부탁드려요</div></div>
+<div class="author">${av('보엠')}<div class="who"><div class="nm">보엠<span class="vf">✓</span></div><div class="mt">3분 전 · 조회 248</div></div><div class="pillbtn">전적 보기<span style="width:14px;height:14px;display:inline-block">${I.chev}</span></div></div>
+<div class="kv"><div><div class="k">예산</div><div class="v">센터백 1명분</div></div><div><div class="k">포메이션</div><div class="v">4-2-3-1</div></div></div>
+<div class="d-body"><p>팀컬러 맞추느라 미드필더 쪽이 좀 약한 거 같아요. 지금 월클 2부 왔다 갔다 하는데 1부 가려면 어디부터 바꾸는 게 좋을까요?</p><p>로이스는 애정픽이라 빼기 싫고 ㅎㅎ 수비형 미드가 제일 고민이에요.</p></div>
+<div class="attach">${pitch}<div class="info"><div class="a1">첨부 스쿼드</div><div class="a2">BVB 꿀벌 스쿼드</div><div class="a3">4-2-3-1 · 11명</div></div><span style="width:20px;height:20px;color:var(--faint)">${I.chev}</span></div>
+<div class="actbar"><div class="act on"><span style="display:flex">${I.heartF}</span>추천 9</div><div class="act"><span style="display:flex">${I.chat}</span>댓글 12</div><div class="act share">${I.share}</div></div>
+<div class="adrow" style="margin:0 16px 14px"><div class="img"></div><div><div style="color:var(--ink);font-weight:600;font-size:13px">광고 제목 자리</div><div>본문 아래 1개</div></div><span class="ad">AD</span></div>
+<div class="gap8"></div>
+<div class="c-head"><div class="h">댓글 <span>12</span></div><div class="s"><b>등록순</b><span>최신순</span></div></div>
+<div class="cmt best">${av('신카레49','s')}<div class="cb"><div class="ch"><span class="badge-best">BEST</span><span class="nm">신카레49</span><span class="tm">2분 전</span></div><div class="tx">수미 자리에 24UCL 카세미루 박으세요. 예산 안에서 체감 제일 큼</div></div></div>
+` + `<div class="composer"><div class="in"><div class="fld ph">댓글 달기…</div><div class="send off">${I.send}</div></div></div>`);
+
+document.getElementById('b').insertAdjacentHTML('beforeend', navD + `
+<div class="c-head" style="padding-top:6px"><div class="h">댓글 <span>12</span></div><div class="s"><b>등록순</b><span>최신순</span></div></div>
+<div class="cmt best">${av('신카레49','s')}<div class="cb"><div class="ch"><span class="badge-best">BEST</span><span class="nm">신카레49</span><span class="tm">2분 전</span><span class="more">${I.more}</span></div><div class="tx">수미 자리에 24UCL 카세미루 박으세요. 예산 안에서 체감 제일 큼</div><div class="ca"><span class="lk on">${I.heartF}14</span><span>답글 달기</span></div></div></div>
+<div class="cmt reply">${av('보엠','xs')}<div class="cb"><div class="ch"><span class="nm">보엠</span><span class="badge-au">작성자</span><span class="tm">1분 전</span><span class="more">${I.more}</span></div><div class="tx"><span class="at">@신카레49</span> 오 카세미루 생각 못 했네요 바로 찾아볼게요 감사합니다!!</div><div class="ca"><span class="lk">${I.heart}2</span><span>답글 달기</span></div></div></div>
+<div class="cmt">${av('피파탐색이','s')}<div class="cb"><div class="ch"><span class="nm">피파탐색이</span><span class="vf">✓</span><span class="tm">8분 전</span><span class="more">${I.more}</span></div><div class="tx">로이스 애정픽이면 인정이죠 ㅋㅋ 대신 풀백 금카 강화가 먼저일 듯. 제가 짜본 거 첨부해요</div><div class="sq"><span style="width:14px;height:14px;display:inline-flex">${I.squad}</span>제안 스쿼드 보기</div><div class="ca"><span class="lk">${I.heart}6</span><span>답글 달기</span></div></div></div>
+<div class="morer">답글 3개 더 보기</div>
+<div class="cmt">${av('몽키스패누','s')}<div class="cb"><div class="ch"><span class="nm">몽키스패누</span><span class="op" style="margin-left:0">운영자</span><span class="tm">10분 전</span><span class="more">${I.more}</span></div><div class="tx">스쿼드 클리닉 돌려보면 약점 포지션이 바로 나와요. 전적 탭 → 스쿼드 진단 👀</div><div class="ca"><span class="lk">${I.heart}3</span><span>답글 달기</span></div></div></div>
+<div class="cmt">${av('호나우지성','s')}<div class="cb"><div class="ch"><span class="nm">호나우지성</span><span class="tm">15분 전</span><span class="more">${I.more}</span></div><div class="tx">팀컬러 감성 미쳤다…</div><div class="ca"><span class="lk">${I.heart}1</span><span>답글 달기</span></div></div></div>
+<div class="composer"><div class="rp"><span><b>@피파탐색이</b>님에게 답글</span><span style="width:16px;height:16px;display:inline-flex">${I.x}</span></div><div class="in"><div class="sq">${I.squad}</div><div class="fld">풀백부터 바꿔볼게요<span class="caret"></span></div><div class="send">${I.send}</div></div></div>`);
+</script>
+<script src="common.js"></script>
+</body></html>

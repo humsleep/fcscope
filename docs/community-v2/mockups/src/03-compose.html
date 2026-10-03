@@ -1,0 +1,45 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"></head><body>
+<div class="sheet">
+  <div class="col"><div class="tag-h">COMPOSE · DARK</div><div class="phone"><div class="app" id="a"></div></div></div>
+  <div class="col"><div class="tag-h">COMPOSE · LIGHT · 클럽원 모집</div><div class="phone"><div class="app light" id="b"></div></div></div>
+  <div class="notes">
+    <h1>폼이 아니라<br><em>메모장처럼</em>.</h1>
+    <p class="lead">iOS Form(섹션 헤더·회색 칸) 대신 스레드·당근 글쓰기처럼 제목/본문을 크게, 유형별 추가 정보는 아래 목록 한 덩어리로.</p>
+    <div class="note"><span class="num">1</span><span><b>말머리 먼저</b> — 칩 한 번 탭. 고르면 한 줄 설명이 바로 아래.</span></div>
+    <div class="note"><span class="num">2</span><span><b>템플릿은 버튼으로</b> — 지금은 본문에 템플릿을 미리 채워 넣어 지우기 귀찮았다. "양식 넣기"를 눌렀을 때만 삽입.</span></div>
+    <div class="note"><span class="num">3</span><span><b>스쿼드 첨부 = 내 스쿼드에서 고르기</b>(/api/profile 의 squads). 공유코드 붙여넣기는 시트 안 보조 옵션.</span></div>
+    <div class="note"><span class="num">4</span><span><b>등록은 바이올렛 채움</b>(tint+tintInk 6.2:1), 조건 미충족이면 회색. 그라디언트 위 흰 글자는 17pt Bold 미만에서 AA 미달이라 내비 버튼엔 쓰지 않는다. 제목 n/60 카운터, 임시저장(로컬)으로 실수로 닫아도 복구.</span></div>
+  </div>
+</div>
+<script src="icons.js"></script>
+<script>
+const chips = (on) => ['자랑','평가 요청','만들어줘','배틀','클럽원 모집','클럽전 상대','대회'].map(c=>`<div class="sc ${c===on?'on':''}">${c}</div>`).join('');
+const kb = `<div class="kbbar"><span class="g"><span style="display:flex">${I.squad}</span>스쿼드</span><span class="g">양식</span><span class="r">임시저장됨 · 방금</span></div>`;
+document.getElementById('a').insertAdjacentHTML('beforeend', `
+<div class="navC"><span class="x">취소</span><span class="tt">새 글</span><span class="post">등록</span></div>
+<div class="cp-lbl">말머리</div>
+<div class="typegrid">${chips('평가 요청')}</div>
+<div class="typehint">스쿼드를 올리면 다른 유저가 평가해 줘요. 예산을 적으면 더 정확해요.</div>
+<div class="cp-title">도르트문트 팀컬러 4-2-3-1 평가 부탁드려요<span class="cnt">25/60</span></div>
+<div class="cp-body">팀컬러 맞추느라 미드필더 쪽이 좀 약한 거 같아요. 지금 월클 2부 왔다 갔다 하는데 1부 가려면 어디부터 바꾸는 게 좋을까요?<span class="caret"></span></div>
+<div class="extra">
+  <div class="er"><span style="width:18px;height:18px;color:var(--tint);display:flex">${I.squad}</span><span class="k">스쿼드 첨부</span><span class="v set">BVB 꿀벌 스쿼드<span style="width:16px;height:16px;display:flex">${I.chev}</span></span></div>
+  <div class="er"><span style="width:18px"></span><span class="k">예산</span><span class="v">센터백 1명분<span style="width:16px;height:16px;display:flex">${I.chev}</span></span></div>
+</div>` + kb);
+document.getElementById('b').insertAdjacentHTML('beforeend', `
+<div class="navC"><span class="x">취소</span><span class="tt">새 글</span><span class="post off">등록</span></div>
+<div class="cp-lbl">말머리</div>
+<div class="typegrid">${chips('클럽원 모집')}</div>
+<div class="typehint">함께할 클럽원을 찾아요. 지역·포지션을 적으면 빨리 모여요.</div>
+<div class="cp-title"><span style="color:var(--faint);font-weight:600">제목</span><span class="cnt">0/60</span></div>
+<div class="cp-body"><span class="ghost">어떤 클럽인지, 어떤 분을 찾는지 적어 주세요.<br>예) 주 3회 저녁 9시 · 월클 이상 · 디코 필수</span></div>
+<div class="tpl">＋ 양식 넣기</div>
+<div class="extra">
+  <div class="er"><span style="width:18px;height:18px;color:var(--teal);display:flex">${I.pin}</span><span class="k">지역</span><span class="v">전국(온라인)<span style="width:16px;height:16px;display:flex">${I.down}</span></span></div>
+  <div class="er"><span style="width:18px"></span><span class="k">구하는 포지션</span><span class="v">선택<span style="width:16px;height:16px;display:flex">${I.chev}</span></span></div>
+  <div class="er"><span style="width:18px"></span><span class="k">연락 방법</span><span class="v">선택 사항</span></div>
+</div>
+<div class="typehint" style="padding-top:12px">욕설·비하·도배·거래 유도 글은 신고가 쌓이면 숨겨져요.</div>` + kb);
+</script>
+<script src="common.js"></script>
+</body></html>

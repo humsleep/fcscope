@@ -1,0 +1,38 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"></head><body>
+<div class="sheet">
+  <div class="col"><div class="tag-h">BATTLE · 투표 전 → 후</div><div class="phone"><div class="app" id="a"></div></div></div>
+  <div class="col"><div class="tag-h">LOADING · EMPTY</div><div class="phone"><div class="app" data-tab="comm" id="b"></div></div></div>
+  <div class="notes">
+    <h1>배틀은 <em>먼저 찍고</em><br>결과는 그다음.</h1>
+    <p class="lead">결과를 먼저 보여주면 다수 쪽으로 쏠린다. 투표 전엔 "VS" 카드와 큰 버튼 두 개만, 투표하면 막대가 차오르며 공개된다.</p>
+    <div class="note"><span class="num">1</span><span><b>A = 바이올렛, B = 코랄</b>. 지금은 B가 lose 빨강이라 "B가 진 쪽"처럼 읽혔다. 승패색은 데이터 전용으로 돌려준다.</span></div>
+    <div class="note"><span class="num">2</span><span><b>스쿼드 이름·포메이션</b>을 카드에 바로(지금은 "A팀 / 스쿼드 보기"뿐). 탭하면 스쿼드 상세.</span></div>
+    <div class="note"><span class="num">3</span><span><b>내 표 기억</b> — 서버가 mine 을 주면 재방문해도 체크가 남는다(지금은 화면을 나가면 잊는다).</span></div>
+    <div class="note"><span class="num">4</span><span><b>스켈레톤은 실제 행 모양</b>(제목 줄 + 메타 줄)으로 — 지금은 300pt 회색 상자 하나. 빈 상태는 이모지 + 한 줄 + 글쓰기.</span></div>
+  </div>
+</div>
+<script src="icons.js"></script>
+<script>
+const side = (k, lb, n, f, pick) => `<div class="bside ${k} ${pick?'pick':''}">${pick?'<span class="chk">✓</span>':''}<div class="lb">${lb}</div><div class="sn">${n}</div><div class="sf">${f}</div><div class="go">스쿼드 보기 ›</div></div>`;
+document.getElementById('a').insertAdjacentHTML('beforeend', `
+<div class="navD"><div class="iconbtn">${I.back}</div><div class="c">스쿼드 배틀</div><div class="iconbtn">${I.more}</div></div>
+<div class="d-head"><span class="mh m-battle">배틀</span><div class="d-title">EPL 올스타 vs 라리가 올스타, 어디가 더 셈?</div></div>
+<div class="author">${av('피파탐색이')}<div class="who"><div class="nm">피파탐색이<span class="vf">✓</span></div><div class="mt">12분 전 · 조회 1.2만</div></div><div class="pillbtn">전적 보기</div></div>
+<div class="battle"><div class="q">어느 쪽이 이길까요? 투표하면 결과가 보여요</div>
+ <div class="bsides">${side('a','A','EPL 올스타','4-3-3 · 11명')}${side('b','B','라리가 올스타','4-2-3-1 · 11명')}<div class="vs">VS</div></div>
+ <div class="vbtns"><div class="vb a">A에 한 표</div><div class="vb b">B에 한 표</div></div></div>
+<div class="battle"><div class="q">투표 완료 · 312명 참여</div>
+ <div class="bsides">${side('a','A','EPL 올스타','4-3-3 · 11명',true)}${side('b','B','라리가 올스타','4-2-3-1 · 11명')}<div class="vs">VS</div></div>
+ <div class="vres"><div class="vbar"><div class="a" style="width:62%">62%</div><div class="b" style="flex:1;background:var(--coral-bg)">38%</div></div>
+ <div class="vmeta"><span>A 193표 · 내 선택</span><span>B 119표</span></div></div>
+ <div class="vhint">댓글로 이유를 남겨 보세요 👇</div></div>`);
+document.getElementById('b').insertAdjacentHTML('beforeend', `
+<div class="navL"><h2>커뮤니티</h2><div class="acts"><div class="iconbtn">${I.search}</div><div class="iconbtn">${I.bell}</div></div></div>
+<div class="tabs"><div>전체</div><div>인기<span class="hot">HOT</span></div><div>스쿼드</div><div class="on">클럽·대회</div></div>
+${[78,64,85,58].map(w=>`<div class="sk"><i style="width:${w}%"></i><i></i></div>`).join('')}
+<div style="height:1px;margin:14px 16px;border-top:1px dashed var(--line)"></div>
+<div style="text-align:center;font:700 11px/1 Chakra;letter-spacing:2px;color:var(--faint)">EMPTY STATE</div>
+<div class="empty" style="padding-top:26px"><div class="em">🛡️</div><div class="t1">아직 대회 글이 없어요</div><div class="t2">첫 대회를 열면 여기 맨 위에 떠요.<br>규칙·일정만 적으면 끝!</div><div class="btn">대회 열기</div></div>`);
+</script>
+<script src="common.js"></script>
+</body></html>
