@@ -142,6 +142,88 @@ extension Font {
     }
 }
 
+// MARK: - 역할 토큰 (렌더 기준)
+
+/// "같은 역할 = 같은 렌더 크기"(디자인 리뷰 1라운드 M1).
+///
+/// `fcFont(_:)` 는 20pt 미만을 ×1.15 하고(`readable`), 커뮤니티 `cmText` 는 보정 없이 그린다.
+/// 그래서 같은 15pt 탭이 전적에선 17.3pt, 커뮤니티에선 15pt 로 렌더돼 탭 바를 오갈 때 글자가 튀었다.
+/// 역할 토큰은 **숫자가 곧 렌더 크기**다(Dynamic Type 배율만 곱한다). 탭·칩·섹션 라벨·리스트 메타처럼
+/// 화면을 넘나드는 역할은 전부 여기로 옮긴다. 커뮤니티 `cmText` 도 같은 경로(보정 없음)를 쓴다.
+enum TextRole {
+    /// 화면 큰 제목(커뮤니티 "커뮤니티" 등) 24 Bold
+    case screenTitle
+    /// 상세 제목 20 Bold
+    case title
+    /// 카드 제목·강조 한 줄 17 SemiBold
+    case headline
+    /// 본문 16
+    case body
+    /// 1차 탭 15 SemiBold
+    case tab
+    /// 보조 본문 14
+    case callout
+    /// 칩·드롭다운 알약 13 SemiBold
+    case chip
+    /// 섹션 라벨 13 SemiBold
+    case label
+    /// 리스트 메타·보조 설명 12
+    case meta
+    /// 범례·각주 11
+    case caption
+
+    var size: CGFloat {
+        switch self {
+        case .screenTitle: 24
+        case .title: 20
+        case .headline: 17
+        case .body: 16
+        case .tab: 15
+        case .callout: 14
+        case .chip, .label: 13
+        case .meta: 12
+        case .caption: 11
+        }
+    }
+    var weight: Font.Weight {
+        switch self {
+        case .screenTitle, .title: .bold
+        case .headline, .tab, .chip, .label: .semibold
+        default: .regular
+        }
+    }
+}
+
+/// 렌더 기준 크기 — `readable()` 을 거치지 않는다. Dynamic Type 배율(최대 1.6)만 따른다.
+private struct RenderSizeFont: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    let size: CGFloat
+    let weight: Font.Weight
+    let scoreboard: Bool
+    func body(content: Content) -> some View {
+        let s = size * TypeScale.factor(typeSize)
+        content.font(scoreboard ? .scoreboard(s, weight: weight) : .pretendard(s, weight))
+    }
+}
+
+extension View {
+    /// 역할 토큰 서체(Pretendard). `weight` 를 주면 역할 기본 굵기를 덮는다(선택된 탭 Bold 등).
+    func fcText(_ role: TextRole, weight: Font.Weight? = nil) -> some View {
+        modifier(RenderSizeFont(size: role.size, weight: weight ?? role.weight, scoreboard: false))
+    }
+    /// 렌더 기준 크기(보정 없음) — 역할 토큰에 없는 크기를 커뮤니티처럼 그대로 그릴 때.
+    func fcRender(_ size: CGFloat, _ weight: Font.Weight = .regular, scoreboard: Bool = false) -> some View {
+        modifier(RenderSizeFont(size: size, weight: weight, scoreboard: scoreboard))
+    }
+}
+
+extension Font {
+    /// `Text + Text` 연결용 역할 토큰 Font 값
+    static func fcText(_ role: TextRole, _ typeSize: DynamicTypeSize, weight: Font.Weight? = nil) -> Font {
+        .pretendard(role.size * TypeScale.factor(typeSize), weight ?? role.weight)
+    }
+}
+
 extension View {
     /// 본문 폰트 — 사용자의 글자 크기 설정을 따른다.
     func fcFont(_ size: CGFloat, weight: Font.Weight = .regular) -> some View {
@@ -177,11 +259,24 @@ extension Font {
     /// `fixedSize` 인 이유: 크기는 TypeScale 이 Dynamic Type 까지 반영해 계산하므로,
     /// `.custom(_:size:)` 를 쓰면 시스템이 한 번 더 키워 **이중으로 커진다**.
     static func pretendard(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .custom(PretendardName.for(weight), fixedSize: size)
+        let name = PretendardName.for(weight)
+        let key = "\(name)-\(size)" as NSString
+        if let f = PretendardName.cache.object(forKey: key) { return Font(f as CTFont) }
+        // 문맥 대체(calt)를 끈다 — Pretendard 는 숫자 사이의 x 를 ×(곱셈 기호)로 바꿔
+        // 구단주명 "9x7" 이 "9×7" 로 보였다(QA 1라운드 P2-4). 이름·검색어가 화면에서 바뀌면 안 된다.
+        guard let base = UIFont(name: name, size: size) else { return .custom(name, fixedSize: size) }
+        let desc = base.fontDescriptor.addingAttributes([
+            .featureSettings: [[UIFontDescriptor.FeatureKey.type: 36, UIFontDescriptor.FeatureKey.selector: 1]],
+        ])
+        let f = UIFont(descriptor: desc, size: size)
+        PretendardName.cache.setObject(f, forKey: key)
+        return Font(f as CTFont)
     }
 }
 
 enum PretendardName {
+    /// 이름·크기별 UIFont 캐시(calt 끈 디스크립터) — 매 body 마다 디스크립터를 다시 만들지 않게. NSCache 는 스레드 안전.
+    static let cache = NSCache<NSString, UIFont>()
     static func `for`(_ weight: Font.Weight) -> String {
         switch weight {
         case .medium: return "Pretendard-Medium"
@@ -222,10 +317,11 @@ struct SectionLabel: View {
     var body: some View {
         // 영문 라벨("SHOT MAP")은 전광판 서체 + 넓은 자간이 멋있지만, 한글에 자간 2.5 를 주면
         // "이 번 주 성 적 표" 처럼 글자가 흩어져 읽기 어렵다. 한글이면 본문 서체·기본 자간으로.
+        // 역할 토큰 `.label`(13 렌더) — 커뮤니티·전적·홈이 같은 크기로 보인다.
         if text.unicodeScalars.contains(where: { (0xAC00...0xD7A3).contains($0.value) }) {
-            Text(text).fcFont(12, weight: .semibold).foregroundStyle(color)
+            Text(text).fcText(.label).foregroundStyle(color)
         } else {
-            Text(text).fcScoreboard(12, weight: .semibold).kerning(2.5).foregroundStyle(color)
+            Text(text).fcRender(12, .semibold, scoreboard: true).kerning(2.5).foregroundStyle(color)
         }
     }
 }
@@ -238,7 +334,8 @@ struct Chip: View {
     var size: Size = .regular
     enum Size { case regular, large }
     var body: some View {
-        Text(text).fcFont(size == .large ? 13 : 12, weight: .semibold).foregroundStyle(color)
+        // 역할 토큰 — 칩은 어느 화면이든 13 렌더(.large 는 탭 영역이 큰 버튼용 14)
+        Text(text).fcRender(size == .large ? 14 : 13, .semibold).foregroundStyle(color)
             .padding(.horizontal, size == .large ? 12 : 8).padding(.vertical, size == .large ? 8 : 4)
             .background(bg, in: Capsule())
     }
@@ -338,11 +435,14 @@ struct BrandButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .fcFont(compact ? 14 : 16, weight: .bold)
-            .foregroundStyle(FC.brandInk)
+            .foregroundStyle(isEnabled ? FC.brandInk : FC.muted)
             .padding(.horizontal, compact ? 14 : 22)
             .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: compact ? 36 : 50)
-            .background(FC.brand, in: Capsule())
-            .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.45)
+            // 비활성은 그라디언트를 반투명으로 두지 않는다 — 인디고 위에서 탁한 적갈색이 됐다(디자인 M11).
+            .background {
+                if isEnabled { Capsule().fill(FC.brand) } else { Capsule().fill(FC.surface2) }
+            }
+            .opacity(isEnabled && configuration.isPressed ? 0.8 : 1)
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .contentShape(Capsule())
     }

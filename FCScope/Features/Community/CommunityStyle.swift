@@ -28,10 +28,12 @@ enum CM {
         Color(UIColor { $0.userInterfaceStyle == .light ? UIColor(hex: light) : UIColor(hex: dark) })
     }
 
-    /// 아바타 배경 8색 — 닉네임 해시로 고른다(같은 사람은 늘 같은 색).
+    /// 아바타 8색 — 닉네임 해시로 고른다(같은 사람은 늘 같은 색). 틴트 아바타(색 16% 채움 + 같은 색 글자)로 쓴다.
+    /// 원색 채움(Tailwind 600)은 "연락처 앱" 느낌이었고, 초록은 승리색과 겹쳐 뺐다(디자인 N1).
+    /// 바이올렛 · 인디고 · 코랄 · 틸 · 스카이 · 핑크 · 앰버 · 슬레이트 — 다크/라이트 각각 글자 대비를 맞춘 두 값.
     static let avatarColors: [Color] = [
-        Color(UIColor(hex: 0x3b82f6)), Color(UIColor(hex: 0xf0502a)), Color(UIColor(hex: 0xd97706)), Color(UIColor(hex: 0x7c3aed)),
-        Color(UIColor(hex: 0x0d9488)), Color(UIColor(hex: 0xdb2777)), Color(UIColor(hex: 0x16a34a)), Color(UIColor(hex: 0x6366f1)),
+        dyn(0xa78bfa, 0x6d28d9), dyn(0x818cf8, 0x4338ca), dyn(0xff8a65, 0xc2410c), dyn(0x2dd4bf, 0x0f766e),
+        dyn(0x7dd3fc, 0x0369a1), dyn(0xf472b6, 0xbe185d), dyn(0xfbbf24, 0xa16207), dyn(0xa5b4cb, 0x475569),
     ]
     static func avatarColor(_ seed: String) -> Color {
         // String.hashValue 는 실행마다 바뀐다 — 고정 해시(djb2)로.
@@ -45,25 +47,15 @@ enum CM {
 
 /// 커뮤니티 화면은 `TypeScale.readable()`(20pt 미만 ×1.15)을 거치지 않는다 — 운영자 "글자가 너무 크다"의 원인.
 /// 코드의 숫자가 곧 렌더 크기다. Dynamic Type 배율(최대 1.6배)은 그대로 따른다.
-private struct CMTextFont: ViewModifier {
-    @Environment(\.dynamicTypeSize) private var typeSize
-    let size: CGFloat
-    let weight: Font.Weight
-    let scoreboard: Bool
-    func body(content: Content) -> some View {
-        let s = size * TypeScale.factor(typeSize)
-        content.font(scoreboard ? .scoreboard(s, weight: weight) : .pretendard(s, weight))
-    }
-}
-
+/// 앱 공용 역할 토큰(`fcText`, Theme.swift)과 **같은 경로**를 쓴다 — 탭 15·칩 13·메타 12 가 전 화면에서 같은 크기.
 extension View {
     /// 커뮤니티 본문 서체(Pretendard) — 렌더 기준 크기 + Dynamic Type.
     func cmText(_ size: CGFloat, _ weight: Font.Weight = .regular) -> some View {
-        modifier(CMTextFont(size: size, weight: weight, scoreboard: false))
+        fcRender(size, weight)
     }
     /// 커뮤니티 숫자 서체(Chakra Petch) — 렌더 기준 크기 + Dynamic Type.
     func cmScore(_ size: CGFloat, _ weight: Font.Weight = .semibold) -> some View {
-        modifier(CMTextFont(size: size, weight: weight, scoreboard: true))
+        fcRender(size, weight, scoreboard: true)
     }
 }
 
@@ -154,9 +146,10 @@ struct NickAvatar: View {
     let nickname: String
     var size: CGFloat = 36
     var body: some View {
-        Circle().fill(CM.avatarColor(nickname))
+        let c = CM.avatarColor(nickname)
+        Circle().fill(c.opacity(0.16))
             .frame(width: size, height: size)
-            .overlay(Text(String(nickname.prefix(1))).font(.pretendard(size * 0.42, .bold)).foregroundStyle(.white))
+            .overlay(Text(String(nickname.prefix(1))).font(.pretendard(size * 0.42, .semibold)).foregroundStyle(c))
             .accessibilityHidden(true)
     }
 }
