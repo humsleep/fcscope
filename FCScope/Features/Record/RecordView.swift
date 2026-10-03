@@ -229,17 +229,9 @@ struct RecordView: View {
         .refreshable { await vm.refresh() }
     }
 
-    /// 선행 프로필 히어로 (경기 데이터 도착 전)
+    /// 선행 프로필 히어로 (경기 데이터 도착 전) — 본 헤더와 같은 엠블럼 줄을 먼저 그린다.
     private func quickHero(_ p: UserProfile) -> some View {
-        Panel {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(p.nickname).fcFont(26, weight: .bold).foregroundStyle(FC.ink)
-                    (Text("LV.").foregroundStyle(FC.muted) + Text("\(p.level)").foregroundStyle(FC.ink)).font(.fcScoreboard(14, typeSize, weight: .semibold)).lineLimit(1).fixedSize()
-                }
-                ForEach(p.divisions) { d in divisionRow(d) }
-            }
-        }
+        Panel { RecordIdentityRow(profile: p, isMine: prefs.myNickname?.caseInsensitiveCompare(p.nickname) == .orderedSame) }
     }
 
     private func errorView(_ err: Error) -> some View {
@@ -256,13 +248,21 @@ struct RecordView: View {
     private func content(_ o: UserOverview) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                hero(o)
+                // 헤더 v2(UX-AUDIT-GENZ #4): 엠블럼·폼 티어·MY TYPE·3칸 타일·폼 블록·공유 CTA·VS 진입.
+                RecordHeader(
+                    o: o, isMine: isMine(o),
+                    onMakeMine: { prefs.myNickname = o.profile.nickname; Haptic.success() },
+                    onTypeTap: { selectSection(.report) },
+                    onVersus: { router.push(.versus(me: o.profile.nickname, type: o.matchType)) }
+                )
                 if isMine(o), pushUndetermined, !prefs.pushPromptDismissed { pushPrompt }
-                // 선택 컨트롤을 먼저 — 진단 배지가 사이에 있으면 컨트롤이 화면 아래로 밀려
-                // "탭이 있는 줄 모르는" 상태가 된다. 배지는 보조 정보라 아래로 내린다.
-                typeTabs(o)
-                sectionPicker
-                if let mt = o.diagnosis.type { badge("⚽", mt) { vm.section = .report; Task { await vm.loadSection() } } }
+                // 탭 두 줄(모드 세그먼트 + 콘텐츠 칩)을 한 덩어리로: 모드는 드롭다운 칩, 콘텐츠는 밑줄 탭.
+                RecordTabBar(
+                    tabs: o.matchTabs, matchType: vm.matchType, week: o.week,
+                    section: Binding(get: { vm.section }, set: { vm.section = $0 }),
+                    onType: { newType in vm.selectType(newType) },
+                    onSection: { _ in Task { await vm.loadSection() } }
+                )
                 switch vm.section {
                 case .matches: MatchesSection(o: o, nickname: o.profile.nickname)
                 case .report: ReportSection(state: vm.report, retry: retrySection)
@@ -273,7 +273,6 @@ struct RecordView: View {
                 // "경기" 탭은 목록 3번째 행 뒤에 MatchesSection 이 직접 넣는다(카톡 목록 광고처럼 첫 행이 아니게).
                 // 기록이 없는 모드(빈 상태 한 줄)에는 두지 않는다 — 콘텐츠 없는 화면의 광고(AdMob 정책)
                 if vm.section != .matches, o.summary.played > 0 { AdSlot() }
-                HStack { Spacer(); ShareCardButton(story: .user(o), label: "전적 카드 저장 · 공유"); Spacer() }.padding(.top, 8)
             }
             .padding(16)
         }
@@ -311,109 +310,10 @@ struct RecordView: View {
         pushUndetermined = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus == .notDetermined
     }
 
-    private func hero(_ o: UserOverview) -> some View {
-        Panel {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(o.profile.nickname).fcFont(26, weight: .bold).foregroundStyle(FC.ink).lineLimit(2).minimumScaleFactor(0.7)
-                    (Text("LV.").foregroundStyle(FC.muted) + Text("\(o.profile.level)").foregroundStyle(FC.ink)).font(.fcScoreboard(14, typeSize, weight: .semibold)).lineLimit(1).fixedSize()
-                    Spacer()
-                    if prefs.myNickname?.caseInsensitiveCompare(o.profile.nickname) != .orderedSame {
-                        // 12pt 글자만 한 탭 영역이라 잘 안 눌렸다 — 레이아웃은 그대로, 탭 영역만 44pt.
-                        Button { prefs.myNickname = o.profile.nickname; Haptic.success() } label: {
-                            Text("내 구단으로").fcFont(12, weight: .semibold).foregroundStyle(FC.tint).lineLimit(1).fixedSize()
-                                .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain).padding(.vertical, -12)
-                    } else { Chip(text: "내 구단", color: FC.tintInk, bg: FC.tint) }
-                }
-                if o.summary.played > 0 { headline(o) }
-                ForEach(o.profile.divisions) { d in divisionRow(d) }
-                if !o.profile.divisions.isEmpty { ShareCardButton(story: .rank(o), label: "🏆 계급 인증 카드", compact: true) }
-            }
-        }
-    }
-
-    /// 넥슨 division 은 "역대 최고 등급 + 달성일"이다. 날짜만 괄호로 붙이니 현재 등급으로 읽혔다 — "최고 등급"을 밝힌다.
-    private func divisionRow(_ d: DivisionCard) -> some View {
-        FlowLayout(spacing: 6, lineSpacing: 4) {
-            Text("\(d.matchTypeName) 최고 등급").fcFont(13).foregroundStyle(FC.muted)
-            HStack(spacing: 4) {
-                if let icon = d.iconUrl { RemoteImage(url: icon, size: 20) }
-                Text(d.divisionName).fcFont(13, weight: .bold).foregroundStyle(FC.gold)
-            }
-            Text("\(d.date) 달성").fcFont(12).foregroundStyle(FC.muted)
-        }
-    }
-
-    /// 머리 숫자는 두 개만 — 승률과 FC Scope 스코어. 평균 평점·주간 평균처럼 척도가 다른 숫자가 나란히 있으면 무엇이 기준인지 흐려진다.
-    private func headline(_ o: UserOverview) -> some View {
-        HStack(alignment: .top, spacing: 24) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("최근 \(o.summary.played)경기 승률").fcFont(12).foregroundStyle(FC.muted)
-                // 승률은 중립 숫자 — 강조색을 쓰면 30%도 "좋다"로 읽혔다(UX-AUDIT-GENZ #2). 좋고 나쁨은 옆 스코어 색이 말한다.
-                Text("\(o.summary.winRate)%").fcScoreboard(30).foregroundStyle(FC.ink)
-                Text("\(o.summary.win)승 \(o.summary.draw)무 \(o.summary.lose)패").fcScoreboard(11).foregroundStyle(FC.muted)
-                // 기준 라벨 — 승률은 앱 전체가 몰수 포함(넥슨 공식 전적과 같은 기준). 몰수가 있으면 뺀 값도 같이 밝혀
-                // 공유 카드·웹과 숫자가 달라 보이는 일을 막는다.
-                if let f = o.perf.forfeits, f > 0, let np = o.perf.normalPlayed, np > 0, let nw = o.perf.normalWin {
-                    Text("몰수 \(f)경기 포함 · 빼면 \(Int((Double(nw) / Double(np) * 100).rounded()))%").fcFont(11).foregroundStyle(FC.muted)
-                }
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text("FC Scope 스코어").fcFont(12).foregroundStyle(FC.muted)
-                (Text(String(format: "%.1f", o.score)) + Text("/10").font(.fcScoreboard(13, typeSize)).foregroundStyle(FC.muted)).font(.fcScoreboard(30, typeSize)).foregroundStyle(FC.tone(o.tier.tone))
-                Text(FCCopy.tier(o.tier.label)).fcFont(11, weight: .semibold).foregroundStyle(FC.tone(o.tier.tone))
-            }
-        }
-        .padding(.vertical, 2)
-    }
-
-    private func badge(_ emoji: String, _ r: Rule, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Panel(padding: 12) { RuleBadge(rule: r, prefix: "\(emoji) ") } }.buttonStyle(.plain)
-    }
-
-    /// 매치 유형 — "어떤 경기를 볼지"를 정하는 최상위 필터.
-    /// 가로 스크롤 칩이었는데 화면 밖 항목을 놓치기 쉬웠다. 항목이 3개뿐이라
-    /// 세그먼트 컨트롤이 한 줄에 다 들어가고, iOS 에서 배타 선택의 표준 컨트롤이다.
-    private func typeTabs(_ o: UserOverview) -> some View {
-        Picker("매치 유형", selection: Binding(
-            get: { vm.matchType },
-            // $0 를 중첩 클로저 안에서 쓰면 Binding 의 2인자 오버로드로 해석된다 — 이름을 준다.
-            set: { newType in vm.selectType(newType) }
-        )) {
-            ForEach(o.matchTabs) { t in Text(t.label).tag(t.type) }
-        }
-        .pickerStyle(.segmented)
-    }
-
-    /// 보기 전환 — 같은 데이터를 네 가지 시선으로 본다.
-    /// 세그먼트 컨트롤에 네 개의 긴 한글 라벨을 넣으니 글자가 뭉개져 안 보였다.
-    /// 짧은 라벨 + 선택 상태가 분명한 칩으로 바꾸고, 줄바꿈으로 전부 노출한다.
-    private var sectionPicker: some View {
-        FlowLayout(spacing: 6, lineSpacing: 0) {
-            ForEach(RecordViewModel.Section.allCases) { sec in
-                Button {
-                    guard vm.section != sec else { return }
-                    vm.section = sec
-                    Haptic.light()
-                    Task { await vm.loadSection() }
-                } label: {
-                    HStack(spacing: 5) {
-                        // 고정 12pt 아이콘은 글자만 커지고 아이콘은 그대로라 칩 안에서 어색했다 — 같은 배율로 키운다.
-                        Image(systemName: sec.icon).font(.system(size: 12 * TypeScale.factor(typeSize), weight: .semibold))
-                        Text(sec.short).fcFont(13, weight: .semibold)
-                    }
-                    .padding(.horizontal, 12).padding(.vertical, 9)
-                    .background(vm.section == sec ? FC.tint : FC.surface2, in: Capsule())
-                    .foregroundStyle(vm.section == sec ? FC.tintInk : FC.ink)
-                    .tapTarget()
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(sec.rawValue)
-                .accessibilityAddTraits(vm.section == sec ? [.isSelected] : [])
-            }
-        }
+    private func selectSection(_ sec: RecordViewModel.Section) {
+        guard vm.section != sec else { return }
+        withAnimation(.snappy(duration: 0.25)) { vm.section = sec }
+        Task { await vm.loadSection() }
     }
 }
 
@@ -506,14 +406,10 @@ struct MatchesSection: View {
         }
     }
 
-    /// 승률·스코어 큰 숫자는 히어로로 올렸다 — 여기엔 흐름(최근 10경기 폼·경기 평점 추이)만 남긴다.
+    /// 승률·스코어·최근 10경기 폼은 헤더로 올렸다 — 여기엔 경기 평점 추이만 남긴다.
     private var formPanel: some View {
         Panel {
             VStack(alignment: .leading, spacing: 10) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("최근 10경기 폼").fcFont(12).foregroundStyle(FC.muted)
-                    HStack(spacing: 4) { ForEach(o.matches.prefix(10)) { ResultBadge(result: $0.result, size: 24) } }
-                }
                 VStack(alignment: .leading, spacing: 4) {
                     Text("경기 평점 추이 (과거 → 최근)").fcFont(12).foregroundStyle(FC.muted)
                     RatingSparkline(values: o.matches.reversed().map { $0.me.rating })

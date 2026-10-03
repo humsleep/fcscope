@@ -235,28 +235,38 @@ struct ShareCardButton: View {
     let source: ShareCardSource
     var label: String = "카드 저장 · 공유"
     var compact = false
+    /// 겉모양. nil 이면 compact 여부로 정한다(기존 호출부 호환).
+    /// - hero: 화면의 주 CTA — 폭 가득 그라디언트(BrandButtonStyle 과 같은 높이 50)
+    /// - secondary: 주 CTA 옆 보조 — surface2 채움 + 얇은 테두리
+    var style: Style? = nil
+    enum Style { case regular, compact, hero, secondary }
+    private var resolved: Style { style ?? (compact ? .compact : .regular) }
 
     @State private var busy = false
     @State private var image: UIImage?
     @State private var showSheet = false
     @State private var error: String?
 
-    init(spec: ShareCardSpec, label: String = "카드 저장 · 공유", compact: Bool = false) {
+    init(spec: ShareCardSpec, label: String = "카드 저장 · 공유", compact: Bool = false, style: Style? = nil) {
+        self.style = style
         self.source = .spec(spec)
         self.label = label
         self.compact = compact
     }
-    init(squad: SquadCardData, label: String = "스쿼드 카드", compact: Bool = false) {
+    init(squad: SquadCardData, label: String = "스쿼드 카드", compact: Bool = false, style: Style? = nil) {
+        self.style = style
         self.source = .squad(squad)
         self.label = label
         self.compact = compact
     }
-    init(story: StoryCard, label: String = "카드 저장 · 공유", compact: Bool = false) {
+    init(story: StoryCard, label: String = "카드 저장 · 공유", compact: Bool = false, style: Style? = nil) {
+        self.style = style
         self.source = .story(story)
         self.label = label
         self.compact = compact
     }
-    init(match: MatchDetailResponse, label: String = "매치 카드", compact: Bool = false) {
+    init(match: MatchDetailResponse, label: String = "매치 카드", compact: Bool = false, style: Style? = nil) {
+        self.style = style
         self.source = .match(match)
         self.label = label
         self.compact = compact
@@ -266,6 +276,38 @@ struct ShareCardButton: View {
         Button {
             Task { await make() }
         } label: {
+            switch resolved {
+            case .hero, .secondary: wideLabel
+            case .regular, .compact: pillLabel
+            }
+        }
+        .disabled(busy)
+        .sheet(isPresented: $showSheet) { if let image { ShareCardSheet(image: image, filename: filename) } }
+        .alert("카드를 만들지 못했어요", isPresented: Binding(get: { error != nil }, set: { _ in error = nil })) { Button("확인") {} } message: { Text(error ?? "") }
+    }
+
+    /// 헤더 CTA 줄 — 높이 50, 폭은 부모가 정한다.
+    private var wideLabel: some View {
+        let hero = resolved == .hero
+        return HStack(spacing: 6) {
+            // 보조 버튼은 라벨 이모지(🏆 등)가 아이콘 역할을 한다 — 공유 아이콘은 주 CTA 에만.
+            if busy { ProgressView().controlSize(.small).tint(hero ? FC.brandInk : FC.ink) } else if hero { Image(systemName: "arrow.up.forward.app.fill").font(.system(size: 15, weight: .bold)) }
+            Text(busy ? "만드는 중…" : label).fcFont(hero ? 16 : 15, weight: .bold).lineLimit(1).minimumScaleFactor(0.8)
+        }
+        .foregroundStyle(hero ? FC.brandInk : FC.ink)
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity, minHeight: 50)
+        .background {
+            if hero {
+                Capsule().fill(FC.brand).shadow(color: FC.brandEnd.opacity(0.35), radius: 10, y: 4)
+            } else {
+                Capsule().fill(FC.surface2).overlay(Capsule().strokeBorder(FC.line, lineWidth: 1))
+            }
+        }
+        .contentShape(Capsule())
+    }
+
+    private var pillLabel: some View {
             HStack(spacing: 6) {
                 if busy { ProgressView().controlSize(.small) } else { Image(systemName: "square.and.arrow.up") }
                 Text(busy ? "만드는 중…" : label).fcFont(compact ? 12 : 14, weight: .bold)
@@ -284,10 +326,6 @@ struct ShareCardButton: View {
             // 작은 버튼도 탭 영역은 44pt — 보이는 알약 크기는 그대로
             .frame(minHeight: compact ? 44 : nil)
             .contentShape(Rectangle())
-        }
-        .disabled(busy)
-        .sheet(isPresented: $showSheet) { if let image { ShareCardSheet(image: image, filename: filename) } }
-        .alert("카드를 만들지 못했어요", isPresented: Binding(get: { error != nil }, set: { _ in error = nil })) { Button("확인") {} } message: { Text(error ?? "") }
     }
 
     private var filename: String {
