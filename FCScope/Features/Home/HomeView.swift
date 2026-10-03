@@ -26,6 +26,9 @@ struct HomeView: View {
     @State private var query = ""
     /// 검색창 활성 상태 — 제안 탭 후 닫고, "전적 · 분석 리포트" 카드에서 열 때 쓴다.
     @State private var searchPresented = false
+    /// 히어로 검색 필드 — 내비 바 `.searchable`(최근 검색 제안)과 따로 둔다.
+    @State private var heroQuery = ""
+    @FocusState private var heroFocused: Bool
     /// 내 구단 "지난 방문 이후 새 경기" — 디스크 캐시에 남은 전적(백그라운드 갱신·이전 조회)으로만 계산한다. 홈에서 네트워크 0.
     @State private var sinceLastSeen: [MatchSummary]?
 
@@ -90,13 +93,39 @@ struct HomeView: View {
         }
     }
 
+    /// 검색 히어로(UX-AUDIT-GENZ #6) — 내비게이션 바의 회색 검색 필드는 눈에 안 띄었다. 첫 화면 주인공을 검색 하나로.
+    /// 기능 나열 대신 유저의 질문을 카피로 쓴다. `.searchable` 은 최근 검색 제안용으로 그대로 둔다.
     private var hero: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 12) {
             SectionLabel("FC온라인 비공식 데이터 랩", color: FC.tint)
-            (Text("감이 아니라, ") + Text("데이터").foregroundStyle(FC.brand) + Text("로."))
-                .fcFont(28, weight: .bold).foregroundStyle(FC.ink)
-            Text("전적·슛맵·선수 성적표·플레이스타일을 구단주명 하나로.").fcFont(14).foregroundStyle(FC.muted)
+            (Text("나 요즘 왜 지는지,\n") + Text("30경기").foregroundStyle(FC.brand) + Text("로 바로 진단"))
+                .fcFont(26, weight: .bold).foregroundStyle(FC.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundStyle(FC.muted)
+                TextField("구단주명 입력", text: $heroQuery)
+                    .fcFont(16).foregroundStyle(FC.ink)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .submitLabel(.search).focused($heroFocused)
+                    .onSubmit { submitHero() }
+                Button(action: submitHero) {
+                    HStack(spacing: 4) { Text("진단"); Image(systemName: "play.fill").font(.system(size: 10, weight: .bold)) }
+                }
+                .buttonStyle(BrandButtonStyle(compact: true))
+                .disabled(heroQuery.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            .padding(.leading, 14).padding(.trailing, 6).frame(minHeight: 52)
+            .background(FC.surface, in: Capsule())
+            .overlay(Capsule().strokeBorder(FC.brand, lineWidth: 1.5))
+            Text("전적·슛맵·선수 성적표·플레이스타일 · 로그인 없이").fcFont(12).foregroundStyle(FC.muted)
         }
+    }
+
+    private func submitHero() {
+        heroFocused = false
+        let q = heroQuery
+        heroQuery = ""
+        search(q)
     }
 
     /// 구단주명이 없는 첫 방문자용 — 서버가 내려주는 데모 계정으로 결과 화면을 먼저 보여준다.
