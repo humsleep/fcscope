@@ -44,6 +44,8 @@ struct MatchReportView: View {
             SectionLabel("\(m.matchTypeName.uppercased()) · \(m.matchDateLabel)")
             // 결과 히어로 + 바로 아래 공유 CTA(UX-AUDIT-GENZ #5). 매치 카드(1080×1920)는 원래 있었는데 진입점이 맨 아래라 안 보였다.
             MatchResultHero(m: m, onTapUser: { router.push(.user($0)) })
+            let reasons = m.lossReasons
+            if !reasons.isEmpty { lossPanel(reasons) }
             ShareCardButton(match: m, label: m.me.result == "승" ? "이 경기 스토리로 자랑" : "이 경기 스토리로 공유", style: .hero)
             if let p = m.potm {
                 Panel(padding: 12) {
@@ -108,6 +110,23 @@ struct MatchReportView: View {
                 Spacer()
             }
         }.padding(16)
+    }
+
+    /// 진 경기 "왜 졌을까" — 이 경기 기록에서 뽑은 1~2줄(`MatchDetailResponse.lossReasons`).
+    private func lossPanel(_ reasons: [String]) -> some View {
+        Panel(padding: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                SectionLabel("왜 졌을까")
+                ForEach(reasons, id: \.self) { r in
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text("▸").fcScoreboard(12).foregroundStyle(FC.tint)
+                        Text(r).fcFont(14, weight: .semibold).foregroundStyle(FC.ink).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Text("이 경기 슛·유효슛·슛 위치·점유·골 시간으로 본 진단이에요").fcText(.caption).foregroundStyle(FC.muted)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func shotLegend(_ s: MatchSide, tone: Color) -> some View {

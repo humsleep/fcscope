@@ -44,7 +44,7 @@ struct MatchResultHero: View {
             .accessibilityLabel("\(resultWord), \(m.me.goals) 대 \(m.opponent?.goals ?? 0)")
 
             VStack(spacing: 4) {
-                Text("\(resultWord) · \(m.liner(after: [resultWord, m.me.result]))").fcFont(16, weight: .bold).foregroundStyle(tone)
+                Text(m.heroLine(resultWord: resultWord)).fcFont(16, weight: .bold).foregroundStyle(tone)
                     .multilineTextAlignment(.center).lineLimit(2).minimumScaleFactor(0.85)
                 if m.me.forfeit { Text("몰수 경기").fcFont(12, weight: .semibold).foregroundStyle(FC.lose) }
             }
@@ -52,9 +52,9 @@ struct MatchResultHero: View {
             possession
 
             HStack(spacing: 8) {
-                statBox(m.opponent.map { "\(m.me.stats.shots) / \($0.stats.shots)" } ?? "\(m.me.stats.shots)", m.opponent == nil ? "슛" : "슛 · 나/상대")
+                statBox(m.opponent.map { "\(m.me.stats.shots) / \($0.stats.shots)" } ?? "\(m.me.stats.shots)", m.opponent == nil || typeSize.isAccessibilitySize ? "슛" : "슛 · 나/상대")
                 // 옆 칸과 같은 형식인데 (나/상대)가 빠져 헷갈렸다(유저 패널 C)
-                statBox(m.opponent.map { "\(m.me.stats.effectiveShots) / \($0.stats.effectiveShots)" } ?? "\(m.me.stats.effectiveShots)", m.opponent == nil ? "유효슛" : "유효슛 · 나/상대")
+                statBox(m.opponent.map { "\(m.me.stats.effectiveShots) / \($0.stats.effectiveShots)" } ?? "\(m.me.stats.effectiveShots)", m.opponent == nil || typeSize.isAccessibilitySize ? "유효슛" : "유효슛 · 나/상대")
                 // verdict.score 는 0~100 게이지 값이라 FC 스코어(10점)가 아니다. 경기별 FC 스코어는 전적 응답(MatchSummary)에만
                 // 있으므로 디스크 캐시에서 찾고(네트워크 0), 없으면(딥링크로 바로 들어온 경우) 경기 평점으로 대신한다.
                 if let s = fcScore {

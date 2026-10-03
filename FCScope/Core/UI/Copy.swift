@@ -78,19 +78,75 @@ extension MatchDetailResponse {
         return nil
     }
 
+    /// 진 경기의 "왜 졌는지" — 이 경기 데이터(슛·유효슛·슛 위치·점유·골 시간)에서만 뽑는 결정적 진단, 최대 2줄.
+    /// 위로 문구("꼬였던 판")만 있어 진 날엔 앱을 안 연다는 지적(유저 패널 2R A). 없는 데이터(역습 실점 등)는 지어내지 않는다.
+    /// 조건에 맞는 게 없으면 빈 배열 — 화면은 블록을 숨긴다. 몰수·상대 없음도 빈 배열.
+    var lossReasons: [String] {
+        guard me.result == "패", !me.forfeit, let o = opponent else { return [] }
+        let ms = me.stats, os = o.stats
+        var out: [String] = []
+        let myBox = me.shots.filter { $0.inPenalty == true }.count
+        let hasBoxData = me.shots.contains { $0.inPenalty != nil }
+        // 1) 슛 자체가 적다
+        if ms.shots <= 4, ms.shots < os.shots {
+            out.append("슛 \(ms.shots)개로는 어려웠어요 — 상대는 \(os.shots)개")
+        }
+        // 2) 쐈지만 골문으로 안 갔다
+        if ms.shots >= 6, ms.effectiveShots * 3 <= ms.shots {
+            out.append("슛 \(ms.shots)개 중 유효슛 \(ms.effectiveShots)개 — 골문으로 간 슛이 적었어요")
+        }
+        // 3) 박스 밖에서 많이 쐈다
+        if hasBoxData, ms.shots >= 5, myBox * 2 < me.shots.count {
+            out.append("슛 \(me.shots.count)개 중 박스 안 \(myBox)개 — 먼 거리 슛이 많았어요")
+        }
+        // 4) 골문으로 갔는데 안 들어갔다
+        if ms.effectiveShots >= 5, me.goals * 4 <= ms.effectiveShots {
+            out.append("유효슛 \(ms.effectiveShots)개에 \(me.goals)골 — 마무리가 아쉬웠어요")
+        }
+        // 5) 상대 마무리가 날카로웠다
+        if o.goals >= 2, os.effectiveShots > 0, o.goals * 2 >= os.effectiveShots {
+            out.append("상대는 유효슛 \(os.effectiveShots)개로 \(o.goals)골 — 상대 마무리가 날카로웠어요")
+        }
+        // 6) 공을 못 잡았다
+        if me.possession <= 40 {
+            out.append("점유 \(me.possession)% — 공을 오래 못 잡았어요")
+        }
+        // 7) 막판 실점으로 갈린 한 골 차
+        if me.goals - o.goals == -1, let late = o.shots.filter({ $0.isGoal && ($0.minute ?? 0) >= 80 }).compactMap(\.minute).max() {
+            out.append("\(late)분 실점 — 막판 한 골에 갈렸어요")
+        }
+        return Array(out.prefix(2))
+    }
+
     /// 화면·카드에 실제로 띄우는 한 줄
     var liner: String {
         storyTag ?? FCCopy.matchLiner(result: me.result, myGoals: me.goals, oppGoals: opponent?.goals, forfeit: me.forfeit, server: verdict.oneLiner)
     }
 
-    /// 바로 옆에 이미 큰 결과 라벨("무승부" 등)·스코어가 있을 때 — 같은 말을 빼고 남은 부분만.
-    /// "무승부 · 3:3 난타전 무승부" → "난타전". 다 빼면 아무것도 안 남으면 원문 그대로.
+    /// 바로 옆에 이미 큰 결과 라벨·스코어가 있을 때 — **맨 앞에 붙은** 같은 말(스코어 "3:3", 결과 낱말)만 뺀다.
+    /// "3:3 난타전 무승부" → "난타전 무승부", "0:0, 서로 골문…" → "서로 골문…".
+    ///
+    /// 낱말(띄어쓰기 단위)로만 비교한다. 예전에는 `replacingOccurrences`로 글자를 지워서 "승"이
+    /// "대승"·"역습승"·"챙긴 승리" 안에서까지 빠졌다("승리 · 3골 차 대" — QA 2R P1-1).
+    /// 다 빼면 아무것도 안 남으면 원문 그대로.
     func liner(after shown: [String]) -> String {
-        var t = liner
-        if let o = opponent { t = t.replacingOccurrences(of: "\(me.goals):\(o.goals)", with: "") }
-        for w in shown where !w.isEmpty { t = t.replacingOccurrences(of: w, with: "") }
-        t = t.trimmingCharacters(in: CharacterSet(charactersIn: " ,·"))
-        return t.isEmpty ? liner : t
+        let full = liner
+        let score = opponent.map { "\(me.goals):\($0.goals)" }
+        let drop = Set(shown.filter { !$0.isEmpty } + [score].compactMap { $0 })
+        var words = full.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+        while let first = words.first, drop.contains(first.trimmingCharacters(in: CharacterSet(charactersIn: ",·"))) {
+            words.removeFirst()
+        }
+        let t = words.joined(separator: " ").trimmingCharacters(in: CharacterSet(charactersIn: " ,·"))
+        return t.isEmpty ? full : t
+    }
+
+    /// 매치 히어로 결과 줄. 한 줄 코멘트가 이미 결과 낱말("…챙긴 승리", "난타전 무승부")을 품고 있으면
+    /// 앞에 "승리 · "를 또 붙이지 않는다. 아니면 "승리 · 3골 차 대승"처럼 결과를 앞에 둔다.
+    func heroLine(resultWord: String) -> String {
+        let rest = liner(after: [resultWord])
+        let hasResult = rest.split(separator: " ").contains { $0.trimmingCharacters(in: CharacterSet(charactersIn: ",·")) == resultWord }
+        return hasResult ? rest : "\(resultWord) · \(rest)"
     }
 }
 
