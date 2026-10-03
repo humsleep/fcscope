@@ -201,8 +201,11 @@ struct PlayerCard: Decodable, Identifiable {
     let verdict: Verdict
     let ranker: RankerCompare?
     let topPick: Bool
+    /// 누적 태클 성공 수(서버 PlayerAggregate 를 펼쳐 내려 원래부터 있던 필드). 수비 라인 랭커 비교용.
+    let tackle: Int?
     var id: Int { spId }
-    struct RankerCompare: Decodable { let goal: Double; let passRate: Int; let matchCount: Int }
+    /// `tackle` 은 랭커 경기당 평균 태클(2026-10 서버 추가) — 옛 서버엔 없다.
+    struct RankerCompare: Decodable { let goal: Double; let passRate: Int; let matchCount: Int; let tackle: Double? }
 }
 
 // MARK: - playstyle

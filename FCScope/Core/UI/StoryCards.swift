@@ -160,7 +160,7 @@ struct UserCardView: View {
     var body: some View {
         CardCanvas {
             VStack(alignment: .leading, spacing: 0) {
-                CardHeader(chip: "\(matchTypeName) · 최근 \(o.summary.played)경기")          // 264–308
+                CardHeader(chip: "\(matchTypeName) · 최근 \(o.summary.played)경기" + ((o.perf.forfeits ?? 0) > 0 ? " · 몰수 \(o.perf.forfeits ?? 0) 포함" : ""))          // 264–308
                 Spacer().frame(height: 16)
                 NicknameTitle(text: o.profile.nickname)                                     // 324–500
                 Spacer().frame(height: 16)
@@ -191,7 +191,7 @@ struct UserCardView: View {
 
     private func styleBlock(_ s: (name: String, line: String?, beta: Bool)) -> some View {
         HStack(spacing: 24) {
-            RoundedRectangle(cornerRadius: 3).fill(CardPalette.lime).frame(width: 6)
+            RoundedRectangle(cornerRadius: 3).fill(CardPalette.brand).frame(width: 6)
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 10) {
                     CardLabel(text: "PLAYSTYLE")
@@ -200,7 +200,7 @@ struct UserCardView: View {
                             .padding(.horizontal, 10).padding(.vertical, 2).overlay(Capsule().stroke(CardPalette.line, lineWidth: 2))
                     }
                 }
-                Text(s.name).font(.pretendard(46, .bold)).foregroundStyle(CardPalette.lime).lineLimit(1).minimumScaleFactor(0.7)
+                Text(s.name).font(.pretendard(46, .bold)).foregroundStyle(CardPalette.brand).lineLimit(1).minimumScaleFactor(0.7)
                 if let line = s.line {
                     Text("▲ \(line)").font(.pretendard(26, .medium)).foregroundStyle(CardPalette.ink.opacity(0.85)).lineLimit(1).minimumScaleFactor(0.8)
                 }
@@ -211,17 +211,15 @@ struct UserCardView: View {
     }
 
     private var scoreColor: Color {
-        switch o.tier.tone { case "gold": return CardPalette.gold; case "win", "lime": return CardPalette.lime; default: return CardPalette.ink }
+        switch o.tier.tone { case "gold": return CardPalette.gold; case "win", "lime": return CardPalette.win; default: return CardPalette.ink }
     }
     private var showTier: Bool { ["gold", "win", "lime"].contains(o.tier.tone) }
 
-    /// 왼쪽 큰 숫자 — 그 유저에게 가장 좋은 지표를 올린다.
-    /// 스코어가 좋으면(티어 win/gold) FC SCORE, 아니면 몰수 제외 승률이 더 높을 때 그것, 그것도 아니면 평균 평점.
+    /// 왼쪽 큰 숫자 — 스코어가 좋으면(티어 win/gold) FC SCORE, 아니면 평균 평점.
+    /// "몰수 제외 승률"을 올리던 분기는 뺐다 — 같은 카드 오른쪽의 승률(몰수 포함)과 숫자가 둘이 돼
+    /// "48% vs 37%" 불일치로 읽혔다. 승률은 앱 전체가 **몰수 포함(넥슨 공식 전적과 같은 기준)** 하나만 쓴다.
     private var hero: (label: String, value: String, sub: String?, color: Color, gauge: Bool) {
-        if showTier { return ("FC SCORE", String(format: "%.1f", o.score), o.tier.label, scoreColor, true) }
-        if let f = o.perf.forfeits, f > 0, realWinRate > o.summary.winRate {
-            return ("실경기 승률", "\(realWinRate)%", "몰수 \(f)경기 제외", realWinRate >= 50 ? CardPalette.lime : CardPalette.ink, false)
-        }
+        if showTier { return ("FC SCORE", String(format: "%.1f", o.score), FCCopy.tier(o.tier.label), scoreColor, true) }
         return ("평균 평점", String(format: "%.2f", o.perf.avgRating), "최근 \(o.perf.played)경기", CardPalette.ink, false)
     }
 
@@ -251,14 +249,14 @@ struct UserCardView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 0) {
                     wdl(o.summary.win, "승"); wdl(o.summary.draw, "무"); wdl(o.summary.lose, "패")
                     Spacer(minLength: 8)
-                    Text("\(o.summary.winRate)%").font(.scoreboard(44)).foregroundStyle(o.summary.winRate >= 50 ? CardPalette.lime : CardPalette.ink)
+                    Text("\(o.summary.winRate)%").font(.scoreboard(44)).foregroundStyle(CardPalette.ink)
                 }
                 Spacer(minLength: 8)
                 HStack {
                     Text("최근 10경기").font(.pretendard(24, .semibold)).foregroundStyle(CardPalette.muted)
                     Spacer()
                     if o.streak.color != "lose", o.perf.played > 0 {
-                        Text(o.streak.text).font(.pretendard(26, .bold)).foregroundStyle(o.streak.color == "gold" ? CardPalette.gold : CardPalette.lime).lineLimit(1)
+                        Text(o.streak.text).font(.pretendard(26, .bold)).foregroundStyle(o.streak.color == "gold" ? CardPalette.gold : CardPalette.win).lineLimit(1)
                     }
                 }
                 .padding(.bottom, 10)
@@ -270,12 +268,6 @@ struct UserCardView: View {
         .padding(24)
         .background(CardPalette.surface, in: RoundedRectangle(cornerRadius: 32))
         .overlay(RoundedRectangle(cornerRadius: 32).stroke(CardPalette.line, lineWidth: 2))
-    }
-
-    private var realWinRate: Int {
-        let p = o.perf
-        guard let np = p.normalPlayed, np > 0, let nw = p.normalWin else { return o.summary.winRate }
-        return Int((Double(nw) / Double(np) * 100).rounded())
     }
 
     private func wdl(_ n: Int, _ l: String) -> some View {
@@ -316,7 +308,7 @@ struct UserCardView: View {
                 CardLabel(text: "FINISHING")
                 if let t = d.shotTotals, Double(t.goals) / Double(t.tries) >= 0.25 {
                     HStack(alignment: .center, spacing: 20) {
-                        Text("\(Int((Double(t.goals) / Double(t.tries) * 100).rounded()))%").font(.scoreboard(88)).foregroundStyle(CardPalette.lime)
+                        Text("\(Int((Double(t.goals) / Double(t.tries) * 100).rounded()))%").font(.scoreboard(88)).foregroundStyle(CardPalette.win)
                         VStack(alignment: .leading, spacing: 4) {
                             Text("결정력").font(.pretendard(30, .bold)).foregroundStyle(CardPalette.ink)
                             Text("슛 \(t.tries)개 중 \(t.goals)골").font(.pretendard(26)).foregroundStyle(CardPalette.muted)
@@ -328,7 +320,7 @@ struct UserCardView: View {
                     }
                 } else if let first = pos.first {
                     HStack(alignment: .center, spacing: 20) {
-                        Text(first.1).font(.scoreboard(88)).foregroundStyle(CardPalette.lime).lineLimit(1).minimumScaleFactor(0.6)
+                        Text(first.1).font(.scoreboard(88)).foregroundStyle(CardPalette.win).lineLimit(1).minimumScaleFactor(0.6)
                         Text(first.0).font(.pretendard(30, .bold)).foregroundStyle(CardPalette.ink)
                     }
                     .frame(height: 100)
@@ -399,7 +391,7 @@ struct TemplateCard<Hero: View, Sub: View, Body: View>: View {
 
 struct CardStampView: View {
     let text: String
-    var color: Color = CardPalette.lime
+    var color: Color = CardPalette.tint
     var body: some View {
         Text(text).font(.pretendard(34, .bold)).foregroundStyle(color).lineLimit(1)
             .padding(.horizontal, 32).frame(height: 64)
@@ -464,7 +456,7 @@ struct StreakCardView: View {
         TemplateCard(chip: "이번 폼", o: o, images: images, kicker: "최근 \(min(10, o.matches.count))경기 폼") {
             VStack(alignment: .leading, spacing: 28) {
                 Text(good ? o.streak.text : "최근 \(o.perf.played)경기")
-                    .font(.pretendard(72, .bold)).foregroundStyle(good ? (o.streak.color == "gold" ? CardPalette.gold : CardPalette.lime) : CardPalette.ink)
+                    .font(.pretendard(72, .bold)).foregroundStyle(good ? (o.streak.color == "gold" ? CardPalette.gold : CardPalette.win) : CardPalette.ink)
                     .lineLimit(1).minimumScaleFactor(0.6)
                 FormStrip(matches: o.matches, cell: 80, spacing: 11)
             }
@@ -473,7 +465,7 @@ struct StreakCardView: View {
                 .font(.pretendard(34, .semibold)).foregroundStyle(CardPalette.muted)
         } content: {
             let base: [(String, String, Color)] = [
-                ("최고 연승", "\(o.perf.bestWinStreak)", CardPalette.lime),
+                ("최고 연승", "\(o.perf.bestWinStreak)", CardPalette.win),
                 ("클린시트", "\(o.perf.cleanSheets)", CardPalette.ink),
                 ("대승", "\(o.perf.bigWins)", CardPalette.ink),
             ]
@@ -524,9 +516,9 @@ struct WeeklyCardView: View {
             } else if w.bestStreak >= 3 {
                 CardStampView(text: "이번 주 \(w.bestStreak)연승", color: CardPalette.gold)
             } else if w.winRate >= 45 {
-                CardStampView(text: "승률 \(w.winRate)%", color: CardPalette.lime)
+                CardStampView(text: "승률 \(w.winRate)%", color: CardPalette.win)
             } else {
-                CardStampView(text: w.truncated == true ? "이번 주 \(w.games)경기 이상 출전" : "이번 주 \(w.games)경기 출전", color: CardPalette.lime)
+                CardStampView(text: w.truncated == true ? "이번 주 \(w.games)경기 이상 출전" : "이번 주 \(w.games)경기 출전", color: CardPalette.tint)
             }
         } content: {
             VStack(alignment: .leading, spacing: 20) {
@@ -553,7 +545,7 @@ struct WeeklyCardView: View {
     }
     /// 득실은 득점이 실점 이상일 때만 싣는다
     private func cells(_ w: WeeklyRecap) -> [(String, String, Color)] {
-        var c: [(String, String, Color)] = [("최고 연승", "\(w.bestStreak)", CardPalette.lime), ("한 경기 최다 득점", "\(o.matches.map(\.me.goals).max() ?? 0)", CardPalette.ink)]
+        var c: [(String, String, Color)] = [("최고 연승", "\(w.bestStreak)", CardPalette.win), ("한 경기 최다 득점", "\(o.matches.map(\.me.goals).max() ?? 0)", CardPalette.ink)]
         if w.goalsFor >= w.goalsAgainst { c.append(("득실", "\(w.goalsFor):\(w.goalsAgainst)", CardPalette.ink)) }
         return c
     }
@@ -572,16 +564,16 @@ struct RivalCardView: View {
     let images: CardImages
     var body: some View {
         let gap = r.win - r.lose
-        let label: (String, Color) = gap <= -2 ? ("다음 판은 설욕전", CardPalette.muted) : gap >= 2 ? ("이 상대에겐 강해요", CardPalette.gold) : ("팽팽한 접전", CardPalette.lime)
+        let label: (String, Color) = gap <= -2 ? ("다음 판은 설욕전", CardPalette.muted) : gap >= 2 ? ("이 상대에겐 강해요", CardPalette.gold) : ("팽팽한 접전", CardPalette.tint)
         TemplateCard(chip: "라이벌 H2H", o: o, images: images, kicker: "맞대결 \(r.games)경기", cta: "우리 전적도 확인하기 →", showNickname: false) {
             VStack(spacing: 24) {
                 HStack(spacing: 0) {
-                    NicknameTitle(text: o.profile.nickname, maxSize: 64, minSize: 36, boxHeight: 80, width: 428, color: CardPalette.lime, alignment: .leading)
+                    NicknameTitle(text: o.profile.nickname, maxSize: 64, minSize: 36, boxHeight: 80, width: 428, color: CardPalette.tint, alignment: .leading)
                     Text("VS").font(.scoreboard(40)).foregroundStyle(CardPalette.muted).frame(width: 96)
                     NicknameTitle(text: r.nickname, maxSize: 64, minSize: 36, boxHeight: 80, width: 428, color: CardPalette.ink, alignment: .trailing)
                 }
                 HStack(spacing: 24) {
-                    Text("\(r.win)").font(.scoreboard(150)).foregroundStyle(CardPalette.lime)
+                    Text("\(r.win)").font(.scoreboard(150)).foregroundStyle(CardPalette.win)
                     Text(":").font(.scoreboard(120)).foregroundStyle(CardPalette.muted)
                     Text("\(r.lose)").font(.scoreboard(150)).foregroundStyle(CardPalette.ink)
                 }
@@ -606,11 +598,11 @@ struct PickCardView: View {
         TemplateCard(chip: "대세픽 체크", o: o, images: images, kicker: hit ? "내 스쿼드 vs 포지션별 인기 TOP10" : "인기 픽과 다른 나만의 스쿼드") {
             if hit {
                 HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text("\(picks.topPickCount)").font(.scoreboard(200)).foregroundStyle(CardPalette.lime)
+                    Text("\(picks.topPickCount)").font(.scoreboard(200)).foregroundStyle(CardPalette.tint)
                     Text("/ \(picks.total)명").font(.scoreboard(72)).foregroundStyle(CardPalette.muted)
                 }
             } else {
-                Text("나만의 스쿼드").font(.pretendard(110, .bold)).foregroundStyle(CardPalette.lime).lineLimit(1).minimumScaleFactor(0.6)
+                Text("나만의 스쿼드").font(.pretendard(110, .bold)).foregroundStyle(CardPalette.brand).lineLimit(1).minimumScaleFactor(0.6)
             }
         } sub: {
             Text(hit ? "포지션별 인기 TOP10에 든 내 카드" : "평점 상위 \(shown.count)명").font(.pretendard(32, .semibold)).foregroundStyle(CardPalette.muted)
