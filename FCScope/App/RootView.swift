@@ -14,16 +14,24 @@ struct RootView: View {
             } else {
                 TabView(selection: $router.tab) {
                     NavigationStack(path: $router.homePath) { HomeView().navigationDestination(for: Route.self) { RouteView(route: $0) } }
+                        .tint(FC.tint)
                         .tabItem { Label("전적", systemImage: "magnifyingglass") }.tag(Tab.home)
                     NavigationStack(path: $router.squadPath) { SquadBuilderView().navigationDestination(for: Route.self) { RouteView(route: $0) } }
+                        .tint(FC.tint)
                         .tabItem { Label("스쿼드", systemImage: "shield.lefthalf.filled") }.tag(Tab.squad)
                     NavigationStack(path: $router.metaPath) { MetaView().navigationDestination(for: Route.self) { RouteView(route: $0) } }
+                        .tint(FC.tint)
                         .tabItem { Label("픽 랭킹", systemImage: "chart.bar.fill") }.tag(Tab.meta)
                     NavigationStack(path: $router.communityPath) { CommunityView().navigationDestination(for: Route.self) { RouteView(route: $0) } }
+                        .tint(FC.tint)
                         .tabItem { Label("커뮤니티", systemImage: "person.2.fill") }.tag(Tab.community)
                     NavigationStack(path: $router.mePath) { MyPageView().navigationDestination(for: Route.self) { RouteView(route: $0) } }
+                        .tint(FC.tint)
                         .tabItem { Label("내 정보", systemImage: "person.crop.circle") }.tag(Tab.me)
                 }
+                // 선택 탭은 브랜드 순간(00-accent.png 옵션 C). 탭 바는 그라디언트를 못 받아 브랜드 단색을 쓰고,
+                // 각 탭 콘텐츠는 위에서 일반 강조(tint)로 되돌린다.
+                .tint(FC.brandSolid)
                 // ATT 는 메인 탭이 처음 뜰 때 묻는다(2026-09-30 심사 거절 대응 — AdsManager 주석 참고).
                 // 잠깐 기다리는 건 첫 화면이 그려지고 앱이 확실히 활성화된 뒤에 시스템 팝업을 띄우기 위해서다.
                 // 인트로 위에 시스템 팝업이 겹치지 않게 인트로가 끝난 뒤에 센다.

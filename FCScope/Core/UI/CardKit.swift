@@ -88,14 +88,13 @@ struct CardCanvas<Content: View>: View {
                     Rectangle().fill(Color.white.opacity(i.isMultiple(of: 2) ? 0.018 : 0)).frame(width: 120)
                 }
             }
-            EllipticalGradient(colors: [CardPalette.lime.opacity(0.16), .clear],
+            EllipticalGradient(colors: [CardPalette.brandEnd.opacity(0.18), .clear],
                                center: .init(x: 0.5, y: 0), startRadiusFraction: 0, endRadiusFraction: 0.55)
             EllipticalGradient(colors: [CardPalette.gold.opacity(0.07), .clear],
                                center: .init(x: 1, y: 1), startRadiusFraction: 0, endRadiusFraction: 0.45)
-            // 인스타 답장창에 가려지는 영역 — 갤러리 저장·메신저 공유 때만 보인다
+            // 인스타 답장창에 가려지는 영역 — 워터마크만. 홍보 문구가 하단 CTA·설치 안내와 세 줄로 겹쳐
+            // "광고 올린 사람"처럼 보였다(USER-PANEL-GENZ) — 안내는 하단 한 줄로 합쳤다.
             VStack(spacing: 18) {
-                Text("FC온라인 전적 분석 · App Store에서 FC Scope 검색")
-                    .font(.pretendard(26, .semibold)).foregroundStyle(CardPalette.muted)
                 Text("FC SCOPE").font(.scoreboard(200)).foregroundStyle(Color.white.opacity(0.035)).lineLimit(1)
             }
             .frame(width: CardLayout.width)
@@ -116,7 +115,7 @@ struct CardHeader: View {
     let chip: String
     var body: some View {
         HStack(spacing: 10) {
-            Text("FC").font(.scoreboard(36)).foregroundStyle(CardPalette.lime)
+            Text("FC").font(.scoreboard(36)).foregroundStyle(CardPalette.brand)
             Text("SCOPE").font(.scoreboard(36)).foregroundStyle(CardPalette.ink)
             Spacer(minLength: 16)
             Text(chip).font(.pretendard(24, .semibold)).foregroundStyle(CardPalette.muted).lineLimit(1)
@@ -213,12 +212,12 @@ struct HighlightChip: View {
     let text: String
     var body: some View {
         HStack(spacing: 10) {
-            Text("▲").font(.scoreboard(20)).foregroundStyle(CardPalette.lime)
+            Text("▲").font(.scoreboard(20)).foregroundStyle(CardPalette.win)
             Text(text).font(.pretendard(26, .semibold)).foregroundStyle(CardPalette.ink).lineLimit(1)
         }
         .padding(.horizontal, 22).frame(height: 48)
-        .background(CardPalette.lime.opacity(0.12), in: Capsule())
-        .overlay(Capsule().stroke(CardPalette.lime.opacity(0.45), lineWidth: 2))
+        .background(CardPalette.win.opacity(0.12), in: Capsule())
+        .overlay(Capsule().stroke(CardPalette.win.opacity(0.45), lineWidth: 2))
     }
 }
 
@@ -246,14 +245,12 @@ struct CardFooter: View {
             Rectangle().fill(CardPalette.line).frame(height: 1)
             HStack {
                 // 설치 안내는 인스타 답장창(1580~)에 가려지지 않도록 CTA 옆에 둔다
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(cta).font(.pretendard(28, .semibold)).foregroundStyle(CardPalette.ink.opacity(0.85)).lineLimit(1)
-                    Text("App Store에서 ‘FC Scope’ 검색").font(.pretendard(24)).foregroundStyle(CardPalette.muted).lineLimit(1)
-                }
+                // 홍보는 한 줄 — CTA + 도메인 필. 설치 안내 줄은 뺐다(도메인·앱 이름이 이미 필에 있다).
+                Text(cta).font(.pretendard(28, .semibold)).foregroundStyle(CardPalette.ink.opacity(0.85)).lineLimit(1)
                 Spacer()
-                Text(host).font(.scoreboard(30)).foregroundStyle(CardPalette.bg)
+                Text(host).font(.scoreboard(30)).foregroundStyle(Color.white)
                     .padding(.horizontal, 20).padding(.vertical, 8)
-                    .background(CardPalette.lime, in: Capsule())
+                    .background(CardPalette.brand, in: Capsule())
             }
             .frame(height: 64)
         }
@@ -294,7 +291,7 @@ struct FormStrip: View {
 
     static func colors(_ result: String) -> (Color, Color) {
         switch result {
-        case "승": return (CardPalette.lime, CardPalette.bg)
+        case "승": return (CardPalette.win, CardPalette.bg)
         case "패": return (CardPalette.lose.opacity(0.22), CardPalette.lose)
         default: return (CardPalette.muted.opacity(0.3), CardPalette.ink)
         }
@@ -439,13 +436,13 @@ struct HalfShotMap: View {
                     let rad: CGFloat = shot.isGoal ? 5 : 4.5
                     let rect = CGRect(x: pt.x - rad, y: pt.y - rad, width: rad * 2, height: rad * 2)
                     if shot.isGoal {
-                        ctx.fill(Path(ellipseIn: rect), with: .color(shot.hitPost ? CardPalette.gold : CardPalette.lime))
+                        ctx.fill(Path(ellipseIn: rect), with: .color(shot.hitPost ? CardPalette.gold : CardPalette.tint))
                     } else {
                         ctx.stroke(Path(ellipseIn: rect), with: .color(shot.hitPost ? CardPalette.gold : CardPalette.muted.opacity(0.45)), lineWidth: 2)
                     }
                 }
             }
-            HStack(spacing: 8) { Circle().fill(CardPalette.lime).frame(width: 12, height: 12); Text("골").font(.pretendard(20, .semibold)); Circle().stroke(CardPalette.muted, lineWidth: 2).frame(width: 12, height: 12); Text("슛").font(.pretendard(20, .semibold)) }.foregroundStyle(CardPalette.muted).padding(12)
+            HStack(spacing: 8) { Circle().fill(CardPalette.tint).frame(width: 12, height: 12); Text("골").font(.pretendard(20, .semibold)); Circle().stroke(CardPalette.muted, lineWidth: 2).frame(width: 12, height: 12); Text("슛").font(.pretendard(20, .semibold)) }.foregroundStyle(CardPalette.muted).padding(12)
         }
         .frame(width: width, height: height)
         .clipShape(RoundedRectangle(cornerRadius: 20))

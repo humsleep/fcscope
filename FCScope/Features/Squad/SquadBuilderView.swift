@@ -223,20 +223,20 @@ struct SquadBuilderView: View {
                     .background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control))
                 HStack(spacing: 8) {
                     let canSave = !(model.busy || model.filled == 0)
-                    // 잉크색을 항상 덮어쓰면 비활성 상태의 회색 배경 위에서 흰 글자가 사라졌다 — 활성일 때만 적용.
-                    Button { Task { await model.save(); if model.savedId != nil { showSaved = true } } } label: { Text(model.busy ? "저장 중…" : "저장 · 공유 링크").frame(maxWidth: .infinity) }
-                        .buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(canSave ? FC.accentInk : Color.secondary).disabled(!canSave)
-                    // 앱 전체 tint(라임)가 destructive 역할보다 우선해 "비우기"가 긍정 버튼처럼 보였다.
+                    // 저장·공유는 브랜드 CTA. 비활성은 스타일이 반투명으로 처리한다.
+                    Button { Task { await model.save(); if model.savedId != nil { showSaved = true } } } label: { Text(model.busy ? "저장 중…" : "저장 · 공유 링크") }
+                        .buttonStyle(BrandButtonStyle(fullWidth: true, compact: true)).disabled(!canSave)
+                    // 앱 전체 tint 가 destructive 역할보다 우선해 "비우기"가 긍정 버튼처럼 보였다.
                     Button(role: .destructive) { showClear = true } label: { Text("비우기") }.buttonStyle(.bordered).tint(FC.lose).disabled(model.filled == 0)
                 }
                 if let id = model.savedId {
                     Panel(padding: 12) {
                         VStack(alignment: .leading, spacing: 6) {
-                            SectionLabel("저장됨 · 공유 코드 \(id)", color: FC.accent)
+                            SectionLabel("저장됨 · 공유 코드 \(id)", color: FC.tint)
                             HStack {
                                 ShareLink(item: AppConfig.absolute("/squad/\(id)")) { Label("링크 공유", systemImage: "link") }.buttonStyle(.bordered)
                                 ShareCardButton(squad: SquadCardData(name: model.name, formationId: model.formation.id, slots: model.exportSlots, shareCode: id), label: "스쿼드 카드")
-                                Button { router.push(.squad(id)) } label: { Text("보기 →").fcScoreboard(13).foregroundStyle(FC.accent) }
+                                Button { router.push(.squad(id)) } label: { Text("보기 →").fcScoreboard(13).foregroundStyle(FC.tint) }
                             }
                         }
                     }
@@ -298,7 +298,7 @@ struct SquadBuilderView: View {
     private var presetChip: some View { Button { showPresets = true } label: { chipButton("🏟 프리셋") } }
     /// 기본은 내 구단주명(설정에 저장된 것)이 채워진 채로 열린다 — "최근 선발"만으로는 누구 선발인지 몰랐다.
     private var importChip: some View { Button { importNick = LocalPrefs.shared.myNickname ?? ""; showImport = true } label: { chipButton("⬇️ 내 최근 선발") } }
-    private var filledCount: some View { Text("\(model.filled)/11").fcScoreboard(14).foregroundStyle(model.filled == 11 ? FC.accent : FC.muted) }
+    private var filledCount: some View { Text("\(model.filled)/11").fcScoreboard(14).foregroundStyle(model.filled == 11 ? FC.tint : FC.muted) }
     private func chipButton(_ t: String) -> some View {
         // "커스텀 (≈4-4-2)" 가 두 줄로 접히면 칩 줄 높이가 흔들린다 — 한 줄로 두고 줄여서 맞춘다.
         Text(t).fcFont(12.5, weight: .semibold).lineLimit(1).foregroundStyle(FC.ink).padding(.horizontal, 8).padding(.vertical, 8).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control)).tapTarget()
@@ -397,16 +397,16 @@ struct PitchView: View {
             ZStack {
                 if let f = filled { PlayerImage(spid: f.displaySpid, size: 44, radius: 22) }
                 else { Circle().fill(Color.white.opacity(0.12)).frame(width: 44, height: 44).overlay(Text("+").fcFont(18, weight: .bold).foregroundStyle(.white.opacity(0.7))) }
-                Circle().stroke(highlighted ? FC.gold : filled == nil ? Color.white.opacity(0.3) : FC.accent, lineWidth: highlighted ? 3 : 2).frame(width: 44, height: 44)
+                Circle().stroke(highlighted ? FC.gold : filled == nil ? Color.white.opacity(0.3) : FC.tint, lineWidth: highlighted ? 3 : 2).frame(width: 44, height: 44)
             }
             // 선수가 있는 자리도 포지션을 보인다 — 드래그로 라벨·포메이션이 바뀐 걸 알 수 있게(FC온라인 스쿼드 화면처럼).
             .overlay(alignment: .topLeading) {
                 if filled != nil {
                     // GK 가 필드 자리에, 필드 선수가 GK 자리에 있으면 빨간 배지(허용은 하되 경고)
                     let warn = model.isMisplaced(s)
-                    Text(model.pos(of: s)).fcScoreboard(9, weight: .bold).foregroundStyle(warn ? Color.white : FC.accentInk)
+                    Text(model.pos(of: s)).fcScoreboard(9, weight: .bold).foregroundStyle(warn ? Color.white : FC.tintInk)
                         .padding(.horizontal, 3).padding(.vertical, 1)
-                        .background(warn ? FC.lose : FC.accent, in: Capsule())
+                        .background(warn ? FC.lose : FC.tint, in: Capsule())
                         .fixedSize()
                         .offset(x: -8, y: -3)
                 }
@@ -429,11 +429,11 @@ struct PitchView: View {
         case .move(_, let r):
             let label = r.movedLabel ?? ""
             // 놓으면 11자리가 어떤 포메이션과 정확히 맞게 되는 경우에만 포메이션 이름을 덧붙인다.
-            liveChip(r.formation.id != model.formation.id && r.isExact ? "\(label) · \(r.formation.name)" : label, color: FC.accent)
+            liveChip(r.formation.id != model.formation.id && r.isExact ? "\(label) · \(r.formation.name)" : label, color: FC.tint)
         }
     }
     private func liveChip(_ text: String, color: Color) -> some View {
-        Text(text).fcScoreboard(13).foregroundStyle(FC.accentInk)
+        Text(text).fcScoreboard(13).foregroundStyle(FC.tintInk)
             .padding(.horizontal, 8).padding(.vertical, 3)
             .background(color, in: Capsule())
             .fixedSize()
@@ -571,7 +571,7 @@ struct FormationPicker: View {
                 ForEach(["4", "3", "5"], id: \.self) { line in
                     Section("\(line)백") {
                         ForEach(Formation.all.filter { $0.line == line }) { f in
-                            Button { model.changeFormation(f); dismiss() } label: { HStack { Text(f.name).foregroundStyle(FC.ink); Spacer(); if f.id == model.formation.id { Image(systemName: "checkmark").foregroundStyle(FC.accent) } } }
+                            Button { model.changeFormation(f); dismiss() } label: { HStack { Text(f.name).foregroundStyle(FC.ink); Spacer(); if f.id == model.formation.id { Image(systemName: "checkmark").foregroundStyle(FC.tint) } } }
                         }
                     }
                 }
@@ -755,7 +755,7 @@ private struct PhotoOption: View {
                     }
                     .frame(width: 80, height: 80)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(selected ? FC.accent : .clear, lineWidth: 3))
+                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(selected ? FC.tint : .clear, lineWidth: 3))
                     if isBase { Text("기본").fcFont(12, weight: .semibold).foregroundStyle(FC.muted) }
                     else { SeasonBadge(spid: candidate.spid, season: candidate.season, height: 16) }
                 }

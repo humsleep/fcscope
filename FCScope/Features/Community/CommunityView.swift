@@ -82,7 +82,7 @@ struct CommunityView: View {
                             Text("첫 글을 남겨 이야기를 시작해 보세요.")
                         } actions: {
                             Button("첫 글 쓰기") { Task { await openCompose() } }
-                                .buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk)
+                                .buttonStyle(.borderedProminent).tint(FC.tint).foregroundStyle(FC.tintInk)
                         }
                         .padding(.top, 24)
                     }
@@ -127,7 +127,7 @@ struct CommunityView: View {
     private func tab(_ t: String?, _ label: String) -> some View {
         Button { model.type = t; Task { await model.load(reset: true) } } label: {
             Text(label).fcFont(13, weight: .semibold).padding(.horizontal, 10).padding(.vertical, 7)
-                .background(model.type == t ? FC.accent : FC.surface2, in: Capsule()).foregroundStyle(model.type == t ? FC.accentInk : FC.muted).tapTarget()
+                .background(model.type == t ? FC.tint : FC.surface2, in: Capsule()).foregroundStyle(model.type == t ? FC.tintInk : FC.muted).tapTarget()
         }
         // 선택 여부가 색으로만 표현돼 VoiceOver 는 어떤 필터가 켜졌는지 알 수 없었다.
         .accessibilityAddTraits(model.type == t ? .isSelected : [])
@@ -142,7 +142,7 @@ struct PostRow: View {
                 HStack(spacing: 6) {
                     Chip(text: "\(post.typeEmoji) \(post.typeLabel)", color: FC.ink)
                     if post.status == "closed" { Chip(text: "마감") }
-                    if let r = post.region { Chip(text: "📍\(r)", color: FC.accent, bg: FC.accent.opacity(0.12)) }
+                    if let r = post.region { Chip(text: "📍\(r)", color: FC.tint, bg: FC.tint.opacity(0.12)) }
                     Spacer()
                     Text(DateFmt.relative(post.createdAt)).fcFont(11).foregroundStyle(FC.muted)
                 }
@@ -151,7 +151,7 @@ struct PostRow: View {
                 HStack(spacing: 8) {
                     Text(post.author.nickname).fcFont(12, weight: .semibold).foregroundStyle(FC.ink)
                     if post.author.isOperator == true { OperatorBadge() }
-                    if let v = post.author.verifiedNickname { Text("✓ \(v)").fcFont(11).foregroundStyle(FC.accent) }
+                    if let v = post.author.verifiedNickname { Text("✓ \(v)").fcFont(11).foregroundStyle(FC.tint) }
                     Spacer()
                     if post.squadId != nil { Text("🧩 스쿼드").fcFont(11).foregroundStyle(FC.muted) }
                     Text("💬 \(post.commentCount ?? 0)").fcFont(11).foregroundStyle(FC.muted)
@@ -220,7 +220,7 @@ struct PostDetailView: View {
             } else {
                 Panel {
                     VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 6) { Chip(text: "\(p.typeEmoji) \(p.typeLabel)", color: FC.ink); if p.status == "closed" { Chip(text: "마감") }; if let r = p.region { Chip(text: "📍\(r)", color: FC.accent, bg: FC.accent.opacity(0.12)) } }
+                        HStack(spacing: 6) { Chip(text: "\(p.typeEmoji) \(p.typeLabel)", color: FC.ink); if p.status == "closed" { Chip(text: "마감") }; if let r = p.region { Chip(text: "📍\(r)", color: FC.tint, bg: FC.tint.opacity(0.12)) } }
                         Text(p.title).fcFont(22, weight: .bold).foregroundStyle(FC.ink)
                         Text(DateFmt.relative(p.createdAt)).fcFont(12).foregroundStyle(FC.muted)
                         if !p.positions.isEmpty { FlowLayout(spacing: 4) { ForEach(p.positions, id: \.self) { Chip(text: $0, color: FC.ink) } } }
@@ -248,9 +248,9 @@ struct PostDetailView: View {
                 comments(d)
                 Panel(padding: 12) {
                     HStack {
-                        VStack(alignment: .leading) { SectionLabel("작성자"); HStack(spacing: 6) { Text(p.author.nickname).fcFont(16, weight: .bold).foregroundStyle(FC.ink); if p.author.isOperator == true { OperatorBadge() } }; if let v = p.author.verifiedNickname { Text("✓ FC Online: \(v)").fcFont(12).foregroundStyle(FC.accent) } }
+                        VStack(alignment: .leading) { SectionLabel("작성자"); HStack(spacing: 6) { Text(p.author.nickname).fcFont(16, weight: .bold).foregroundStyle(FC.ink); if p.author.isOperator == true { OperatorBadge() } }; if let v = p.author.verifiedNickname { Text("✓ FC Online: \(v)").fcFont(12).foregroundStyle(FC.tint) } }
                         Spacer()
-                        if let v = p.author.verifiedNickname { Button("전적·진단") { router.push(.user(v)) }.buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk) }
+                        if let v = p.author.verifiedNickname { Button("전적·진단") { router.push(.user(v)) }.buttonStyle(.borderedProminent).tint(FC.tint).foregroundStyle(FC.tintInk) }
                     }
                 }
             }
@@ -258,7 +258,7 @@ struct PostDetailView: View {
     }
 
     private func squadLink(_ id: String) -> some View {
-        Button { router.push(.squad(id)) } label: { HStack { Text("🧩 첨부 스쿼드 보기").fcFont(14, weight: .semibold).foregroundStyle(FC.accent); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) }.padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control)) }.buttonStyle(.plain)
+        Button { router.push(.squad(id)) } label: { HStack { Text("🧩 첨부 스쿼드 보기").fcFont(14, weight: .semibold).foregroundStyle(FC.tint); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) }.padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control)) }.buttonStyle(.plain)
     }
 
     private func comments(_ d: PostDetailResponse) -> some View {
@@ -289,18 +289,18 @@ struct PostDetailView: View {
                             }
                         }
                         Text(c.body).fcFont(15).lineSpacing(6).foregroundStyle(FC.ink).frame(maxWidth: .infinity, alignment: .leading).padding(12).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control))
-                        if let s = c.squadId { Button("🧩 제안 스쿼드 보기 →") { router.push(.squad(s)) }.fcFont(12, weight: .semibold).foregroundStyle(FC.accent) }
+                        if let s = c.squadId { Button("🧩 제안 스쿼드 보기 →") { router.push(.squad(s)) }.fcFont(12, weight: .semibold).foregroundStyle(FC.tint) }
                     }
                 }
                 if d.viewer.canComment {
                     HStack(alignment: .bottom) {
                         TextField("의견을 남겨보세요", text: $comment, axis: .vertical).textFieldStyle(.roundedBorder).lineLimit(1...4)
-                        Button { Task { await submitComment() } } label: { Text(busy ? "…" : "등록") }.buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk).disabled(busy || comment.trimmingCharacters(in: .whitespaces).isEmpty)
+                        Button { Task { await submitComment() } } label: { Text(busy ? "…" : "등록") }.buttonStyle(.borderedProminent).tint(FC.tint).foregroundStyle(FC.tintInk).disabled(busy || comment.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
                 } else if d.viewer.loggedIn {
-                    Button("댓글을 쓰려면 닉네임 등록이 필요해요 →") { router.tab = .me }.fcFont(13).foregroundStyle(FC.accent)
+                    Button("댓글을 쓰려면 닉네임 등록이 필요해요 →") { router.tab = .me }.fcFont(13).foregroundStyle(FC.tint)
                 } else {
-                    Button("로그인하고 의견 남기기") { showLogin = true }.fcFont(13).foregroundStyle(FC.accent)
+                    Button("로그인하고 의견 남기기") { showLogin = true }.fcFont(13).foregroundStyle(FC.tint)
                 }
             }
         }
@@ -333,17 +333,17 @@ struct BattleBlock: View {
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
-                side("🅰️ A팀", squadA, FC.accent); side("🅱️ B팀", squadB, FC.lose)
+                side("🅰️ A팀", squadA, FC.tint); side("🅱️ B팀", squadB, FC.lose)
             }
             let a = votes?.a ?? 0, b = votes?.b ?? 0, total = max(1, a + b)
             ZStack {
                 let ratio = CGFloat(a) / CGFloat(total)
-                BarSegment(to: ratio).fill(FC.accent)
+                BarSegment(to: ratio).fill(FC.tint)
                 BarSegment(from: ratio, to: 1, leadingGap: 2).fill(FC.lose)  // 예전 HStack(spacing: 2) 의 틈
             }.frame(height: 10).clipShape(Capsule())
-            HStack { Text("A \(a)표").fcScoreboard(12).foregroundStyle(FC.accent); Spacer(); Text("B \(b)표").fcScoreboard(12).foregroundStyle(FC.lose) }
+            HStack { Text("A \(a)표").fcScoreboard(12).foregroundStyle(FC.tint); Spacer(); Text("B \(b)표").fcScoreboard(12).foregroundStyle(FC.lose) }
             HStack(spacing: 8) {
-                Button("A에 투표") { Task { await vote("A") } }.buttonStyle(.bordered).tint(FC.accent).disabled(myPick != nil)
+                Button("A에 투표") { Task { await vote("A") } }.buttonStyle(.bordered).tint(FC.tint).disabled(myPick != nil)
                 Button("B에 투표") { Task { await vote("B") } }.buttonStyle(.bordered).tint(FC.lose).disabled(myPick != nil)
             }
             if let e = voteError { Text(e).fcFont(12).foregroundStyle(FC.lose) }

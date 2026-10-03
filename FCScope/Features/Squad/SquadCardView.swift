@@ -80,7 +80,7 @@ struct SquadCardView: View {
                 if let p = player, let img = ImageCache.cached(spid: p.displaySpid) {
                     Image(uiImage: img).resizable().scaledToFill()
                 }
-                Circle().stroke(player == nil ? Color.white.opacity(0.25) : CardPalette.lime, lineWidth: 4)
+                Circle().stroke(player == nil ? Color.white.opacity(0.25) : CardPalette.tint, lineWidth: 4)
             }
             .frame(width: 96, height: 96)
             .clipShape(Circle())

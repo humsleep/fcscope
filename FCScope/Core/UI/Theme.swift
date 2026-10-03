@@ -1,20 +1,39 @@
 import SwiftUI
 import UIKit
 
-/// 디자인 토큰 "스타디움 나이트" — 웹 globals.css 와 동일 값. 라이트 모드는 웹 라이트 팔레트.
+/// 디자인 토큰 "S-spot 하이브리드"(docs/store-v2/ux-mockups/00-accent.png 옵션 C).
+///
+/// 색의 역할을 셋으로 나눈다 — 섞으면 "강조인지 승리인지"가 헷갈린다(라임 시절의 문제).
+/// - `brand`(오렌지→마젠타 그라디언트): 브랜드 순간 전용. CTA·공유·선택 탭·히어로 카피. **데이터에 쓰지 않는다.**
+/// - `tint`(바이올렛): 일반 강조. 링크·칩 선택·토글·내 쪽 시리즈.
+/// - `win`·`lose`·`gold`: 데이터의 의미(좋음·나쁨·최상) 전용. 중립 숫자는 `ink`.
+/// 라이트 대비(본문 위 AA): tint #6D3FE0 5.5:1 · win #0B7A55 4.9:1 · lose #C81E3A 5.4:1 · gold #A66A00 4.5:1.
+/// 배경은 아이콘·런치 스크린과 같은 인디고 블랙(LaunchBackground 컬러셋과 같은 값) — 인트로→홈 이음새 없음.
 enum FC {
-    static let bg = dyn(0x0a1119, 0xeef1f6)
-    static let surface = dyn(0x101a26, 0xffffff)
-    static let surface2 = dyn(0x182636, 0xe7ecf3)
-    static let line = dyn(0x24374f, 0xd3dbe6)
-    static let ink = dyn(0xeef2f8, 0x131b26)
-    static let muted = dyn(0x9aabc0, 0x566579)
-    static let accent = dyn(0xc8f542, 0x3f7d10)
-    static let accentInk = dyn(0x0a1119, 0xffffff)
-    static let gold = dyn(0xf2c14e, 0xa66a00)
-    static let win = dyn(0x4ade80, 0x15803d)
-    static let draw = dyn(0x9aabc0, 0x566579)
-    static let lose = dyn(0xfb7185, 0xd61f45)
+    static let bg = dyn(0x0b0a1f, 0xf5f4fb)
+    static let surface = dyn(0x14122e, 0xffffff)
+    static let surface2 = dyn(0x1d1a40, 0xeceaf6)
+    static let line = dyn(0x2a2656, 0xdcd8ec)
+    static let ink = dyn(0xeeedf8, 0x15132b)
+    static let muted = dyn(0xa6a2c8, 0x5e5a78)
+    /// 일반 강조(바이올렛)
+    static let tint = dyn(0x9b7bff, 0x6d3fe0)
+    /// tint 를 **채운** 배경 위 글자. 다크 #9B7BFF 위 흰 글자는 3.1:1 이라 남흑색, 라이트 #6D3FE0 위는 흰색(6.1:1).
+    static let tintInk = dyn(0x0b0a1f, 0xffffff)
+    /// 브랜드 그라디언트 양 끝(다크 #F0502A→#E0218A · 라이트 #E8481C→#C8177A)
+    static let brandStart = dyn(0xf0502a, 0xe8481c)
+    static let brandEnd = dyn(0xe0218a, 0xc8177a)
+    /// 그라디언트를 쓸 수 없는 곳(탭 바 선택색·SF 심볼 단색)용 브랜드 단색
+    static let brandSolid = dyn(0xe8367a, 0xc8177a)
+    /// 브랜드 그라디언트 위 글자 — 항상 흰색(17pt Bold 이상에서 3.6~5.4:1)
+    static let brandInk = Color.white
+    static var brand: LinearGradient {
+        LinearGradient(colors: [brandStart, brandEnd], startPoint: .leading, endPoint: .trailing)
+    }
+    static let gold = dyn(0xf7c948, 0xa66a00)
+    static let win = dyn(0x3ddc97, 0x0b7a55)
+    static let draw = dyn(0xa6a2c8, 0x5e5a78)
+    static let lose = dyn(0xff5470, 0xc81e3a)
     /// 피치 그라디언트 (스쿼드 빌더·공유 카드 공용). 라이트 모드에서도 잔디색은 고정.
     static let pitchTop = Color(UIColor(hex: 0x123322))
     static let pitchBottom = Color(UIColor(hex: 0x0d2419))
@@ -31,7 +50,7 @@ enum FC {
         case "win", "lime", "good": return win
         case "lose", "warn": return lose
         case "gold": return gold
-        case "info", "accent": return accent
+        case "info", "accent": return tint
         case "muted", "draw": return muted
         default: return ink
         }
@@ -274,7 +293,7 @@ struct ErrorState: View {
             Text(title).fcFont(17, weight: .semibold).foregroundStyle(FC.ink)
             if let message { Text(message).fcFont(14).foregroundStyle(FC.muted).multilineTextAlignment(.center) }
             if let retry {
-                Button("다시 시도", action: retry).buttonStyle(.borderedProminent).controlSize(.large).tint(FC.accent).foregroundStyle(FC.accentInk)
+                Button("다시 시도", action: retry).buttonStyle(BrandButtonStyle())
             }
         }
         .frame(maxWidth: .infinity).padding(.vertical, 40).padding(.horizontal, 24)
@@ -308,4 +327,23 @@ enum Haptic {
     static func medium() { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
     static func success() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
     static func warning() { UINotificationFeedbackGenerator().notificationOccurred(.warning) }
+}
+
+
+/// 브랜드 CTA — 그라디언트 캡슐 + 흰 글자. "지금 이걸 누르세요" 버튼에만 쓴다(화면당 하나 정도).
+struct BrandButtonStyle: ButtonStyle {
+    var fullWidth = false
+    var compact = false
+    @Environment(\.isEnabled) private var isEnabled
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .fcFont(compact ? 14 : 16, weight: .bold)
+            .foregroundStyle(FC.brandInk)
+            .padding(.horizontal, compact ? 14 : 22)
+            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: compact ? 36 : 50)
+            .background(FC.brand, in: Capsule())
+            .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.45)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .contentShape(Capsule())
+    }
 }

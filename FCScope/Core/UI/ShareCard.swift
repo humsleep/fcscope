@@ -23,7 +23,7 @@ struct CardBadge: Identifiable {
 
 struct CardStamp {
     let text: String
-    var color: Color = CardPalette.lime
+    var color: Color = CardPalette.tint
 }
 
 /// 서버 renderCard(CardData) 와 동일한 스펙
@@ -39,20 +39,28 @@ struct ShareCardSpec {
 
 /// 카드 전용 팔레트 — 카드는 항상 다크(공유 이미지라 뷰어 테마와 무관)
 enum CardPalette {
-    static let bg = Color(hex: 0x0a1119)
-    static let surface = Color(hex: 0x101a26)
-    static let line = Color(hex: 0x22334a)
-    static let ink = Color(hex: 0xe9eef6)
-    static let muted = Color(hex: 0x8fa0b5)
-    static let lime = Color(hex: 0xc8f542)
-    static let gold = Color(hex: 0xf2c14e)
-    static let lose = Color(hex: 0xfb7185)
+    // 앱 다크 토큰(FC.*)과 같은 값 — 카드는 항상 다크로 렌더한다.
+    static let bg = Color(hex: 0x0b0a1f)
+    static let surface = Color(hex: 0x14122e)
+    static let line = Color(hex: 0x2a2656)
+    static let ink = Color(hex: 0xeeedf8)
+    static let muted = Color(hex: 0xa6a2c8)
+    /// 일반 강조(바이올렛) — 내 쪽 시리즈·보조 스탬프
+    static let tint = Color(hex: 0x9b7bff)
+    /// 데이터 의미 전용: 좋음·나쁨·최상
+    static let win = Color(hex: 0x3ddc97)
+    static let gold = Color(hex: 0xf7c948)
+    static let lose = Color(hex: 0xff5470)
+    /// 브랜드 그라디언트 — 로고·히어로 카피·도메인 필에만. 데이터 숫자에 쓰지 않는다.
+    static let brandStart = Color(hex: 0xf0502a)
+    static let brandEnd = Color(hex: 0xe0218a)
+    static let brand = LinearGradient(colors: [brandStart, brandEnd], startPoint: .leading, endPoint: .trailing)
 
     /// 서버 VerdictColor 문자열 → 카드 색
     static func verdict(_ name: String) -> Color {
         switch name {
         case "gold": return gold
-        case "lime", "win": return lime
+        case "lime", "win": return win
         case "lose": return lose
         case "muted", "draw": return muted
         default: return ink
@@ -90,9 +98,8 @@ struct ShareCardView: View {
         .background(
             ZStack {
                 CardPalette.bg
-                // radial-gradient(900px 500px at 50% 0%, rgba(200,245,66,0.16), transparent)
                 EllipticalGradient(
-                    colors: [CardPalette.lime.opacity(0.16), .clear],
+                    colors: [CardPalette.brandEnd.opacity(0.18), .clear],
                     center: .init(x: 0.5, y: 0),
                     startRadiusFraction: 0,
                     endRadiusFraction: 0.55
@@ -105,7 +112,7 @@ struct ShareCardView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 14) {
-                Text("FC").font(.scoreboard(44)).foregroundStyle(CardPalette.lime)
+                Text("FC").font(.scoreboard(44)).foregroundStyle(CardPalette.brand)
                 Text("SCOPE").font(.scoreboard(44)).foregroundStyle(CardPalette.ink)
             }
             Text(spec.kicker)
@@ -166,7 +173,7 @@ struct ShareCardView: View {
             HStack {
                 Text("내 전적도 검색 →").font(.pretendard(30)).foregroundStyle(CardPalette.muted)
                 Spacer()
-                Text(AppConfig.shareHost).font(.pretendard(30, .bold)).foregroundStyle(CardPalette.lime)
+                Text(AppConfig.shareHost).font(.pretendard(30, .bold)).foregroundStyle(CardPalette.brand)
             }
         }
     }
@@ -205,7 +212,7 @@ extension ShareCardSpec {
             kicker: "전적 카드",
             title: "\(r.winRate)%",
             subtitle: "\(o.profile.nickname) · Lv.\(o.profile.level)" + (division.map { " · \($0.divisionName)" } ?? ""),
-            stamp: r.played > 0 ? CardStamp(text: "\(r.win)승 \(r.draw)무 \(r.lose)패", color: CardPalette.lime) : nil,
+            stamp: r.played > 0 ? CardStamp(text: "\(r.win)승 \(r.draw)무 \(r.lose)패", color: CardPalette.ink) : nil,
             badges: badges,
             filename: "fcscope-\(o.profile.nickname)"
         )
@@ -249,7 +256,7 @@ extension ShareCardSpec {
         guard w.games > 0 else {
             return ShareCardSpec(kicker: "주간 리포트", title: "—", subtitle: "\(o.profile.nickname) · 최근 7일 공식경기 없음", filename: "fcscope-weekly")
         }
-        let color: Color = w.winRate >= 60 ? CardPalette.gold : w.winRate >= 45 ? CardPalette.lime : CardPalette.lose
+        let color: Color = w.winRate >= 60 ? CardPalette.gold : w.winRate >= 45 ? CardPalette.win : CardPalette.lose
         return ShareCardSpec(
             kicker: "주간 리포트",
             title: "\(w.win)승 \(w.draw)무 \(w.lose)패",
@@ -271,7 +278,7 @@ extension ShareCardSpec {
     /// (서버 lib/verdict.ts 의 otherUser 톤 게이트와 같은 원칙) — 내 입장에서 본 중립 문구만.
     static func rival(_ o: UserOverview, rival r: Rival) -> ShareCardSpec {
         let gap = r.win - r.lose
-        let label: (String, Color) = gap <= -2 ? ("이 상대에겐 고전 중", CardPalette.lose) : gap >= 2 ? ("이 상대에겐 강해요", CardPalette.gold) : ("팽팽한 접전", CardPalette.lime)
+        let label: (String, Color) = gap <= -2 ? ("이 상대에겐 고전 중", CardPalette.lose) : gap >= 2 ? ("이 상대에겐 강해요", CardPalette.gold) : ("팽팽한 접전", CardPalette.tint)
         return ShareCardSpec(
             kicker: "라이벌 H2H",
             title: "\(r.win) : \(r.lose)",
@@ -292,7 +299,7 @@ extension ShareCardSpec {
             kicker: "내 스쿼드 vs 대세픽",
             title: "\(picks.topPickCount)명",
             subtitle: "포지션별 인기 TOP10 기준 · \(nickname)",
-            stamp: CardStamp(text: "너는 몇 명?", color: CardPalette.lime),
+            stamp: CardStamp(text: "너는 몇 명?", color: CardPalette.tint),
             badges: [
                 CardBadge(label: "내가 쓴 카드", value: "\(picks.total)명"),
                 CardBadge(label: "TOP10 외", value: "\(picks.total - picks.topPickCount)명", color: CardPalette.muted),
@@ -309,7 +316,7 @@ extension ShareCardSpec {
             kicker: "\(m.matchTypeName) 리포트",
             title: "\(m.me.goals) : \(m.opponent?.goals ?? 0)",
             subtitle: "\(m.me.nickname) · \(m.verdict.label)",
-            stamp: CardStamp(text: m.verdict.oneLiner, color: color),
+            stamp: CardStamp(text: m.liner, color: color),
             badges: [
                 CardBadge(label: "점유율", value: "\(m.me.possession)%"),
                 CardBadge(label: "유효슛", value: "\(m.me.stats.effectiveShots)"),

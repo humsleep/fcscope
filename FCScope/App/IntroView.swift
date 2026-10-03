@@ -6,8 +6,8 @@ import SwiftUI
 ///
 /// - 콜드 스타트마다 한 번(RootView 의 @State). 백그라운드 복귀에서는 다시 뜨지 않는다.
 /// - 전체 약 1.3초. 탭하면 바로 넘어간다. "동작 줄이기"가 켜져 있으면 그리기 없이 짧게 페이드만 한다.
-/// - 배경은 런치 스크린과 **같은 컬러셋**(`LaunchBackground`, 라이트 #EEF1F6 / 다크 #0D0B2B)을 직접 써서
-///   이음새가 생길 수 없게 한다. 다크 값은 아이콘 배경 가장자리의 남흑색.
+/// - 배경은 런치 스크린과 **같은 컬러셋**(`LaunchBackground`, 라이트 #F5F4FB / 다크 #0B0A1F — 앱 FC.bg 와 같은 값)을 직접 써서
+///   인트로→홈 전환에도 이음새가 생길 수 없게 한다.
 /// - 도형 좌표는 `docs/store-v2/icon-v3/final/mark.svg`(1024 기준)에서 가져왔다.
 struct IntroView: View {
     var onFinish: () -> Void

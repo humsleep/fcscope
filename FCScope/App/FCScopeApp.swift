@@ -12,7 +12,7 @@ struct FCScopeApp: App {
         WindowGroup {
             RootView()
                 .environment(router)
-                .tint(FC.accent)
+                .tint(FC.tint)
                 .onOpenURL { url in router.handle(url: url) }
                 .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
                     if let url = activity.webpageURL { router.handle(url: url) }
