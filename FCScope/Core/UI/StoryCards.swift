@@ -112,13 +112,14 @@ struct UserCardData {
         }
     }
 
-    /// 플레이스타일 이름·강점 한 줄. 표본이 부족하면 서버 진단 유형으로 대체.
-    var style: (name: String, line: String?, beta: Bool)? {
+    /// 플레이스타일 이름·강점 한 줄. 표본이 부족하면 서버 진단 유형("요즘 흐름")으로 대체 — 이때는 라벨도 바꾼다.
+    /// 같은 사람의 "플레이스타일"이 화면(압박 사냥꾼)과 카드(리빌딩 시즌)에서 달랐다(QA P1-4 · 유저 패널 B).
+    var style: (label: String, name: String, line: String?, beta: Bool)? {
         if let r = playstyle?.result, r.confidence == "ok" {
-            return (r.archetype.name, r.chips.first { $0.kind == "strength" }?.text ?? r.archetype.tagline, true)
+            return ("PLAYSTYLE", r.archetype.name, r.chips.first { $0.kind == "strength" }?.text ?? r.archetype.tagline, true)
         }
         if let t = o.diagnosis.type {
-            return (t.title, t.desc.components(separatedBy: " — ").first, false)
+            return ("요즘 흐름", t.title, t.desc.components(separatedBy: " — ").first, false)
         }
         return nil
     }
@@ -129,7 +130,11 @@ struct UserCardData {
         let base = st.filter { $0.key == "inbox" || $0.key == "outbox" }
         let rows = base.isEmpty ? st : base
         let g = rows.reduce(0) { $0 + $1.goals }, t = rows.reduce(0) { $0 + $1.tries }
-        return t > 0 ? (g, t) : nil
+        // 넥슨 슛 집계(shoot.goalInPenalty 등)는 승부차기 골까지 센다 — "슛 171개 중 76골"이 실제 득점(68, 몰수 제외 65)보다
+        // 많아 공유 카드에 모순이 퍼졌다(QA P1-3). 실제 득점보다 많으면 이 집계는 쓰지 않는다(다른 긍정 스탯으로 대체).
+        let actual = o.perf.goalsFor ?? o.summary.goalsFor
+        guard t > 0, g <= actual else { return nil }
+        return (g, t)
     }
 
     /// 긍정 스탯 후보 — 조건을 만족하는 것만, 우선순위순
@@ -195,12 +200,12 @@ struct UserCardView: View {
         o.matchTabs.first { $0.type == o.matchType }?.label ?? (o.matchType == 52 ? "감독모드" : o.matchType == 40 ? "클래식 1on1" : "공식경기")
     }
 
-    private func styleBlock(_ s: (name: String, line: String?, beta: Bool)) -> some View {
+    private func styleBlock(_ s: (label: String, name: String, line: String?, beta: Bool)) -> some View {
         HStack(spacing: 24) {
             RoundedRectangle(cornerRadius: 3).fill(CardPalette.brand).frame(width: 6)
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 10) {
-                    CardLabel(text: "PLAYSTYLE")
+                    CardLabel(text: s.label)
                     if s.beta {
                         Text("BETA").font(.scoreboard(16)).foregroundStyle(CardPalette.muted)
                             .padding(.horizontal, 10).padding(.vertical, 2).overlay(Capsule().stroke(CardPalette.line, lineWidth: 2))
@@ -261,8 +266,8 @@ struct UserCardView: View {
                 HStack {
                     Text("최근 10경기").font(.pretendard(24, .semibold)).foregroundStyle(CardPalette.muted)
                     Spacer()
-                    if o.streak.color != "lose", o.perf.played > 0 {
-                        Text(o.streak.text).font(.pretendard(26, .bold)).foregroundStyle(o.streak.color == "gold" ? CardPalette.gold : CardPalette.win).lineLimit(1)
+                    if o.perf.played > 0, let st = FCCopy.streak(o.streak, winRate: o.summary.winRate) {
+                        Text(st).font(.pretendard(26, .bold)).foregroundStyle(o.streak.color == "gold" ? CardPalette.gold : CardPalette.win).lineLimit(1)
                     }
                 }
                 .padding(.bottom, 10)
@@ -422,7 +427,10 @@ struct RankCardView: View {
     private var d: DivisionCard? { o.profile.divisions.first { $0.matchType == 50 } ?? o.profile.divisions.first }
 
     var body: some View {
-        TemplateCard(chip: "계급 인증", o: o, images: images, kicker: "\(d?.matchTypeName ?? "공식경기") 최고 등급") {
+        // 2020년 달성일이 카드의 주인공이던 것(유저 패널 "틀딱 인증")을 내렸다 — 역대 최고는 "커리어 하이"로 부르고,
+        // 날짜는 작게, 지금 폼 티어를 함께 싣는다.
+        let tier = o.summary.played > 0 ? o.formTier : nil
+        TemplateCard(chip: "계급 인증", o: o, images: images, kicker: "커리어 하이 · \(d?.matchTypeName ?? "공식경기") 역대 최고") {
             HStack(spacing: 32) {
                 if let img = images.url(d?.iconUrl) {
                     Image(uiImage: img).resizable().scaledToFit().frame(width: 200, height: 200)
@@ -431,7 +439,12 @@ struct RankCardView: View {
                     .lineLimit(1).minimumScaleFactor(0.6)
             }
         } sub: {
-            if let d { CardStampView(text: "달성 \(d.date)", color: CardPalette.gold) }
+            HStack(spacing: 20) {
+                if let t = tier, let l = t.level {
+                    CardStampView(text: "지금은 폼 \(l.name)", color: l.colors.0)
+                }
+                if let d { Text("\(d.date) 달성").font(.pretendard(26)).foregroundStyle(CardPalette.muted).lineLimit(1) }
+            }
         } content: {
             VStack(alignment: .leading, spacing: 20) {
                 ForEach(o.profile.divisions.filter { $0.matchType != d?.matchType }.prefix(2)) { other in
@@ -458,10 +471,11 @@ struct StreakCardView: View {
     let o: UserOverview
     let images: CardImages
     var body: some View {
-        let good = o.streak.color != "lose" && o.perf.played > 0
+        let label = o.perf.played > 0 ? FCCopy.streak(o.streak, winRate: o.summary.winRate) : nil
+        let good = label != nil
         TemplateCard(chip: "이번 폼", o: o, images: images, kicker: "최근 \(min(10, o.matches.count))경기 폼") {
             VStack(alignment: .leading, spacing: 28) {
-                Text(good ? o.streak.text : "최근 \(o.perf.played)경기")
+                Text(label ?? "최근 \(o.perf.played)경기")
                     .font(.pretendard(72, .bold)).foregroundStyle(good ? (o.streak.color == "gold" ? CardPalette.gold : CardPalette.win) : CardPalette.ink)
                     .lineLimit(1).minimumScaleFactor(0.6)
                 FormStrip(matches: o.matches, cell: 80, spacing: 11)

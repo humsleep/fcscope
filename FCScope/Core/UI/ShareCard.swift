@@ -238,7 +238,7 @@ extension ShareCardSpec {
         let color = CardPalette.verdict(o.streak.color)
         return ShareCardSpec(
             kicker: "이번 폼",
-            title: o.perf.played > 0 ? o.streak.text : "—",
+            title: o.perf.played > 0 ? (FCCopy.streak(o.streak, winRate: o.summary.winRate) ?? o.streak.text) : "—",
             subtitle: "\(o.profile.nickname) · 최근 \(o.perf.played)경기",
             stamp: o.perf.played > 0 ? CardStamp(text: "FC스코어 \(String(format: "%.1f", o.score))", color: color) : nil,
             badges: o.perf.played > 0 ? [

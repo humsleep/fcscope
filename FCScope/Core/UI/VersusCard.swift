@@ -21,7 +21,7 @@ struct VersusComparison {
     var tierA: FormTier { a.formTier }
     var tierB: FormTier { b.formTier }
 
-    /// 비교 행. `winner` 가 .none 인 행(플레이스타일)은 점수에 넣지 않는다.
+    /// 비교 행. `winner` 가 .none 인 행(요즘 흐름)은 점수에 넣지 않는다. `.tie`(차이 없음)도 어느 쪽에도 세지 않는다.
     var rows: [Row] {
         func cmp(_ x: Double, _ y: Double, higherBetter: Bool = true, eps: Double = 0.05) -> Side {
             if abs(x - y) < eps { return .tie }
@@ -40,7 +40,8 @@ struct VersusComparison {
         out.append(Row(label: "경기당 득점", left: f1(a.goalsForPerGame), right: f1(b.goalsForPerGame), winner: cmp(a.goalsForPerGame, b.goalsForPerGame)))
         out.append(Row(label: "경기당 실점", left: f1(a.goalsAgainstPerGame), right: f1(b.goalsAgainstPerGame), winner: cmp(a.goalsAgainstPerGame, b.goalsAgainstPerGame, higherBetter: false)))
         out.append(Row(label: "FC 스코어", left: f1(a.score), right: f1(b.score), winner: cmp(a.score, b.score)))
-        out.append(Row(label: "플레이스타일", left: a.diagnosis.type?.title ?? "-", right: b.diagnosis.type?.title ?? "-", winner: .none))
+        // 서버 진단 유형은 "플레이스타일"(성향 분석 · 스타일 탭)과 다른 값이다 — 같은 이름을 쓰면 화면마다 내 타입이 달라 보였다(QA P1-4)
+        out.append(Row(label: "요즘 흐름", left: a.diagnosis.type?.title ?? "-", right: b.diagnosis.type?.title ?? "-", winner: .none))
         return out
     }
 
@@ -53,6 +54,14 @@ struct VersusComparison {
             default: return acc
             }
         }
+    }
+
+    /// 동점 항목 수 — "1 : 3"인데 여섯 줄이면 나머지는 어디 갔는지 보이게(유저 패널 A·C)
+    var ties: Int { rows.filter { $0.winner == .tie }.count }
+    /// "이긴 항목 1 · 3 · 동점 1" — 경기 스코어처럼 보이던 "1 : 3"을 항목 수로 읽히게 쓴다
+    var tallyNote: String {
+        let (x, y) = tally
+        return ties > 0 ? "동점 \(ties)개는 어느 쪽에도 세지 않아요" : "\(x + y)개 항목 비교"
     }
 
     /// 판정 한 줄 — 진 쪽도 올릴 수 있게 조롱하지 않는다.
@@ -86,10 +95,14 @@ struct VersusCardView: View {
                     Text("VS").font(.scoreboard(44)).foregroundStyle(CardPalette.muted).frame(width: 96)
                     side(c.b, align: .trailing)
                 }
-                HStack(spacing: 28) {
-                    Text("\(x)").font(.scoreboard(96)).foregroundStyle(x >= y ? CardPalette.ink : CardPalette.muted)
-                    Text(":").font(.scoreboard(72)).foregroundStyle(CardPalette.muted)
-                    Text("\(y)").font(.scoreboard(96)).foregroundStyle(y >= x ? CardPalette.ink : CardPalette.muted)
+                // "1 : 3"이 경기 스코어로 읽혔다 — 가운데에 "이긴 항목"을 밝히고 콜론 대신 가운뎃점
+                HStack(alignment: .center, spacing: 28) {
+                    Text("\(x)").font(.scoreboard(88)).foregroundStyle(x >= y ? CardPalette.ink : CardPalette.muted)
+                    VStack(spacing: 2) {
+                        Text("이긴 항목").font(.pretendard(26, .bold)).foregroundStyle(CardPalette.muted)
+                        Text(c.ties > 0 ? "동점 \(c.ties) 제외" : " ").font(.pretendard(20)).foregroundStyle(CardPalette.muted)
+                    }
+                    Text("\(y)").font(.scoreboard(88)).foregroundStyle(y >= x ? CardPalette.ink : CardPalette.muted)
                 }
                 .frame(maxWidth: .infinity, maxHeight: 112)
             }
@@ -123,22 +136,24 @@ struct VersusCardView: View {
 
     private func row(_ r: VersusComparison.Row) -> some View {
         HStack(spacing: 0) {
-            value(r.left, win: r.winner == .a, align: .leading)
+            value(r.left, win: r.winner == .a, lose: r.winner == .b, align: .leading)
             Text(r.label).font(.pretendard(26, .semibold)).foregroundStyle(CardPalette.muted).frame(width: 240)
-            value(r.right, win: r.winner == .b, align: .trailing)
+            value(r.right, win: r.winner == .b, lose: r.winner == .a, align: .trailing)
         }
         .padding(.horizontal, 28).frame(height: 92)
         .background(CardPalette.surface, in: RoundedRectangle(cornerRadius: 22))
         .overlay(RoundedRectangle(cornerRadius: 22).stroke(CardPalette.line, lineWidth: 2))
     }
 
-    private func value(_ s: String, win: Bool, align: Alignment) -> some View {
+    /// 앞선 값 = ink + 틴트 점, 뒤진 값 = muted. 초록·빨강은 쓰지 않는다 — 친구가 앞선 값이 내 카드에서 "좋음(초록)"으로
+    /// 읽혔다(디자인 M9). 점은 값의 안쪽(라벨 쪽)에 둔다.
+    private func value(_ s: String, win: Bool, lose: Bool, align: Alignment) -> some View {
         let ascii = s.unicodeScalars.allSatisfy(\.isASCII)
-        return HStack(spacing: 8) {
-            if win, align == .trailing { Text("▲").font(.scoreboard(20)).foregroundStyle(CardPalette.win) }
-            Text(s).font(ascii ? .scoreboard(48) : .pretendard(34, .bold))
-                .foregroundStyle(win ? CardPalette.win : CardPalette.ink).lineLimit(1).minimumScaleFactor(0.6)
-            if win, align == .leading { Text("▲").font(.scoreboard(20)).foregroundStyle(CardPalette.win) }
+        return HStack(spacing: 12) {
+            if win, align == .trailing { Circle().fill(CardPalette.tint).frame(width: 14, height: 14) }
+            Text(s).font(ascii ? .scoreboard(48) : .pretendard(34, win ? .bold : .medium))
+                .foregroundStyle(lose ? CardPalette.muted : CardPalette.ink).lineLimit(1).minimumScaleFactor(0.6)
+            if win, align == .leading { Circle().fill(CardPalette.tint).frame(width: 14, height: 14) }
         }
         .frame(maxWidth: .infinity, alignment: align)
     }

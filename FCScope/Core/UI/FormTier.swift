@@ -88,6 +88,17 @@ struct FormTier: Equatable {
     /// 표본 부족이면 nil(배치 중)
     let points: Int?
     let level: Level?
+    /// 계산 입력 — 설명 시트(산식 풀이)에 그대로 보여 준다
+    let winRate: Int
+    let goalDiffPerGame: Double
+    let score: Double
+
+    /// 항목별 점수(설명 시트용) — points() 와 같은 식
+    var parts: (win: Double, goal: Double, score: Double) {
+        (Double(min(100, max(0, winRate))) * 0.5,
+         min(1, max(0, (goalDiffPerGame + 2) / 4)) * 25,
+         min(10, max(0, score)) * 2.5)
+    }
 
     var isPlacement: Bool { level == nil }
     /// 다음 티어까지 남은 점수(레전드·배치 중이면 nil)
@@ -107,6 +118,9 @@ struct FormTier: Equatable {
 
     init(games: Int, winRate: Int, goalDiffPerGame: Double, score: Double) {
         self.games = games
+        self.winRate = winRate
+        self.goalDiffPerGame = goalDiffPerGame
+        self.score = score
         if games >= Self.minGames {
             let p = Self.points(winRate: winRate, goalDiffPerGame: goalDiffPerGame, score: score)
             points = p
@@ -146,16 +160,22 @@ extension UserOverview {
 struct FormTierBadge: View {
     let tier: FormTier
     var size: Size = .regular
+    /// 탭 가능한 배지(설명 시트를 여는 버튼 안)에만 ⓘ 를 붙인다
+    var showInfo = false
     enum Size { case compact, regular }
 
     var body: some View {
         HStack(spacing: size == .compact ? 4 : 6) {
             emblem
-            Text(tier.label).fcFont(size == .compact ? 12 : 13, weight: .bold).foregroundStyle(FC.ink).lineLimit(1).fixedSize()
+            Text(tier.label).fcRender(size == .compact ? 12 : 13, .bold).foregroundStyle(FC.ink).lineLimit(1).fixedSize()
             if let p = tier.points, size == .regular {
-                Text("\(p)").fcScoreboard(12, weight: .semibold).foregroundStyle(FC.muted).monospacedDigit()
+                // "40"만 있으면 상위 40%인지 40점인지 몰랐다(유저 패널 A) — 단위를 붙인다. 탭하면 산식 시트.
+                Text("\(p)점").fcText(.meta, weight: .semibold).foregroundStyle(FC.muted).monospacedDigit()
             } else if tier.isPlacement {
                 Text("\(tier.games)/\(FormTier.minGames)").fcScoreboard(12, weight: .semibold).foregroundStyle(FC.muted)
+            }
+            if showInfo {
+                Image(systemName: "info.circle").font(.system(size: 12, weight: .semibold)).foregroundStyle(FC.muted)
             }
         }
         .padding(.leading, 4).padding(.trailing, 10).padding(.vertical, 4)
@@ -184,6 +204,111 @@ struct FormTierBadge: View {
             }
         }
         .frame(width: d, height: d)
+    }
+}
+
+/// 배지를 누르면 산식 시트 — "골드 40"이 몇 점 만점이고 무엇으로 계산했는지(유저 패널 A·C).
+struct FormTierButton: View {
+    let tier: FormTier
+    var size: FormTierBadge.Size = .regular
+    @State private var show = false
+    var body: some View {
+        Button { Haptic.light(); show = true } label: {
+            FormTierBadge(tier: tier, size: size, showInfo: true)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("폼 티어 계산 방법 보기")
+        .sheet(isPresented: $show) { FormTierInfoSheet(tier: tier) }
+    }
+}
+
+struct FormTierInfoSheet: View {
+    let tier: FormTier
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 10) {
+                        FormTierBadge(tier: tier)
+                        Spacer()
+                    }
+                    Text("폼 티어는 FC Scope 가 **최근 \(tier.games)경기**만으로 매번 다시 계산하는 \"요즘 폼\" 등급이에요. 넥슨 공식 등급(챔피언스·월드클래스 등)과는 달라요.")
+                        .fcText(.callout).foregroundStyle(FC.ink).fixedSize(horizontal: false, vertical: true)
+                    if tier.isPlacement {
+                        Text("10경기를 채우면 등급이 나와요. 지금 \(tier.games)경기예요.")
+                            .fcText(.callout).foregroundStyle(FC.muted)
+                    } else {
+                        breakdown
+                    }
+                    ladder
+                    Text("승률이 절반, 득실과 FC 스코어가 4분의 1씩이에요. 승률 50% · 득실 0 · 스코어 5.0 인 딱 평균이면 50점(플래티넘 시작)이에요.")
+                        .fcText(.meta).foregroundStyle(FC.muted).fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(20)
+            }
+            .background(FC.bg.ignoresSafeArea())
+            .navigationTitle("폼 티어는 이렇게 계산해요").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("닫기") { dismiss() } } }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private var breakdown: some View {
+        let p = tier.parts
+        let gd = tier.goalDiffPerGame
+        return VStack(spacing: 0) {
+            row("승률 \(tier.winRate)%", "× 0.5", p.win, of: 50)
+            Divider().overlay(FC.line)
+            row("경기당 득실 \(gd >= 0 ? "+" : "")\(String(format: "%.1f", gd))", "−2 ~ +2 → 0 ~ 25", p.goal, of: 25)
+            Divider().overlay(FC.line)
+            row("FC 스코어 \(String(format: "%.1f", tier.score))", "× 2.5", p.score, of: 25)
+            Divider().overlay(FC.line)
+            HStack {
+                Text("합계").fcText(.callout, weight: .bold).foregroundStyle(FC.ink)
+                Spacer()
+                Text("\(tier.points ?? 0)점 / 100").fcScoreboard(16).foregroundStyle(FC.ink)
+            }
+            .padding(.vertical, 10)
+            if let next = tier.level?.next, let gap = tier.pointsToNext {
+                Text("다음 등급 \(next.name)까지 \(gap)점").fcText(.meta, weight: .semibold).foregroundStyle(FC.tint)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 6)
+        .background(FC.surface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(FC.line, lineWidth: 1))
+    }
+
+    private func row(_ label: String, _ rule: String, _ value: Double, of max: Int) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label).fcText(.callout, weight: .semibold).foregroundStyle(FC.ink)
+                Text(rule).fcText(.caption).foregroundStyle(FC.muted)
+            }
+            Spacer()
+            Text("\(String(format: "%.1f", value)) / \(max)").fcScoreboard(14, weight: .semibold).foregroundStyle(FC.ink).monospacedDigit()
+        }
+        .padding(.vertical, 10)
+    }
+
+    private var ladder: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("등급 구간").fcText(.label).foregroundStyle(FC.muted)
+            FlowLayout(spacing: 6, lineSpacing: 6) {
+                ForEach(FormTier.Level.allCases, id: \.self) { l in
+                    let on = l == tier.level
+                    let upper = l.next.map { "\($0.floor - 1)" } ?? "100"
+                    Text("\(l.name) \(l.floor)~\(upper)")
+                        .fcText(.meta, weight: on ? .bold : .regular)
+                        .foregroundStyle(on ? FC.ink : FC.muted)
+                        .padding(.horizontal, 10).frame(height: 28)
+                        .background(on ? FC.tint.opacity(0.14) : FC.surface2, in: Capsule())
+                        .overlay(Capsule().strokeBorder(on ? FC.tint : .clear, lineWidth: 1.2))
+                }
+            }
+        }
     }
 }
 

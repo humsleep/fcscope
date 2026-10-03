@@ -38,6 +38,16 @@ enum FCCopy {
         }
     }
 
+    /// 서버 폼 라벨(lib/nexon/streak-card.ts streakLabel) → 표시 문구. nil 이면 싣지 않는다.
+    ///
+    /// 서버는 연승·연패·모멘텀이 없으면 승률과 상관없이 "안정적인 폼"을 준다 — 승률 30% 화면에 "반등 준비 중",
+    /// 같은 사람 카드에 "안정적인 폼"이 함께 떠 모순으로 읽혔다(유저 패널 B·C). 승률이 반 아래면 싣지 않는다.
+    static func streak(_ s: StreakInfo, winRate: Int) -> String? {
+        if s.color == "lose" { return nil }
+        if s.text == "안정적인 폼" { return winRate >= 50 ? "꾸준한 폼" : nil }
+        return s.text
+    }
+
     /// 스쿼드 클리닉 band 코드(lib/squad-clinic.ts BAND_LABEL) → 표시 문구. 모르는 코드는 그대로.
     static func squadBand(_ band: String) -> String {
         ["top": "최상위 스쿼드 👑", "strong": "상위권 스쿼드", "balanced": "안정권 스쿼드",
@@ -71,5 +81,24 @@ extension MatchDetailResponse {
     /// 화면·카드에 실제로 띄우는 한 줄
     var liner: String {
         storyTag ?? FCCopy.matchLiner(result: me.result, myGoals: me.goals, oppGoals: opponent?.goals, forfeit: me.forfeit, server: verdict.oneLiner)
+    }
+
+    /// 바로 옆에 이미 큰 결과 라벨("무승부" 등)·스코어가 있을 때 — 같은 말을 빼고 남은 부분만.
+    /// "무승부 · 3:3 난타전 무승부" → "난타전". 다 빼면 아무것도 안 남으면 원문 그대로.
+    func liner(after shown: [String]) -> String {
+        var t = liner
+        if let o = opponent { t = t.replacingOccurrences(of: "\(me.goals):\(o.goals)", with: "") }
+        for w in shown where !w.isEmpty { t = t.replacingOccurrences(of: w, with: "") }
+        t = t.trimmingCharacters(in: CharacterSet(charactersIn: " ,·"))
+        return t.isEmpty ? liner : t
+    }
+}
+
+/// 한국어 조사 — 받침에 따라 "을/를". "세루 기라시을(를)"처럼 괄호 조사가 그대로 보였다(QA P2-9).
+enum Josa {
+    /// 마지막 글자가 한글이면 받침으로 고르고, 아니면(영문·숫자) "을(를)"을 그대로 쓴다.
+    static func eulReul(_ word: String) -> String {
+        guard let last = word.unicodeScalars.last, (0xAC00...0xD7A3).contains(last.value) else { return "\(word)을(를)" }
+        return (last.value - 0xAC00) % 28 == 0 ? "\(word)를" : "\(word)을"
     }
 }

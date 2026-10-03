@@ -37,7 +37,14 @@ final class RecordViewModel {
     var quickProfile: UserProfile?
     var loadedFromCache = false
 
-    init(nickname: String) { self.nickname = nickname }
+    init(nickname: String) {
+        self.nickname = nickname
+        #if DEBUG
+        // 캡처 검수용 — `-recordSection report|players|style` 로 해당 탭을 바로 연다(릴리스에는 없음)
+        if let raw = UserDefaults.standard.string(forKey: "recordSection"),
+           let s = Section.allCases.first(where: { String(describing: $0) == raw }) { section = s }
+        #endif
+    }
     private var enc: String { nickname.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? nickname }
     private var path: String { "/api/v1/user/\(enc)" }
     private var query: [String: String] { ["type": String(matchType)] }
@@ -219,12 +226,25 @@ struct RecordView: View {
                         .accessibilityLabel(prefs.isFavorite(nickname) ? "즐겨찾기 해제" : "즐겨찾기 추가")
                     }
                     if let o = vm.overview.value {
-                        ShareLink(item: AppConfig.absolute("/user/\(o.profile.nickname.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? nickname)")) { Image(systemName: "link") }.accessibilityLabel("전적 링크 공유")
+                        // "내 구단으로"는 헤더 카드 모서리에 붙어 있던 링크를 여기로 옮겼다(QA P2-3 · 디자인 M8)
+                        Menu {
+                            ShareLink(item: AppConfig.absolute("/user/\(o.profile.nickname.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? nickname)")) {
+                                Label("전적 링크 공유", systemImage: "link")
+                            }
+                            if !isMine(o) {
+                                Button { prefs.myNickname = o.profile.nickname; Haptic.success() } label: {
+                                    Label("내 구단으로 설정", systemImage: "person.crop.circle.badge.checkmark")
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                        }
+                        .accessibilityLabel("더보기")
                     }
                 }
             }
         }
-        .task { await vm.load() }
+        .task { await vm.load(); if vm.section != .matches { await vm.loadSection() } }
         .task { if !prefs.pushPromptDismissed { await refreshPushStatus() } }
         .refreshable { await vm.refresh() }
     }
@@ -251,7 +271,6 @@ struct RecordView: View {
                 // 헤더 v2(UX-AUDIT-GENZ #4): 엠블럼·폼 티어·MY TYPE·3칸 타일·폼 블록·공유 CTA·VS 진입.
                 RecordHeader(
                     o: o, isMine: isMine(o),
-                    onMakeMine: { prefs.myNickname = o.profile.nickname; Haptic.success() },
                     onTypeTap: { selectSection(.report) },
                     onVersus: { router.push(.versus(me: o.profile.nickname, type: o.matchType)) }
                 )
@@ -265,7 +284,7 @@ struct RecordView: View {
                 )
                 switch vm.section {
                 case .matches: MatchesSection(o: o, nickname: o.profile.nickname)
-                case .report: ReportSection(state: vm.report, retry: retrySection)
+                case .report: ReportSection(state: vm.report, overview: o, retry: retrySection)
                 case .players: PlayersSection(state: vm.players, nickname: o.profile.nickname, overview: o, retry: retrySection)
                 case .style: PlaystyleSection(state: vm.playstyle, retry: retrySection)
                 }

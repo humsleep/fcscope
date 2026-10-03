@@ -3,38 +3,34 @@ import SwiftUI
 /**
  전적 헤더 v2 — "캡처하고 싶은 한 장"(UX-AUDIT-GENZ #4, 목업 ux-mockups/01-record.png).
 
- 위에서 아래로: 계급 엠블럼 74pt + 닉네임 + 폼 티어 → MY TYPE 띠(플레이스타일 칭호) →
- 3칸 타일(승률 · 스코어 링 · 경기당 득점) → 최근 10경기 폼 블록 → "스토리로 자랑" + "계급 카드" → 친구랑 VS.
+ 위에서 아래로: 계급 엠블럼 74pt + 닉네임 + 폼 티어 → 요즘 흐름 띠(서버 진단 유형) →
+ 3칸 타일(승률 · 스코어 링 · 경기당 득점) → 최근 10경기 폼 블록 → "스토리로 자랑" + "계급 카드" + VS.
+
+ 다이어트(디자인 리뷰 1라운드 M8, 목표 ≤ 380pt): 몰수 각주는 승률 타일의 ⓘ 팝오버로, 진단 설명은 최대 2줄,
+ "친구랑 비교" 풀폭 행은 CTA 줄 오른쪽 원형 버튼으로, "내 구단으로"는 내비 메뉴로 옮겼다.
+
+ 이름 규칙(유저 패널 "내 타입이 화면마다 다르다"): **플레이스타일** = 성향 분석(압박 사냥꾼 등, 스타일 탭·전적 카드).
+ 이 띠는 서버 진단 유형(리빌딩 시즌 등) — 지금 상태라 **"요즘 흐름"**으로 부른다. 두 개념에 같은 이름을 쓰지 않는다.
 
  색 규칙(Theme.swift 머리 주석): 중립 숫자(승률·경기당 득점)는 ink, 좋고 나쁨이 있는 값(스코어)만 의미 색.
- 브랜드 그라디언트는 MY TYPE 띠와 주 CTA 두 군데만.
  */
 struct RecordHeader: View {
     let o: UserOverview
     let isMine: Bool
-    var onMakeMine: () -> Void
     var onTypeTap: () -> Void
     var onVersus: () -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var showBasis = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            RecordIdentityRow(profile: o.profile, matchType: o.matchType, tier: o.summary.played > 0 ? o.formTier : nil,
-                              isMine: isMine, onMakeMine: onMakeMine)
-            if let t = o.diagnosis.type { myType(t) }
+            RecordIdentityRow(profile: o.profile, matchType: o.matchType, tier: o.summary.played > 0 ? o.formTier : nil, isMine: isMine)
+            if let t = o.diagnosis.type { nowBand(t) }
             if o.summary.played > 0 {
                 tiles
-                if let f = o.perf.forfeits, f > 0, let np = o.perf.normalPlayed, np > 0, let nw = o.perf.normalWin {
-                    // 기준 라벨 — 승률은 앱 전체가 몰수 포함(넥슨 공식 전적과 같은 기준). 뺀 값도 밝혀 웹·카드와 숫자가 달라 보이는 일을 막는다.
-                    Text("승률은 몰수 \(f)경기 포함 · 빼면 \(Int((Double(nw) / Double(np) * 100).rounded()))%")
-                        .fcFont(11).foregroundStyle(FC.muted).padding(.top, -6)
-                }
-                HStack(spacing: 8) {
-                    Text("최근\(min(10, o.matches.count))").fcFont(11, weight: .semibold).foregroundStyle(FC.muted).fixedSize()
-                    FormBlocks(matches: o.matches)
-                }
+                formStrip
             } else {
-                Text("이 모드는 최근 기록이 없어요.").fcFont(13).foregroundStyle(FC.muted)
+                Text("이 모드는 최근 기록이 없어요.").fcText(.callout).foregroundStyle(FC.muted)
             }
             ctas
         }
@@ -52,36 +48,41 @@ struct RecordHeader: View {
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(FC.line, lineWidth: 1))
     }
 
-    // MARK: MY TYPE
+    // MARK: 요즘 흐름 (서버 진단 유형)
 
-    private func myType(_ t: Rule) -> some View {
-        // 서버 desc 는 "경기당 3골 이상 — 일단 상대보다 한 골 더 넣으면 됩니다" 형태 — 근거와 한 줄을 나눠 오른쪽에 둔다.
-        let parts = t.desc.components(separatedBy: " — ")
+    private func nowBand(_ t: Rule) -> some View {
+        // 서버 desc 는 "경기당 3골 이상 — 일단 상대보다 한 골 더 넣으면 됩니다" 형태 — 한 줄로 이어 최대 2줄.
+        let desc = t.desc.replacingOccurrences(of: " — ", with: " · ")
+        let stacked = typeSize.isAccessibilitySize
+        let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout(alignment: .center, spacing: 10))
         return Button(action: onTypeTap) {
-            HStack(spacing: 12) {
-                Text(Self.emoji(for: t)).font(.system(size: 26))
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("MY TYPE").fcScoreboard(10, weight: .semibold).kerning(2).foregroundStyle(FC.muted)
-                    Text(t.title).fcFont(19, weight: .bold).foregroundStyle(FC.ink).lineLimit(1).minimumScaleFactor(0.8)
+            HStack(alignment: .center, spacing: 12) {
+                Text(Self.emoji(for: t)).font(.system(size: 24))
+                layout {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("요즘 흐름").fcText(.caption, weight: .semibold).foregroundStyle(FC.muted)
+                        Text(t.title).fcRender(18, .bold).foregroundStyle(FC.ink).lineLimit(1).minimumScaleFactor(0.8)
+                    }
+                    .layoutPriority(1)
+                    if !stacked { Spacer(minLength: 4) }
+                    Text(desc).fcText(.meta).foregroundStyle(FC.muted)
+                        .multilineTextAlignment(stacked ? .leading : .trailing)
+                        .lineLimit(stacked ? 3 : 2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .layoutPriority(1)
-                Spacer(minLength: 8)
-                VStack(alignment: .trailing, spacing: 1) {
-                    Text(parts.first ?? t.desc).fcFont(11).foregroundStyle(FC.muted)
-                    if parts.count > 1 { Text(parts.dropFirst().joined(separator: " — ")).fcFont(11).foregroundStyle(FC.muted) }
-                }
-                .multilineTextAlignment(.trailing).lineLimit(2).minimumScaleFactor(0.85)
+                Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundStyle(FC.muted)
             }
-            .padding(.horizontal, 14).padding(.vertical, 10)
-            .background {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(LinearGradient(colors: [FC.brandStart.opacity(0.20), FC.brandEnd.opacity(0.10)], startPoint: .leading, endPoint: .trailing))
+            .padding(.leading, 14).padding(.trailing, 12).padding(.vertical, 10)
+            // 탁한 적갈색 그라디언트 채움 → surface2 + 왼쪽 3pt 브랜드 바(매치 히어로·공유 카드와 같은 문법 · 디자인 M8)
+            .background(FC.surface2, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(alignment: .leading) {
+                UnevenRoundedRectangle(topLeadingRadius: 14, bottomLeadingRadius: 14, style: .continuous)
+                    .fill(FC.brand).frame(width: 3)
             }
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(LinearGradient(colors: [FC.brandStart.opacity(0.55), FC.brandEnd.opacity(0.35)], startPoint: .leading, endPoint: .trailing), lineWidth: 1))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("내 유형 \(t.title). \(t.desc)")
+        .accessibilityLabel("요즘 흐름 \(t.title). \(t.desc)")
         .accessibilityHint("종합 리포트를 열어요")
     }
 
@@ -99,10 +100,17 @@ struct RecordHeader: View {
 
     // MARK: 타일
 
+    private var forfeits: Int { o.perf.forfeits ?? 0 }
+    /// 몰수 제외 승률(있을 때만)
+    private var normalWinRate: Int? {
+        guard forfeits > 0, let np = o.perf.normalPlayed, np > 0, let nw = o.perf.normalWin else { return nil }
+        return Int((Double(nw) / Double(np) * 100).rounded())
+    }
+
     private var tiles: some View {
         let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
         return layout {
-            tile("승률", sub: "\(o.summary.win)승 \(o.summary.draw)무 \(o.summary.lose)패") {
+            tile("승률", info: forfeits > 0, sub: "\(o.summary.win)승 \(o.summary.draw)무 \(o.summary.lose)패") {
                 CountUp(target: Double(o.summary.winRate)) { v in
                     (Text("\(Int(v.rounded()))") + Text("%").font(.fcScoreboard(14, typeSize)).foregroundStyle(FC.muted))
                         .font(.fcScoreboard(28, typeSize)).foregroundStyle(FC.ink)
@@ -118,19 +126,46 @@ struct RecordHeader: View {
                 }
             }
             .accessibilityLabel("FC Scope 스코어 \(String(format: "%.1f", o.score))점, 10점 만점. \(FCCopy.tier(o.tier.label))")
-            tile("경기당 득점", sub: (o.perf.forfeits ?? 0) > 0 ? "실점 \(String(format: "%.1f", o.goalsAgainstPerGame)) · 몰수 제외" : "실점 \(String(format: "%.1f", o.goalsAgainstPerGame))") {
+            // "실점 2.5 · 몰수 제외"가 SE 에서 잘려 기준이 사라졌다(QA P2-1) — 기준은 ⓘ 팝오버에 모았다.
+            tile("경기당 득점", info: forfeits > 0, sub: "실점 \(String(format: "%.1f", o.goalsAgainstPerGame))") {
                 CountUp(target: o.goalsForPerGame, delay: 0.1) { v in
                     Text(String(format: "%.1f", v)).font(.fcScoreboard(28, typeSize)).foregroundStyle(FC.ink)
                 }
             }
         }
+        .popover(isPresented: $showBasis, arrowEdge: .top) {
+            basisNote.presentationCompactAdaptation(.popover)
+        }
     }
 
-    private func tile<V: View>(_ label: String, sub: String, subColor: Color = FC.muted, @ViewBuilder value: () -> V) -> some View {
+    /// 몰수 기준 — 예전엔 타일 아래 각주 한 줄이었다. 승률(몰수 포함)과 득실(몰수 제외)의 기준이 다르다는 걸 한곳에서 밝힌다.
+    private var basisNote: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("몰수 \(forfeits)경기가 섞여 있어요").fcText(.callout, weight: .bold).foregroundStyle(FC.ink)
+            Text("· 승률은 몰수 포함 — 넥슨 공식 전적과 같은 기준" + (normalWinRate.map { " (빼면 \($0)%)" } ?? ""))
+            Text("· 경기당 득점·실점, 리포트 득실은 몰수(3:0)를 뺀 실제 경기 기준")
+        }
+        .fcText(.meta).foregroundStyle(FC.muted)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(16)
+        .frame(width: 280, alignment: .leading)
+    }
+
+    private func tile<V: View>(_ label: String, info: Bool = false, sub: String, subColor: Color = FC.muted, @ViewBuilder value: () -> V) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(label).fcFont(11, weight: .semibold).foregroundStyle(FC.muted).lineLimit(1)
+            HStack(spacing: 3) {
+                Text(label).fcText(.meta, weight: .semibold).foregroundStyle(FC.muted).lineLimit(1)
+                if info {
+                    Button { showBasis = true } label: {
+                        Image(systemName: "info.circle").font(.system(size: 11, weight: .semibold)).foregroundStyle(FC.muted)
+                            .frame(width: 22, height: 18).contentShape(Rectangle().inset(by: -10))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("몰수 경기 기준 설명")
+                }
+            }
             value().lineLimit(1).minimumScaleFactor(0.7)
-            Text(sub).fcFont(11, weight: subColor == FC.muted ? .regular : .semibold).foregroundStyle(subColor).lineLimit(1).minimumScaleFactor(0.75)
+            Text(sub).fcText(.meta, weight: subColor == FC.muted ? .regular : .semibold).foregroundStyle(subColor).lineLimit(1).minimumScaleFactor(0.8)
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -139,49 +174,74 @@ struct RecordHeader: View {
         .accessibilityElement(children: .combine)
     }
 
+    // MARK: 폼 스트립 + 범례
+
+    private var formStrip: some View {
+        let recent = o.matches.prefix(10)
+        let hasForfeit = recent.contains(where: \.forfeit)
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Text("최근\(recent.count)").fcText(.caption, weight: .semibold).foregroundStyle(FC.muted).fixedSize()
+                FormBlocks(matches: o.matches)
+            }
+            // 점선(몰수)·굵은 테두리(가장 최근)에 범례가 없었다(디자인 M8)
+            HStack(spacing: 10) {
+                Spacer(minLength: 0)
+                legend(dashed: false, "최근 경기")
+                if hasForfeit { legend(dashed: true, "몰수") }
+            }
+        }
+    }
+
+    private func legend(dashed: Bool, _ text: String) -> some View {
+        HStack(spacing: 4) {
+            RoundedRectangle(cornerRadius: 3)
+                .strokeBorder(dashed ? FC.muted : FC.ink.opacity(0.8), style: StrokeStyle(lineWidth: dashed ? 1 : 1.5, dash: dashed ? [2, 1.5] : []))
+                .frame(width: 12, height: 10)
+            Text(text).fcText(.caption).foregroundStyle(FC.muted)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(dashed ? "점선 칸은 몰수 경기" : "굵은 테두리는 가장 최근 경기")
+    }
+
     // MARK: CTA
 
     private var ctas: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
+        HStack(spacing: 8) {
+            if o.summary.played > 0 {
+                ShareCardButton(story: .user(o), label: "스토리로 자랑", style: .hero)
+                    .layoutPriority(1)
+            }
+            if !o.profile.divisions.isEmpty {
+                // 주 CTA 가 layoutPriority 로 폭을 다 가져가므로 보조 버튼은 폭을 고정한다(maxWidth 만 주면 0으로 눌렸다).
                 if o.summary.played > 0 {
-                    ShareCardButton(story: .user(o), label: "스토리로 자랑", style: .hero)
-                        .layoutPriority(1)
-                }
-                if !o.profile.divisions.isEmpty {
-                    // 주 CTA 가 layoutPriority 로 폭을 다 가져가므로 보조 버튼은 폭을 고정한다(maxWidth 만 주면 0으로 눌렸다).
-                    if o.summary.played > 0 {
-                        ShareCardButton(story: .rank(o), label: "🏆 계급 카드", style: .secondary).frame(width: 128)
-                    } else {
-                        ShareCardButton(story: .rank(o), label: "🏆 계급 카드", style: .secondary)
-                    }
+                    ShareCardButton(story: .rank(o), label: "🏆 계급", style: .secondary).frame(width: 92)
+                } else {
+                    ShareCardButton(story: .rank(o), label: "🏆 계급 카드", style: .secondary)
                 }
             }
+            // 친구 VS — 풀폭 행이던 것을 보조 원형 버튼으로(헤더 다이어트 · 디자인 M8)
             Button(action: { Haptic.light(); onVersus() }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "person.2.fill").font(.system(size: 13, weight: .bold))
-                    Text("친구랑 비교 (VS)").fcFont(14, weight: .bold)
-                    Text("승률 · 폼 티어 맞대결").fcFont(12).foregroundStyle(FC.muted)
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(FC.muted)
-                }
-                .foregroundStyle(FC.tint)
-                .padding(.horizontal, 4)
-                .frame(minHeight: 40)
-                .contentShape(Rectangle())
+                Text("VS").fcScoreboard(15).foregroundStyle(FC.tint)
+                    .frame(width: 50, height: 50)
+                    .background(FC.surface2, in: Circle())
+                    .overlay(Circle().strokeBorder(FC.tint.opacity(0.7), lineWidth: 1.5))
+                    .contentShape(Circle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PressScaleStyle())
+            .accessibilityLabel("친구랑 비교 VS")
+            .accessibilityHint("승률 · 폼 티어 맞대결을 열어요")
         }
     }
 }
 
 /// 엠블럼 74pt + 닉네임 + 레벨 + 최고 등급 한 줄 + 폼 티어. 콜드 조회 선행 프로필(경기 도착 전)에도 같이 쓴다.
+/// "내 구단으로"는 카드 모서리 링크(padding -12 로 붙어 있던 것)를 내비 메뉴로 옮겼다(QA P2-3).
 struct RecordIdentityRow: View {
     let profile: UserProfile
     var matchType: Int = 50
     var tier: FormTier?
     var isMine: Bool
-    var onMakeMine: (() -> Void)?
     @Environment(\.dynamicTypeSize) private var typeSize
 
     /// 보고 있는 모드의 최고 등급 → 없으면 공식경기 → 아무거나
@@ -197,29 +257,18 @@ struct RecordIdentityRow: View {
                     Text(profile.nickname).fcFont(26, weight: .bold).foregroundStyle(FC.ink).lineLimit(1).minimumScaleFactor(0.6)
                     (Text("LV.").foregroundStyle(FC.muted) + Text("\(profile.level)").foregroundStyle(FC.ink))
                         .font(.fcScoreboard(13, typeSize, weight: .semibold)).lineLimit(1).fixedSize()
+                    Spacer(minLength: 0)
+                    if isMine { Chip(text: "내 구단", color: FC.tintInk, bg: FC.tint).fixedSize() }
                 }
                 if let d = division {
                     // 넥슨 division 은 "역대 최고 + 달성일"이다 — 현재 등급으로 읽히지 않게 "역대 최고"를 밝힌다.
                     (Text(d.divisionName).foregroundStyle(FC.gold).bold() + Text(" · \(d.matchTypeName) 역대 최고").foregroundStyle(FC.muted))
-                        .font(.fcFont(12, typeSize)).lineLimit(1).minimumScaleFactor(0.8)
+                        .font(.fcText(.meta, typeSize)).lineLimit(1).minimumScaleFactor(0.8)
                         .accessibilityLabel("\(d.matchTypeName) 역대 최고 등급 \(d.divisionName), \(d.date) 달성")
                 }
-                if let tier { FormTierBadge(tier: tier) }
+                if let tier { FormTierButton(tier: tier) }
             }
             Spacer(minLength: 0)
-        }
-        .overlay(alignment: .topTrailing) { mineControl }
-    }
-
-    @ViewBuilder private var mineControl: some View {
-        if isMine {
-            Chip(text: "내 구단", color: FC.tintInk, bg: FC.tint)
-        } else if let onMakeMine {
-            Button(action: onMakeMine) {
-                Text("내 구단으로").fcFont(12, weight: .semibold).foregroundStyle(FC.tint).lineLimit(1).fixedSize()
-                    .frame(minWidth: 44, minHeight: 44, alignment: .topTrailing).contentShape(Rectangle())
-            }
-            .buttonStyle(.plain).padding(.top, -12)
         }
     }
 
@@ -229,6 +278,9 @@ struct RecordIdentityRow: View {
                 .fill(RadialGradient(colors: [FC.tint.opacity(0.35), FC.surface2], center: .center, startRadius: 4, endRadius: 52))
             if let icon = division?.iconUrl {
                 RemoteImage(url: icon, size: 58)
+            } else if let d = division {
+                // 서버 iconUrl 이 없는 등급(마스터 등) — 기본 방패 대신 등급 이름 머리글자(QA P2-3)
+                Text(String(d.divisionName.prefix(2))).fcRender(17, .bold).foregroundStyle(FC.gold)
             } else {
                 Image(systemName: "shield.lefthalf.filled").font(.system(size: 30)).foregroundStyle(FC.muted)
             }
@@ -240,7 +292,11 @@ struct RecordIdentityRow: View {
     }
 }
 
-/// 모드 드롭다운 칩 + 이번 주 요약 칩 → 아래 줄에 밑줄 탭. 두 줄이던 탭(세그먼트 + 칩)을 한 덩어리로 합쳤다.
+/// 모드 드롭다운 알약 + 이번 주 요약 → 아래 줄에 밑줄 탭.
+///
+/// 선택 UI 문법 통일(디자인 M6): 1차 탭 밑줄은 전 화면 `FC.ink` 2.5pt(그라디언트는 CTA 전용),
+/// 모드 알약은 `FC.surface2` 채움 + ink 글자(흰/검정 채움 알약이 화면에서 가장 센 요소였다).
+/// 글자는 역할 토큰 — 탭 15 · 칩 13 · 메타 12 렌더(커뮤니티와 같은 크기).
 struct RecordTabBar: View {
     let tabs: [MatchTab]
     let matchType: Int
@@ -259,20 +315,20 @@ struct RecordTabBar: View {
                     }
                 } label: {
                     HStack(spacing: 4) {
-                        Text(tabs.first { $0.type == matchType }?.label ?? "공식경기").fcFont(13, weight: .bold)
+                        Text(tabs.first { $0.type == matchType }?.label ?? "공식경기").fcText(.chip)
                         Image(systemName: "chevron.down").font(.system(size: 10, weight: .bold))
                     }
-                    .foregroundStyle(FC.bg)
+                    .foregroundStyle(FC.ink)
                     .padding(.horizontal, 12).frame(height: 32)
-                    .background(FC.ink, in: Capsule())
+                    .background(FC.surface2, in: Capsule())
+                    .overlay(Capsule().strokeBorder(FC.line, lineWidth: 1))
                     .tapTarget()
                 }
                 .accessibilityLabel("매치 유형 \(tabs.first { $0.type == matchType }?.label ?? "공식경기"), 바꾸기")
                 if let w = week, w.games > 0 {
                     Text("이번 주 \(w.games)판 · \(w.win)승 \(w.draw)무 \(w.lose)패")
-                        .fcFont(12).foregroundStyle(FC.muted).lineLimit(1).minimumScaleFactor(0.8)
-                        .padding(.horizontal, 12).frame(height: 32)
-                        .background(FC.surface2, in: Capsule())
+                        .fcText(.meta).foregroundStyle(FC.muted).lineLimit(1).minimumScaleFactor(0.8)
+                        .padding(.horizontal, 4)
                 }
                 Spacer(minLength: 0)
             }
@@ -284,15 +340,16 @@ struct RecordTabBar: View {
                         withAnimation(.snappy(duration: 0.25)) { section = sec }
                         onSection(sec)
                     } label: {
-                        VStack(spacing: 7) {
-                            Text(sec.short).fcFont(15, weight: on ? .bold : .semibold).foregroundStyle(on ? FC.ink : FC.muted)
+                        VStack(spacing: 0) {
+                            Text(sec.short).fcText(.tab, weight: on ? .bold : .semibold).foregroundStyle(on ? FC.ink : FC.muted)
+                                .frame(minHeight: 40)
                             ZStack {
-                                Capsule().fill(Color.clear).frame(height: 3)
-                                if on { Capsule().fill(FC.brand).frame(height: 3).matchedGeometryEffect(id: "u", in: underline) }
+                                Color.clear.frame(height: 2.5)
+                                if on { Capsule().fill(FC.ink).frame(height: 2.5).matchedGeometryEffect(id: "u", in: underline) }
                             }
                         }
                         .fixedSize(horizontal: true, vertical: false)
-                        .tapTarget()
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(sec.rawValue)
@@ -300,7 +357,7 @@ struct RecordTabBar: View {
                 }
                 Spacer(minLength: 0)
             }
-            .overlay(alignment: .bottom) { Rectangle().fill(FC.line).frame(height: 1) }
+            .overlay(alignment: .bottom) { Rectangle().fill(CM.hair).frame(height: 1) }
         }
     }
 }

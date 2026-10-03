@@ -45,7 +45,8 @@ final class VersusViewModel {
         guard n.caseInsensitiveCompare(me) != .orderedSame else { other = .failed(VersusError.same); return }
         if case .loading = other { return }
         otherName = n
-        if let hit: (value: UserOverview, isFresh: Bool) = await APIClient.shared.cachedValue(path(n), query: query), hit.isFresh {
+        let hit: (value: UserOverview, isFresh: Bool)? = await APIClient.shared.cachedValue(path(n), query: query)
+        if let hit, hit.isFresh {
             other = .loaded(hit.value); Analytics.shared.track(.sectionView, ["section": "versus", "cached": true]); return
         }
         other = .loading
@@ -53,7 +54,10 @@ final class VersusViewModel {
             let o: UserOverview = try await APIClient.shared.getAndCache(path(n), query: query, auth: false)
             other = .loaded(o)
             Analytics.shared.track(.sectionView, ["section": "versus", "cached": false])
-        } catch { other = .failed(error) }
+        } catch {
+            // 네트워크가 실패해도 묵은 캐시가 있으면 그걸로 비교한다(QA P2-10) — 없는 구단주(404)는 그대로 오류
+            if let hit, (error as? APIError)?.isUserNotFound != true { other = .loaded(hit.value) } else { other = .failed(error) }
+        }
     }
 
     enum VersusError: LocalizedError {
@@ -87,8 +91,11 @@ struct VersusView: View {
         let rivals = vm.mine.value?.rivals.map(\.nickname) ?? []
         // 맞대결 2경기 이상(rivals)이 없으면 최근 상대로 채운다 — 같은 응답 안의 경기 목록이라 역시 추가 호출 없음.
         let recentOpps = vm.mine.value?.matches.compactMap { $0.forfeit ? nil : $0.opponent?.nickname } ?? []
+        let typed = input.trimmingCharacters(in: .whitespaces)
         return (prefs.favorites + prefs.recentSearches + rivals + recentOpps).filter {
-            $0.caseInsensitiveCompare(vm.me) != .orderedSame && seen.insert($0.lowercased()).inserted
+            // 지금 입력값과 같은 닉은 칩으로 또 보여 줄 필요가 없다(디자인 N9)
+            $0.caseInsensitiveCompare(vm.me) != .orderedSame && $0.caseInsensitiveCompare(typed) != .orderedSame
+                && seen.insert($0.lowercased()).inserted
         }.prefix(8).map { $0 }
     }
 
@@ -102,6 +109,8 @@ struct VersusView: View {
             .padding(16)
         }
         .scrollDismissesKeyboard(.interactively)
+        // 공유 CTA·마지막 줄이 유리 탭 바 뒤에 깔리지 않게(디자인 M10)
+        .safeAreaPadding(.bottom, 24)
         .fcScreen()
         .navigationTitle("친구랑 VS")
         .navigationBarTitleDisplayMode(.inline)
@@ -211,8 +220,10 @@ struct VersusView: View {
             if c.a.summary.played == 0 || c.b.summary.played == 0 {
                 Panel { Text("\(c.a.summary.played == 0 ? c.a.profile.nickname : c.b.profile.nickname) 님은 \(modeName) 최근 기록이 없어 비교할 수 없어요.").fcFont(14).foregroundStyle(FC.muted) }
             } else {
-                VersusCompareCard(c: c)
-                ShareCardButton(story: .versus(c.a, c.b), label: "VS 카드 스토리로 공유", style: .hero)
+                // 공유 CTA 는 판정 바로 아래(표 위) — 매치 화면처럼 "결과 → 공유" 순서, 탭 바에 가리지 않는다(디자인 M10)
+                VersusCompareCard(c: c) {
+                    ShareCardButton(story: .versus(c.a, c.b), label: "VS 카드 스토리로 공유", style: .hero)
+                }
                 HStack(spacing: 8) {
                     Button { router.push(.user(c.b.profile.nickname)) } label: {
                         Text("\(c.b.profile.nickname) 전적 보기").fcFont(13, weight: .semibold).foregroundStyle(FC.tint)
@@ -220,16 +231,17 @@ struct VersusView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                Text("폼 티어는 FC Scope 가 최근 경기(승률 50% · 득실 25% · 스코어 25%)로 계산한 등급이에요. 넥슨 공식 등급이 아니에요.")
-                    .fcFont(11).foregroundStyle(FC.muted)
+                Text("폼 티어는 FC Scope 가 최근 경기(승률 50% · 득실 25% · 스코어 25%)로 계산한 등급이에요. 넥슨 공식 등급이 아니에요. 동점 항목은 어느 쪽 승리로도 세지 않아요.")
+                    .fcText(.caption).foregroundStyle(FC.muted)
             }
         }
     }
 }
 
-/// 화면용 비교 카드 — 가운데 라벨, 양옆 값. 이긴 쪽 값만 win 색(의미 색 규칙).
-struct VersusCompareCard: View {
+/// 화면용 비교 카드 — 가운데 라벨, 양옆 값. 앞선 값은 ink Bold + 틴트 점, 뒤진 값은 muted(초록·빨강 없음 · 디자인 M9).
+struct VersusCompareCard<Action: View>: View {
     let c: VersusComparison
+    @ViewBuilder var action: () -> Action
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var appeared = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -239,20 +251,25 @@ struct VersusCompareCard: View {
         VStack(spacing: 14) {
             HStack(alignment: .top, spacing: 8) {
                 side(c.a, tier: c.tierA, align: .leading)
+                // "1 : 3"이 경기 스코어로 읽혔다(유저 패널 A) — "이긴 항목"을 위에 밝히고 콜론 대신 가운뎃점
                 VStack(spacing: 2) {
-                    HStack(spacing: 6) {
-                        CountUp(target: Double(x)) { v in Text("\(Int(v.rounded()))").font(.fcScoreboard(40, typeSize)).foregroundStyle(x >= y ? FC.ink : FC.muted) }
-                        Text(":").fcScoreboard(26).foregroundStyle(FC.muted)
-                        CountUp(target: Double(y)) { v in Text("\(Int(v.rounded()))").font(.fcScoreboard(40, typeSize)).foregroundStyle(y >= x ? FC.ink : FC.muted) }
+                    Text("이긴 항목").fcText(.caption, weight: .semibold).foregroundStyle(FC.muted)
+                    HStack(spacing: 8) {
+                        CountUp(target: Double(x)) { v in Text("\(Int(v.rounded()))").font(.fcScoreboard(36, typeSize)).foregroundStyle(x >= y ? FC.ink : FC.muted) }
+                        Text("·").fcScoreboard(22).foregroundStyle(FC.muted)
+                        CountUp(target: Double(y)) { v in Text("\(Int(v.rounded()))").font(.fcScoreboard(36, typeSize)).foregroundStyle(y >= x ? FC.ink : FC.muted) }
                     }
-                    Text("항목 승").fcFont(10).foregroundStyle(FC.muted)
+                    if c.ties > 0 { Text("동점 \(c.ties) 제외").fcText(.caption).foregroundStyle(FC.muted) }
                 }
                 .fixedSize()
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("이긴 항목 \(c.a.profile.nickname) \(x)개, \(c.b.profile.nickname) \(y)개" + (c.ties > 0 ? ", 동점 \(c.ties)개" : ""))
                 side(c.b, tier: c.tierB, align: .trailing)
             }
-            Text(c.verdict).fcFont(14, weight: .bold).foregroundStyle(x == y ? FC.tint : FC.gold)
+            Text(c.verdict).fcText(.callout, weight: .bold).foregroundStyle(x == y ? FC.tint : FC.gold)
                 .padding(.horizontal, 12).padding(.vertical, 6)
                 .overlay(Capsule().strokeBorder(x == y ? FC.tint : FC.gold, lineWidth: 1.5))
+            action()
             VStack(spacing: 6) {
                 ForEach(Array(c.rows.enumerated()), id: \.element.id) { i, r in
                     row(r)
@@ -279,7 +296,7 @@ struct VersusCompareCard: View {
     private func side(_ o: UserOverview, tier: FormTier, align: HorizontalAlignment) -> some View {
         VStack(alignment: align, spacing: 6) {
             Text(o.profile.nickname).fcFont(17, weight: .bold).foregroundStyle(FC.ink).lineLimit(1).minimumScaleFactor(0.6)
-            FormTierBadge(tier: tier, size: .compact)
+            FormTierButton(tier: tier, size: .compact)
             if let d = o.profile.divisions.first(where: { $0.matchType == o.matchType }) ?? o.profile.divisions.first {
                 HStack(spacing: 3) {
                     if let icon = d.iconUrl { RemoteImage(url: icon, size: 14) }
@@ -292,9 +309,9 @@ struct VersusCompareCard: View {
 
     private func row(_ r: VersusComparison.Row) -> some View {
         HStack(spacing: 6) {
-            value(r.left, win: r.winner == .a, align: .leading)
-            Text(r.label).fcFont(12, weight: .semibold).foregroundStyle(FC.muted).lineLimit(1).fixedSize()
-            value(r.right, win: r.winner == .b, align: .trailing)
+            value(r.left, win: r.winner == .a, lose: r.winner == .b, align: .leading)
+            Text(r.label).fcText(.meta, weight: .semibold).foregroundStyle(FC.muted).lineLimit(1).fixedSize()
+            value(r.right, win: r.winner == .b, lose: r.winner == .a, align: .trailing)
         }
         .padding(.horizontal, 12).frame(minHeight: 44)
         .background(FC.bg.opacity(0.55), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -303,15 +320,17 @@ struct VersusCompareCard: View {
             + (r.winner == .a ? ", \(c.a.profile.nickname) 우세" : r.winner == .b ? ", \(c.b.profile.nickname) 우세" : ""))
     }
 
-    private func value(_ s: String, win: Bool, align: Alignment) -> some View {
+    /// 앞선 값 = ink Bold + 6pt 틴트 점(라벨 쪽), 뒤진 값 = muted Regular. 비교 안 하는 행(.none)·동점은 둘 다 ink.
+    /// `◂ ▸` 화살표는 가운데 라벨을 가리켜 뜻이 없었다(디자인 M9).
+    private func value(_ s: String, win: Bool, lose: Bool, align: Alignment) -> some View {
         let ascii = s.unicodeScalars.allSatisfy(\.isASCII)
-        return HStack(spacing: 4) {
-            if win, align == .trailing { Image(systemName: "arrowtriangle.left.fill").font(.system(size: 8)).foregroundStyle(FC.win) }
+        return HStack(spacing: 5) {
+            if win, align == .trailing { Circle().fill(FC.tint).frame(width: 6, height: 6) }
             Group {
-                if ascii { Text(s).fcScoreboard(18) } else { Text(s).fcFont(14, weight: .bold) }
+                if ascii { Text(s).fcScoreboard(18, weight: win ? .bold : .medium) } else { Text(s).fcText(.callout, weight: win ? .bold : .medium) }
             }
-            .foregroundStyle(win ? FC.win : FC.ink).lineLimit(1).minimumScaleFactor(0.6)
-            if win, align == .leading { Image(systemName: "arrowtriangle.right.fill").font(.system(size: 8)).foregroundStyle(FC.win) }
+            .foregroundStyle(lose ? FC.muted : FC.ink).lineLimit(1).minimumScaleFactor(0.6)
+            if win, align == .leading { Circle().fill(FC.tint).frame(width: 6, height: 6) }
         }
         .frame(maxWidth: .infinity, alignment: align)
     }

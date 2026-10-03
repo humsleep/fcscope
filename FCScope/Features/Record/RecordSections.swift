@@ -6,8 +6,21 @@ import Charts
 struct ReportSection: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     let state: Loadable<ReportResponse>
+    /// 득실을 헤더와 같은 기준(몰수 제외)으로 쓰기 위해 — 리포트 응답 득실은 몰수 3:0 이 섞여 부호까지 뒤집혔다(QA P1-2)
+    var overview: UserOverview? = nil
     /// 섹션 오류에 재시도 버튼이 없어 탭을 바꿨다 돌아오거나 전체 새로고침을 해야 했다.
     var retry: (() -> Void)? = nil
+
+    /// (경기 수, 득점, 실점, 몰수 제외 여부) — 헤더 "경기당 득점·실점"과 같은 몰수 제외 기준.
+    /// 옛 서버(perf 득실 없음)면 리포트 값 그대로.
+    private func goals(_ r: MatchReport) -> (games: Int, gf: Int, ga: Int, excl: Bool) {
+        if let o = overview, let gf = o.perf.goalsFor, let ga = o.perf.goalsAgainst {
+            let f = o.perf.forfeits ?? 0
+            let games = o.perf.normalPlayed.flatMap { $0 > 0 ? $0 : nil } ?? o.summary.played
+            return (games, gf, ga, f > 0)
+        }
+        return (r.played, r.goalsFor, r.goalsAgainst, false)
+    }
     var body: some View {
         switch state {
         case .idle, .loading: Skeleton(height: 260)
@@ -21,8 +34,9 @@ struct ReportSection: View {
                         VStack(alignment: .leading, spacing: 8) {
                             SectionLabel("분석 리포트", color: FC.tint)
                             HStack(alignment: .lastTextBaseline, spacing: 20) {
-                                VStack(alignment: .leading) { Text("최근 \(r.report.played)경기 득실").fcFont(12).foregroundStyle(FC.muted)
-                                    (Text("\(r.report.goalsFor)").foregroundStyle(FC.ink) + Text(" : ").foregroundStyle(FC.muted) + Text("\(r.report.goalsAgainst)").foregroundStyle(FC.ink)).font(.fcScoreboard(24, typeSize)) }
+                                let g = goals(r.report)
+                                VStack(alignment: .leading) { Text(g.excl ? "\(g.games)경기 득실 · 몰수 제외" : "최근 \(g.games)경기 득실").fcText(.meta).foregroundStyle(FC.muted)
+                                    (Text("\(g.gf)").foregroundStyle(FC.ink) + Text(" : ").foregroundStyle(FC.muted) + Text("\(g.ga)").foregroundStyle(FC.ink)).font(.fcScoreboard(24, typeSize)) }
                                 VStack(alignment: .leading) { Text("평균 경기 평점").fcFont(12).foregroundStyle(FC.muted); Text(String(format: "%.2f", r.report.avgRating)).fcScoreboard(24).foregroundStyle(FC.ink) }
                                 if let w = r.report.weekly, let d = w.deltaWinRate {
                                     VStack(alignment: .leading) { Text("최근 7일 승률").fcFont(12).foregroundStyle(FC.muted)
@@ -49,7 +63,12 @@ struct ReportSection: View {
                             .chartXAxis { AxisMarks { AxisValueLabel().font(.pretendard(10)).foregroundStyle(FC.muted) } }
                             .chartYAxis { AxisMarks { AxisGridLine().foregroundStyle(FC.line); AxisValueLabel().foregroundStyle(FC.muted) } }
                             .frame(height: 160)
-                            HStack(spacing: 12) { legend(FC.tint, "득점"); legend(FC.lose, "실점") }
+                            HStack(spacing: 12) {
+                                legend(FC.tint, "득점"); legend(FC.lose, "실점")
+                                Spacer(minLength: 4)
+                                // 합계가 위 득실과 몇 골 다를 수 있다 — 기록 시간이 있는 골만 시간대에 들어간다
+                                Text("골 시간이 기록된 골만 · 몰수 제외").fcText(.caption).foregroundStyle(FC.muted).lineLimit(1).minimumScaleFactor(0.8)
+                            }
                         }
                     }
                     Panel {
