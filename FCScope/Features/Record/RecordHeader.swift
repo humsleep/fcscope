@@ -53,23 +53,20 @@ struct RecordHeader: View {
     private func nowBand(_ t: Rule) -> some View {
         // 서버 desc 는 "경기당 3골 이상 — 일단 상대보다 한 골 더 넣으면 됩니다" 형태 — 한 줄로 이어 최대 2줄.
         let desc = t.desc.replacingOccurrences(of: " — ", with: " · ")
-        let stacked = typeSize.isAccessibilitySize
-        let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout(alignment: .center, spacing: 10))
+        // 설명은 제목 아래 전체 폭으로 — 오른쪽 칸에 두면 SE·AX 에서 "…상…"으로 잘렸다(QA P2-2)
         return Button(action: onTypeTap) {
             HStack(alignment: .center, spacing: 12) {
                 Text(Self.emoji(for: t)).font(.system(size: 24))
-                layout {
-                    VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text("요즘 흐름").fcText(.caption, weight: .semibold).foregroundStyle(FC.muted)
-                        Text(t.title).fcRender(18, .bold).foregroundStyle(FC.ink).lineLimit(1).minimumScaleFactor(0.8)
+                        Text(t.title).fcRender(17, .bold).foregroundStyle(FC.ink).lineLimit(1).minimumScaleFactor(0.8)
                     }
-                    .layoutPriority(1)
-                    if !stacked { Spacer(minLength: 4) }
                     Text(desc).fcText(.meta).foregroundStyle(FC.muted)
-                        .multilineTextAlignment(stacked ? .leading : .trailing)
-                        .lineLimit(stacked ? 3 : 2)
+                        .lineLimit(typeSize.isAccessibilitySize ? 4 : 2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundStyle(FC.muted)
             }
             .padding(.leading, 14).padding(.trailing, 12).padding(.vertical, 10)
@@ -127,7 +124,7 @@ struct RecordHeader: View {
             }
             .accessibilityLabel("FC Scope 스코어 \(String(format: "%.1f", o.score))점, 10점 만점. \(FCCopy.tier(o.tier.label))")
             // "실점 2.5 · 몰수 제외"가 SE 에서 잘려 기준이 사라졌다(QA P2-1) — 기준은 ⓘ 팝오버에 모았다.
-            tile("경기당 득점", info: forfeits > 0, sub: "실점 \(String(format: "%.1f", o.goalsAgainstPerGame))") {
+            tile("경기당 득점", sub: "실점 \(String(format: "%.1f", o.goalsAgainstPerGame))") {
                 CountUp(target: o.goalsForPerGame, delay: 0.1) { v in
                     Text(String(format: "%.1f", v)).font(.fcScoreboard(28, typeSize)).foregroundStyle(FC.ink)
                 }

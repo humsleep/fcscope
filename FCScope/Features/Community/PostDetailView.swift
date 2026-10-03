@@ -150,7 +150,7 @@ struct PostDetailView: View {
                     proxy.scrollTo(target, anchor: .top)
                     if let rid = UserDefaults.standard.string(forKey: "communityReply"), let c = model.detail?.comments.first(where: { $0.id == rid }) {
                         startReply(c)
-                        text = "풀백부터 바꿔볼게요"
+                        text += "풀백부터 바꿔볼게요"   // startReply 가 넣은 "@닉 " 접두(구 서버)를 지우지 않게
                     }
                 }
             }

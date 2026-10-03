@@ -175,7 +175,8 @@ final class CommunityMock {
         let filter: Set<String>? = q["types"].map { Set($0.split(separator: ",").map(String.init)) } ?? q["type"].map { [$0] }
         if mode == .full, let filter { rows = rows.filter { filter.contains($0["type"] as! String) } }
         else if let t = q["type"] { rows = rows.filter { ($0["type"] as! String) == t } }
-        let sort = mode == .full ? (q["sort"] ?? "new") : nil
+        // empty 는 "글이 없는 v2 서버" — full 과 같은 칩 구성(전체 칩·정렬)이 나오게 sort 를 준다(디자인 리뷰 재캡처 요청 3)
+        let sort = (mode == .full || mode == .empty) ? (q["sort"] ?? "new") : nil
         if sort == "hot" { rows.sort { (($0["like_count"] as? Int) ?? 0) > (($1["like_count"] as? Int) ?? 0) } }
         if sort == "comments" { rows.sort { (($0["comment_count"] as? Int) ?? 0) > (($1["comment_count"] as? Int) ?? 0) } }
         let page = Int(q["page"] ?? "1") ?? 1
