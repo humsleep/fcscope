@@ -126,8 +126,9 @@ struct UserCardData {
 
     var shotTotals: (goals: Int, tries: Int)? {
         guard let st = report?.report.shotTypes, !st.isEmpty else { return nil }
-        // 헤딩·프리킥·PK 는 박스 안/밖의 부분집합이다 — 전부 더하면 슛이 이중으로 세졌다(65/179 → 실제 65/158).
-        let base = st.filter { $0.key == "inbox" || $0.key == "outbox" }
+        // 박스 안·박스 밖·PK 가 겹치지 않는 분할이다(서버 report.ts — PK 는 박스 안/밖과 따로 센다).
+        // 헤딩·프리킥만 박스 안/밖의 부분집합이라 빼야 한다 — 전부 더하면 슛이 이중으로 세졌다(65/179 → 실제 65/158).
+        let base = st.filter { ["inbox", "outbox", "penalty"].contains($0.key) }
         let rows = base.isEmpty ? st : base
         let g = rows.reduce(0) { $0 + $1.goals }, t = rows.reduce(0) { $0 + $1.tries }
         // 넥슨 슛 집계(shoot.goalInPenalty 등)는 승부차기 골까지 센다 — "슛 171개 중 76골"이 실제 득점(68, 몰수 제외 65)보다
@@ -145,17 +146,21 @@ struct UserCardData {
             let r = Int((Double(inbox.goals) / Double(inbox.tries) * 100).rounded())
             if r >= 35 { out.append(("박스 안 결정력", "\(r)%")) }
         }
+        // 득점은 몰수(3:0)를 뺀 실제 경기 기준 — 몰수가 있으면 라벨에 분모를 밝힌다. 헤더 "최근 30경기(몰수 6)"와
+        // 득점 3.0 / 71(24경기 기준)이 한 카드에 섞여 71/30=2.37 로 계산되는 혼동이 있었다(유저 패널 2R C-2).
+        let forfeits = o.perf.forfeits ?? 0
+        let games = p.normalPlayed.flatMap { $0 > 0 ? $0 : nil } ?? o.summary.played
+        let basis = forfeits > 0 ? " · 실경기 \(games)" : ""
         if p.played > 0 {
             let gf = p.goalsFor ?? o.summary.goalsFor
-            let games = p.normalPlayed.flatMap { $0 > 0 ? $0 : nil } ?? o.summary.played
             let gpg = Double(gf) / Double(max(1, games))
-            if gpg >= 1.8 { out.append(("경기당 득점", String(format: "%.1f", gpg))) }
+            if gpg >= 1.8 { out.append(("경기당 득점\(basis)", String(format: "%.1f", gpg))) }
         }
         if p.bestWinStreak >= 3 { out.append(("최고 연승", "\(p.bestWinStreak)")) }
         if p.cleanSheets >= 2 { out.append(("클린시트", "\(p.cleanSheets)")) }
         if o.summary.avgPossession >= 55 { out.append(("평균 점유율", "\(o.summary.avgPossession)%")) }
         if p.avgRating >= 6.8 { out.append(("평균 평점", String(format: "%.1f", p.avgRating))) }
-        out.append(("총 득점", "\(p.goalsFor ?? o.summary.goalsFor)"))
+        out.append(("총 득점\(basis)", "\(p.goalsFor ?? o.summary.goalsFor)"))
         out.append(("경기 수", "\(o.summary.played)"))
         return out
     }
@@ -171,7 +176,7 @@ struct UserCardView: View {
     var body: some View {
         CardCanvas {
             VStack(alignment: .leading, spacing: 0) {
-                CardHeader(chip: "\(matchTypeName) · 최근 \(o.summary.played)경기" + ((o.perf.forfeits ?? 0) > 0 ? " · 몰수 \(o.perf.forfeits ?? 0) 포함" : ""))          // 264–308
+                CardHeader(chip: "\(matchTypeName) · 최근 \(o.summary.played)경기" + ((o.perf.forfeits ?? 0) > 0 ? "(몰수 \(o.perf.forfeits ?? 0))" : ""))          // 264–308
                 Spacer().frame(height: 16)
                 NicknameTitle(text: o.profile.nickname)                                     // 324–500
                 Spacer().frame(height: 16)
@@ -308,6 +313,12 @@ struct UserCardView: View {
         .frame(height: 254)
     }
 
+    /// "경기당 득점 · 실경기 24" + "3.0" → "경기당 득점 3.0 · 실경기 24" — 값이 기준 뒤로 밀려 읽히지 않게
+    static func chipText(_ item: (String, String)) -> String {
+        let parts = item.0.components(separatedBy: " · ")
+        return ([parts[0] + " " + item.1] + parts.dropFirst()).joined(separator: " · ")
+    }
+
     @ViewBuilder
     private func finishing(tall: Bool) -> some View {
         let shots = d.playstyle?.shots ?? []
@@ -327,7 +338,7 @@ struct UserCardView: View {
                     }
                     .frame(height: 100)
                     if let first = pos.first {
-                        HighlightChip(text: "\(first.0) \(first.1)").padding(.top, 8)
+                        HighlightChip(text: Self.chipText(first)).padding(.top, 8)
                     }
                 } else if let first = pos.first {
                     HStack(alignment: .center, spacing: 20) {
@@ -427,23 +438,42 @@ struct RankCardView: View {
     private var d: DivisionCard? { o.profile.divisions.first { $0.matchType == 50 } ?? o.profile.divisions.first }
 
     var body: some View {
-        // 2020년 달성일이 카드의 주인공이던 것(유저 패널 "틀딱 인증")을 내렸다 — 역대 최고는 "커리어 하이"로 부르고,
-        // 날짜는 작게, 지금 폼 티어를 함께 싣는다.
+        // 주인공은 **지금 폼 티어**, 넥슨 역대 최고(커리어 하이)는 보조 — 2라운드에도 거대한 "챔피언스"가
+        // 카드의 주인공이라 "옛날 등급 자랑"으로 읽혔다(유저 패널 2R §0-6). 배치 중(10경기 미만)이면 예전처럼 등급이 주인공.
         let tier = o.summary.played > 0 ? o.formTier : nil
-        TemplateCard(chip: "계급 인증", o: o, images: images, kicker: "커리어 하이 · \(d?.matchTypeName ?? "공식경기") 역대 최고") {
-            HStack(spacing: 32) {
-                if let img = images.url(d?.iconUrl) {
-                    Image(uiImage: img).resizable().scaledToFit().frame(width: 200, height: 200)
+        let level = tier?.level
+        TemplateCard(chip: "계급 인증", o: o, images: images,
+                     kicker: level != nil ? "지금 내 폼 · 최근 \(tier?.games ?? 0)경기" : "커리어 하이 · \(d?.matchTypeName ?? "공식경기") 역대 최고") {
+            if let l = level, let t = tier {
+                HStack(spacing: 36) {
+                    Image(systemName: l.symbol).font(.system(size: 150, weight: .bold))
+                        .foregroundStyle(LinearGradient(colors: [l.colors.0, l.colors.1], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .frame(width: 200, height: 200)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("폼 \(l.name)").font(.pretendard(110, .bold)).foregroundStyle(l.colors.0)
+                            .lineLimit(1).minimumScaleFactor(0.6)
+                        Text("\(t.points ?? 0)점 · 승률 \(t.winRate)%").font(.pretendard(34, .semibold)).foregroundStyle(CardPalette.ink)
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                    }
                 }
-                Text(d?.divisionName ?? "-").font(.pretendard(120, .bold)).foregroundStyle(CardPalette.gold)
-                    .lineLimit(1).minimumScaleFactor(0.6)
+            } else {
+                HStack(spacing: 32) {
+                    if let img = images.url(d?.iconUrl) {
+                        Image(uiImage: img).resizable().scaledToFit().frame(width: 200, height: 200)
+                    }
+                    Text(d?.divisionName ?? "-").font(.pretendard(120, .bold)).foregroundStyle(CardPalette.gold)
+                        .lineLimit(1).minimumScaleFactor(0.6)
+                }
             }
         } sub: {
             HStack(spacing: 20) {
-                if let t = tier, let l = t.level {
-                    CardStampView(text: "지금은 폼 \(l.name)", color: l.colors.0)
+                if level != nil, let d {
+                    // 커리어 하이 — 작은 금색 스탬프 + 모드·날짜
+                    CardStampView(text: "커리어 하이 \(d.divisionName)", color: CardPalette.gold)
+                    Text("\(d.matchTypeName) · \(d.date)").font(.pretendard(26)).foregroundStyle(CardPalette.muted).lineLimit(1).minimumScaleFactor(0.7)
+                } else if let d {
+                    Text("\(d.date) 달성").font(.pretendard(26)).foregroundStyle(CardPalette.muted).lineLimit(1)
                 }
-                if let d { Text("\(d.date) 달성").font(.pretendard(26)).foregroundStyle(CardPalette.muted).lineLimit(1) }
             }
         } content: {
             VStack(alignment: .leading, spacing: 20) {

@@ -583,10 +583,11 @@ struct LastMatchCard: View {
                         if !(d.me.shots.isEmpty && (d.opponent?.shots ?? []).isEmpty) {
                             VStack(alignment: .leading, spacing: 4) {
                                 MiniShotMap(mine: d.me.shots, theirs: d.opponent?.shots ?? [])
-                                HStack {
-                                    Text("\(d.opponent?.nickname ?? "상대") 슛 \(d.opponent?.stats.shots ?? 0)").foregroundStyle(FC.lose)
-                                    Spacer()
-                                    Text("내 슛 \(d.me.stats.shots) (유효 \(d.me.stats.effectiveShots))").foregroundStyle(FC.tint)
+                                // 범례는 점과 같은 쪽 — 내 슛(보라) 왼쪽, 상대(중립 muted) 오른쪽. MiniShotMap·매치 리포트 슛맵과 같은 규칙(QA 2R P1-2)
+                                HStack(spacing: 6) {
+                                    legendDot(FC.tint, "내 슛 \(d.me.stats.shots) (유효 \(d.me.stats.effectiveShots))")
+                                    Spacer(minLength: 8)
+                                    if let o = d.opponent { legendDot(FC.muted, "\(o.nickname) 슛 \(o.stats.shots)") }
                                 }
                                 .fcFont(11, weight: .medium).lineLimit(1)
                             }
@@ -610,6 +611,13 @@ struct LastMatchCard: View {
         }
         .buttonStyle(.plain)
         .task(id: m.matchId) { await load() }
+    }
+
+    private func legendDot(_ tone: Color, _ text: String) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(tone).frame(width: 7, height: 7)
+            Text(text).foregroundStyle(FC.ink).minimumScaleFactor(0.8)
+        }
     }
 
     private func load() async {

@@ -21,6 +21,22 @@ struct ReportSection: View {
         }
         return (r.played, r.goalsFor, r.goalsAgainst, false)
     }
+    /// 슛 타입 골 합계 — 박스 안·박스 밖·PK 가 서로 겹치지 않는 분할이다(서버 report.ts: PK 는 박스 안/밖과 **따로** 센다).
+    /// 헤딩·프리킥은 박스 안/밖의 부분집합이라 더하지 않는다.
+    /// 합이 같은 카드의 득점(몰수 제외)보다 크면 옛 서버 집계(몰수 경기 슛 포함 — QA 2R P2-4)라 이 카드를 숨긴다.
+    static func shotTypeGoals(_ st: [ShotTypeStat]) -> Int? {
+        let parts = st.filter { ["inbox", "outbox", "penalty"].contains($0.key) }
+        guard !parts.isEmpty, st.contains(where: { $0.tries > 0 }) else { return nil }
+        return parts.reduce(0) { $0 + $1.goals }
+    }
+
+    /// 최근 7일 승률 증감 — 두 기간 모두 8판 이상일 때만. 표본이 작으면 증감은 소음이다.
+    static let weeklyMinGames = 8
+    static func weeklyDelta(_ w: WeeklyForm) -> Int? {
+        guard w.recentGames >= weeklyMinGames, w.prevGames >= weeklyMinGames, w.prevWinRate != nil else { return nil }
+        return w.deltaWinRate
+    }
+
     var body: some View {
         switch state {
         case .idle, .loading: Skeleton(height: 260)
@@ -38,9 +54,11 @@ struct ReportSection: View {
                                 VStack(alignment: .leading) { Text(g.excl ? "\(g.games)경기 득실 · 몰수 제외" : "최근 \(g.games)경기 득실").fcText(.meta).foregroundStyle(FC.muted)
                                     (Text("\(g.gf)").foregroundStyle(FC.ink) + Text(" : ").foregroundStyle(FC.muted) + Text("\(g.ga)").foregroundStyle(FC.ink)).font(.fcScoreboard(24, typeSize)) }
                                 VStack(alignment: .leading) { Text("평균 경기 평점").fcFont(12).foregroundStyle(FC.muted); Text(String(format: "%.2f", r.report.avgRating)).fcScoreboard(24).foregroundStyle(FC.ink) }
-                                if let w = r.report.weekly, let d = w.deltaWinRate {
-                                    VStack(alignment: .leading) { Text("최근 7일 승률").fcFont(12).foregroundStyle(FC.muted)
-                                        (Text("\(w.recentWinRate)%") + Text(d >= 0 ? " ▲\(d)" : " ▼\(-d)").font(.fcScoreboard(13, typeSize)).foregroundStyle(d >= 0 ? FC.win : FC.lose)).font(.fcScoreboard(24, typeSize)).foregroundStyle(FC.ink) }
+                                if let w = r.report.weekly, w.recentGames > 0 {
+                                    // 증감은 두 기간 모두 표본이 있을 때만 — 지난 기간 4경기·0%면 "46% ▲46"처럼 값과 증감이 같아졌다(QA 2R P2-5)
+                                    let d = Self.weeklyDelta(w)
+                                    VStack(alignment: .leading) { Text("최근 7일 승률 · \(w.recentGames)판").fcFont(12).foregroundStyle(FC.muted)
+                                        (Text("\(w.recentWinRate)%") + Text(d.map { $0 >= 0 ? " ▲\($0)" : " ▼\(-$0)" } ?? "").font(.fcScoreboard(13, typeSize)).foregroundStyle((d ?? 0) >= 0 ? FC.win : FC.lose)).font(.fcScoreboard(24, typeSize)).foregroundStyle(FC.ink) }
                                 }
                             }
                             ForEach(r.insights) { i in
@@ -71,15 +89,20 @@ struct ReportSection: View {
                             }
                         }
                     }
-                    Panel {
-                        VStack(alignment: .leading, spacing: 8) {
-                            SectionLabel("슛 타입별 결정력")
-                            ForEach(r.report.shotTypes.filter { $0.tries > 0 }) { s in
-                                HStack {
-                                    Text(s.label).fcFont(13).foregroundStyle(FC.ink).frame(width: 90, alignment: .leading)
-                                    RatioBar(ratio: CGFloat(s.goals) / CGFloat(max(1, s.tries)), color: FC.tint, height: 8)
-                                    Text("\(s.goals)/\(s.tries)").fcScoreboard(12).foregroundStyle(FC.muted).frame(width: 50, alignment: .trailing)
+                    if let total = Self.shotTypeGoals(r.report.shotTypes), total <= goals(r.report).gf {
+                        Panel {
+                            VStack(alignment: .leading, spacing: 8) {
+                                SectionLabel("슛 타입별 결정력")
+                                ForEach(r.report.shotTypes.filter { $0.tries > 0 }) { s in
+                                    HStack {
+                                        Text(s.label).fcFont(13).foregroundStyle(FC.ink).frame(width: 90, alignment: .leading)
+                                        RatioBar(ratio: CGFloat(s.goals) / CGFloat(max(1, s.tries)), color: FC.tint, height: 8)
+                                        Text("\(s.goals)/\(s.tries)").fcScoreboard(12).foregroundStyle(FC.muted).frame(width: 50, alignment: .trailing)
+                                    }
                                 }
+                                // 기준을 밝힌다 — 위 득실과 맞춰 볼 수 있게. 헤딩·프리킥은 박스 안/밖에 이미 들어 있다.
+                                Text("몰수 제외 · 박스 안 + 박스 밖 + PK = \(total)골 · 헤딩·프리킥은 그 안에 포함")
+                                    .fcText(.caption).foregroundStyle(FC.muted).fixedSize(horizontal: false, vertical: true)
                             }
                         }
                     }
@@ -115,6 +138,22 @@ struct PlayersSection: View {
     var overview: UserOverview? = nil
     var retry: (() -> Void)? = nil
     @Environment(AppRouter.self) private var router
+    /// 슛 타입 골 합계 — 박스 안·박스 밖·PK 가 서로 겹치지 않는 분할이다(서버 report.ts: PK 는 박스 안/밖과 **따로** 센다).
+    /// 헤딩·프리킥은 박스 안/밖의 부분집합이라 더하지 않는다.
+    /// 합이 같은 카드의 득점(몰수 제외)보다 크면 옛 서버 집계(몰수 경기 슛 포함 — QA 2R P2-4)라 이 카드를 숨긴다.
+    static func shotTypeGoals(_ st: [ShotTypeStat]) -> Int? {
+        let parts = st.filter { ["inbox", "outbox", "penalty"].contains($0.key) }
+        guard !parts.isEmpty, st.contains(where: { $0.tries > 0 }) else { return nil }
+        return parts.reduce(0) { $0 + $1.goals }
+    }
+
+    /// 최근 7일 승률 증감 — 두 기간 모두 8판 이상일 때만. 표본이 작으면 증감은 소음이다.
+    static let weeklyMinGames = 8
+    static func weeklyDelta(_ w: WeeklyForm) -> Int? {
+        guard w.recentGames >= weeklyMinGames, w.prevGames >= weeklyMinGames, w.prevWinRate != nil else { return nil }
+        return w.deltaWinRate
+    }
+
     var body: some View {
         switch state {
         case .idle, .loading: Skeleton(height: 260)
@@ -236,6 +275,22 @@ struct PlaystyleSection: View {
     }
     let state: Loadable<PlaystyleResponse>
     var retry: (() -> Void)? = nil
+    /// 슛 타입 골 합계 — 박스 안·박스 밖·PK 가 서로 겹치지 않는 분할이다(서버 report.ts: PK 는 박스 안/밖과 **따로** 센다).
+    /// 헤딩·프리킥은 박스 안/밖의 부분집합이라 더하지 않는다.
+    /// 합이 같은 카드의 득점(몰수 제외)보다 크면 옛 서버 집계(몰수 경기 슛 포함 — QA 2R P2-4)라 이 카드를 숨긴다.
+    static func shotTypeGoals(_ st: [ShotTypeStat]) -> Int? {
+        let parts = st.filter { ["inbox", "outbox", "penalty"].contains($0.key) }
+        guard !parts.isEmpty, st.contains(where: { $0.tries > 0 }) else { return nil }
+        return parts.reduce(0) { $0 + $1.goals }
+    }
+
+    /// 최근 7일 승률 증감 — 두 기간 모두 8판 이상일 때만. 표본이 작으면 증감은 소음이다.
+    static let weeklyMinGames = 8
+    static func weeklyDelta(_ w: WeeklyForm) -> Int? {
+        guard w.recentGames >= weeklyMinGames, w.prevGames >= weeklyMinGames, w.prevWinRate != nil else { return nil }
+        return w.deltaWinRate
+    }
+
     var body: some View {
         switch state {
         case .idle, .loading: Skeleton(height: 260)

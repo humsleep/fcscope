@@ -70,13 +70,16 @@ struct FormBlocks: View {
         HStack(spacing: spacing) {
             ForEach(Array(recent.enumerated()), id: \.element.id) { i, m in
                 let c = FC.resultColor(m.result)
+                // 몰수는 채움 대신 옅은 틴트 + 결과색 점선 — 초록 채움 위 회색 점선(1pt)은 확대해야 보였다(유저 패널 C).
+                // 몰수패(이미 틴트)와 같은 문법이라 승·패 어느 쪽이든 "점선 = 몰수"로 같은 무게로 읽힌다.
+                let solid = m.result == "승" && !m.forfeit
                 Text(m.result)
                     .fcFont(11, weight: .bold)
-                    .foregroundStyle(m.result == "승" ? FC.tintInk : c)
+                    .foregroundStyle(solid ? FC.tintInk : c)
                     .frame(maxWidth: .infinity, minHeight: 26)
-                    .background(m.result == "승" ? c : c.opacity(0.18), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .background(solid ? c : c.opacity(0.18), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
                     .overlay {
-                        if m.forfeit { RoundedRectangle(cornerRadius: 6).strokeBorder(FC.muted, style: StrokeStyle(lineWidth: 1, dash: [3, 2])) }
+                        if m.forfeit { RoundedRectangle(cornerRadius: 6).strokeBorder(c, style: StrokeStyle(lineWidth: 1.5, dash: [3, 2])) }
                     }
                     .overlay {
                         if i == recent.count - 1 { RoundedRectangle(cornerRadius: 8).strokeBorder(FC.ink.opacity(0.8), lineWidth: 1.5).padding(-2.5) }
@@ -88,6 +91,6 @@ struct FormBlocks: View {
         }
         .onAppear { appeared = true }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("최근 \(recent.count)경기, 과거부터 " + recent.map(\.result).joined(separator: " "))
+        .accessibilityLabel("최근 \(recent.count)경기, 과거부터 " + recent.map { $0.forfeit ? "\($0.result)(몰수)" : $0.result }.joined(separator: " "))
     }
 }

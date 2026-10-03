@@ -48,6 +48,12 @@ struct RecordHeader: View {
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(FC.line, lineWidth: 1))
     }
 
+    /// 화면 높이 700pt 미만(SE 등) — 헤더를 조금 줄여 첫 화면에 아래 탭 줄이 보이게
+    static var compactHeight: Bool {
+        let h = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.screen.bounds.height }.first ?? 900
+        return h < 700
+    }
+
     // MARK: 요즘 흐름 (서버 진단 유형)
 
     private func nowBand(_ t: Rule) -> some View {
@@ -62,19 +68,21 @@ struct RecordHeader: View {
                         Text("요즘 흐름").fcText(.caption, weight: .semibold).foregroundStyle(FC.muted)
                         Text(t.title).fcRender(17, .bold).foregroundStyle(FC.ink).lineLimit(1).minimumScaleFactor(0.8)
                     }
+                    // 높이가 작은 기기(SE)는 1줄 — 첫 화면에 탭 줄이 들어오게(디자인 2R N-1). 전문은 탭하면 리포트에.
                     Text(desc).fcText(.meta).foregroundStyle(FC.muted)
-                        .lineLimit(typeSize.isAccessibilitySize ? 4 : 2)
+                        .lineLimit(typeSize.isAccessibilitySize ? 4 : Self.compactHeight ? 1 : 2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundStyle(FC.muted)
             }
             .padding(.leading, 14).padding(.trailing, 12).padding(.vertical, 10)
-            // 탁한 적갈색 그라디언트 채움 → surface2 + 왼쪽 3pt 브랜드 바(매치 히어로·공유 카드와 같은 문법 · 디자인 M8)
+            // surface2 + 왼쪽 3pt 바. 가로 브랜드 그라디언트를 3pt 로 자르면 시작색(빨강)만 보여 경고 띠처럼 읽혔다(디자인 2R N-3)
+            // → 세로 tint 그라디언트 — 경고색 없이 브랜드 바이올렛만.
             .background(FC.surface2, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(alignment: .leading) {
                 UnevenRoundedRectangle(topLeadingRadius: 14, bottomLeadingRadius: 14, style: .continuous)
-                    .fill(FC.brand).frame(width: 3)
+                    .fill(LinearGradient(colors: [FC.tint, FC.tint.opacity(0.55)], startPoint: .top, endPoint: .bottom)).frame(width: 3)
             }
             .contentShape(Rectangle())
         }
@@ -130,9 +138,6 @@ struct RecordHeader: View {
                 }
             }
         }
-        .popover(isPresented: $showBasis, arrowEdge: .top) {
-            basisNote.presentationCompactAdaptation(.popover)
-        }
     }
 
     /// 몰수 기준 — 예전엔 타일 아래 각주 한 줄이었다. 승률(몰수 포함)과 득실(몰수 제외)의 기준이 다르다는 걸 한곳에서 밝힌다.
@@ -159,6 +164,10 @@ struct RecordHeader: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("몰수 경기 기준 설명")
+                    // 팝오버는 ⓘ 버튼에 건다 — 타일 묶음 전체에 걸면 화살표가 가운데(스코어) 타일을 가리켰다(QA 2R P2-6)
+                    .popover(isPresented: $showBasis, arrowEdge: .top) {
+                        basisNote.presentationCompactAdaptation(.popover)
+                    }
                 }
             }
             value().lineLimit(1).minimumScaleFactor(0.7)
@@ -181,11 +190,13 @@ struct RecordHeader: View {
                 Text("최근\(recent.count)").fcText(.caption, weight: .semibold).foregroundStyle(FC.muted).fixedSize()
                 FormBlocks(matches: o.matches)
             }
-            // 점선(몰수)·굵은 테두리(가장 최근)에 범례가 없었다(디자인 M8)
-            HStack(spacing: 10) {
-                Spacer(minLength: 0)
-                legend(dashed: false, "최근 경기")
-                if hasForfeit { legend(dashed: true, "몰수") }
+            // 점선(몰수)·굵은 테두리(가장 최근)에 범례가 없었다(디자인 M8). 높이가 작은 기기는 몰수 범례만(있을 때).
+            if !Self.compactHeight || hasForfeit {
+                HStack(spacing: 10) {
+                    Spacer(minLength: 0)
+                    if !Self.compactHeight { legend(dashed: false, "최근 경기") }
+                    if hasForfeit { legend(dashed: true, "몰수") }
+                }
             }
         }
     }
@@ -193,7 +204,7 @@ struct RecordHeader: View {
     private func legend(dashed: Bool, _ text: String) -> some View {
         HStack(spacing: 4) {
             RoundedRectangle(cornerRadius: 3)
-                .strokeBorder(dashed ? FC.muted : FC.ink.opacity(0.8), style: StrokeStyle(lineWidth: dashed ? 1 : 1.5, dash: dashed ? [2, 1.5] : []))
+                .strokeBorder(dashed ? FC.muted : FC.ink.opacity(0.8), style: StrokeStyle(lineWidth: 1.5, dash: dashed ? [3, 2] : []))
                 .frame(width: 12, height: 10)
             Text(text).fcText(.caption).foregroundStyle(FC.muted)
         }
@@ -276,8 +287,9 @@ struct RecordIdentityRow: View {
             if let icon = division?.iconUrl {
                 RemoteImage(url: icon, size: 58)
             } else if let d = division {
-                // 서버 iconUrl 이 없는 등급(마스터 등) — 기본 방패 대신 등급 이름 머리글자(QA P2-3)
-                Text(String(d.divisionName.prefix(2))).fcRender(17, .bold).foregroundStyle(FC.gold)
+                // 서버 iconUrl 이 없는 등급(마스터 등) — 글자 두 개("마스")는 깨진 이미지처럼 보였다(QA 2R P2-10).
+                // 왕관 + 등급 이름 + 단계 숫자 배지로 "일부러 만든 엠블럼"처럼.
+                LetterEmblem(name: d.divisionName)
             } else {
                 Image(systemName: "shield.lefthalf.filled").font(.system(size: 30)).foregroundStyle(FC.muted)
             }
@@ -355,6 +367,35 @@ struct RecordTabBar: View {
                 Spacer(minLength: 0)
             }
             .overlay(alignment: .bottom) { Rectangle().fill(CM.hair).frame(height: 1) }
+        }
+    }
+}
+
+
+/// 아이콘이 없는 등급용 엠블럼 — "마스터2" → 왕관 · "마스터" · 단계 배지 "2".
+struct LetterEmblem: View {
+    let name: String
+    private var parts: (base: String, step: String?) {
+        let digits = name.reversed().prefix { $0.isNumber }
+        let base = String(name.dropLast(digits.count)).trimmingCharacters(in: .whitespaces)
+        return (base.isEmpty ? name : base, digits.isEmpty ? nil : String(digits.reversed()))
+    }
+    var body: some View {
+        let p = parts
+        VStack(spacing: 1) {
+            Image(systemName: "crown.fill").font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(LinearGradient(colors: [FC.gold, FC.gold.opacity(0.7)], startPoint: .top, endPoint: .bottom))
+            Text(p.base).fcRender(12, .bold).foregroundStyle(FC.gold).lineLimit(1).minimumScaleFactor(0.6)
+                .padding(.horizontal, 6)
+        }
+        .frame(width: 74, height: 74)
+        .overlay(alignment: .bottomTrailing) {
+            if let s = p.step {
+                Text(s).font(.scoreboard(12)).foregroundStyle(Color.black.opacity(0.85))
+                    .frame(minWidth: 20, minHeight: 20)
+                    .background(FC.gold, in: Circle())
+                    .offset(x: 4, y: 4)
+            }
         }
     }
 }

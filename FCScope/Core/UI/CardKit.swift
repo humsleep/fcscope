@@ -181,6 +181,13 @@ struct IdentityPills: View {
         .frame(height: h, alignment: .leading)
     }
 
+    /// "공식경기" → "공식", "감독모드" → "감독" — 칩 안 짧은 모드 표시
+    static func mode(_ name: String) -> String {
+        if name.contains("공식") { return "공식" }
+        if name.contains("감독") { return "감독" }
+        return name.replacingOccurrences(of: "모드", with: "").replacingOccurrences(of: "경기", with: "")
+    }
+
     private func row(_ divs: [DivisionCard]) -> some View {
         HStack(spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -195,6 +202,8 @@ struct IdentityPills: View {
                     if let img = images.url(dv.iconUrl) {
                         Image(uiImage: img).resizable().scaledToFit().frame(width: 40 - d, height: 40 - d)
                     }
+                    // 모드를 붙인다 — "마스터2"와 "챔피언스"(감독모드)가 나란히 나와 어느 쪽이 공식경기 등급인지 헷갈렸다(QA 2R P2-7)
+                    Text(Self.mode(dv.matchTypeName)).font(.pretendard(22 - d, .semibold)).foregroundStyle(CardPalette.muted)
                     Text(dv.divisionName).font(.pretendard(30 - d, .bold)).foregroundStyle(CardPalette.gold)
                 }
                 .fixedSize()
