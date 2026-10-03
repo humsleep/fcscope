@@ -1,50 +1,133 @@
 import SwiftUI
 
+/// 1차 탭 — 7개 유형 칩 더미 대신 그룹 4개(SPEC 4절)
+enum CommunityTab: String, CaseIterable, Identifiable {
+    case all, hot, squad, club
+    var id: String { rawValue }
+    var label: String {
+        switch self { case .all: return "전체"; case .hot: return "인기"; case .squad: return "스쿼드"; case .club: return "클럽·대회" }
+    }
+    /// 그룹 안 2차 칩(유형) — 순서는 목업 기준
+    var types: [String] {
+        switch self {
+        case .squad: return ["squad_show", "squad_rate", "squad_make", "squad_battle"]
+        case .club: return ["club_recruit", "club_match", "tournament"]
+        default: return []
+        }
+    }
+}
+
 @Observable
 @MainActor
 final class CommunityModel {
     var state: Loadable<PostListResponse> = .idle
-    var type: String? = nil
     var types: [PostTypeInfo] = []
+    var tab: CommunityTab = .all
+    /// 그룹 탭의 2차 칩(유형). nil = 그룹 전체
+    var chip: String?
+    /// "new" | "comments"
+    var sort = "new"
 
-    /// 지금까지 이어붙인 글. 페이지 버튼 대신 **아래로 스크롤하면 다음 장을 붙인다**(iOS 표준).
+    /// 지금까지 이어붙인 글. 아래로 스크롤하면 다음 장을 붙인다(iOS 표준).
     var posts: [Post] = []
+    var hot: [Post] = []
     private(set) var page = 1
     private(set) var totalPages = 1
     private(set) var loadingMore = false
+    /// 다음 장 실패 — 목록 끝에 "불러오지 못했어요 · 다시 시도" 한 줄
+    var moreFailed = false
     var hasMore: Bool { page < totalPages }
+    private let prefs = CommunityPrefs.shared
+    /// 늦게 도착한 이전 탭 응답이 현재 목록을 덮지 않게
+    private var generation = 0
+
+    /// 서버가 sort·types 를 지원하는가(응답 `sort` 키). 모르면 그룹 "전체" 칩을 숨기고 첫 유형으로 동작한다
+    /// (SPEC 14-2: types 쿼리 전엔 클라이언트에서 병합하지 않는다).
+    var groupFilter: Bool { prefs.groupFilterSupported }
 
     func load(reset: Bool = false) async {
-        if reset { page = 1; posts = [] }
+        if reset { page = 1; moreFailed = false }
         if state.value == nil || reset { state = .loading }
         await fetch(page: 1, append: false)
     }
 
-    /// 목록 바닥이 보이면 호출된다. 중복 호출·마지막 장에서는 아무 것도 하지 않는다.
     func loadMore() async {
-        guard !loadingMore, hasMore, state.value != nil else { return }
+        guard !loadingMore, hasMore, state.value != nil, !moreFailed else { return }
         loadingMore = true
         await fetch(page: page + 1, append: true)
         loadingMore = false
     }
 
+    func retryMore() async {
+        moreFailed = false
+        await loadMore()
+    }
+
+    /// 탭 상태만 바꾼다(애니메이션 트랜잭션 안에서 호출). 바뀌었으면 true — 호출부가 load 한다.
+    func switchTab(_ t: CommunityTab) -> Bool {
+        guard t != tab else { return false }
+        tab = t
+        chip = (t.types.isEmpty || groupFilter) ? nil : t.types.first
+        posts = []; hot = []
+        return true
+    }
+
+    func switchChip(_ c: String?) -> Bool {
+        guard c != chip else { return false }
+        chip = c
+        posts = []
+        return true
+    }
+
+    private func query(page target: Int) -> [String: String] {
+        var q = ["page": String(target)]
+        switch tab {
+        case .all: if sort != "new" { q["sort"] = sort }
+        case .hot: q["sort"] = "hot"
+        case .squad, .club:
+            if let c = chip { q["type"] = c } else { q["types"] = tab.types.joined(separator: ",") }
+            if sort != "new" { q["sort"] = sort }
+        }
+        return q
+    }
+
     private func fetch(page target: Int, append: Bool) async {
-        var q = ["page": String(target)]; if let t = type { q["type"] = t }
+        generation += 1
+        let gen = generation
+        let q = query(page: target)
         do {
-            let r: PostListResponse = try await APIClient.shared.get("/api/v1/community/posts", query: q, auth: false)
+            let r = try await CommunityAPI.list(q)
+            guard gen == generation else { return }
             types = r.types
+            // 서버 기능 감지 — 구 서버에서는 새 기능을 조용히 숨긴다
+            prefs.groupFilterSupported = r.sort != nil
+            if target == 1, tab == .all, sort == "new" { prefs.hotSupported = r.hot != nil }
+            if tab == .hot, r.sort != "hot" {
+                // 인기 정렬 미지원(0023 전) — 탭을 숨기고 전체로 되돌린다
+                prefs.hotSupported = false
+                tab = .all
+                await load(reset: true)
+                return
+            }
+            if r.sort == nil, q["types"] != nil {
+                // types 쿼리를 모르는 서버 — 그룹 전체를 합쳐 그리지 않고 첫 유형으로
+                chip = tab.types.first
+                await load(reset: true)
+                return
+            }
             page = r.page
             totalPages = r.totalPages
-            // 같은 글이 두 번 들어오지 않게(글이 새로 올라오면 페이지 경계가 밀린다)
             if append {
                 let known = Set(posts.map(\.id))
                 posts += r.posts.filter { !known.contains($0.id) }
             } else {
                 posts = r.posts
+                if target == 1 { hot = Array((r.hot ?? []).prefix(3)) }
             }
             state = .loaded(r)
         } catch {
-            if !append { state = .failed(error) }
+            guard gen == generation else { return }
+            if append { moreFailed = true } else { state = .failed(error) }
         }
     }
 }
@@ -52,396 +135,508 @@ final class CommunityModel {
 struct CommunityView: View {
     @State private var model = CommunityModel()
     @State private var prefs = LocalPrefs.shared
-    @State private var auth = AuthManager.shared
-    @State private var showCompose = false
+    @State private var cprefs = CommunityPrefs.shared
+    @State private var composeReq: ComposeRequest?
     @State private var showLogin = false
     @State private var needNickname = false
+    @State private var reportTarget: ReportTarget?
+    @State private var toast: String?
+    @State private var showNotifications = false
+    @State private var fabCollapsed = false
+    @State private var lastOffset: CGFloat = 0
+    @State private var highlightId: String?
+    @SceneStorage("community.tab") private var savedTab = CommunityTab.all.rawValue
+    @SceneStorage("community.chip") private var savedChip = ""
+    @Namespace private var tabNS
     @Environment(AppRouter.self) private var router
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    struct ComposeRequest: Identifiable { let type: String?; var id: String { type ?? "_" } }
+
+    private var visibleTabs: [CommunityTab] {
+        CommunityTab.allCases.filter { $0 != .hot || cprefs.hotSupported }
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                // 글 종류는 전체를 한눈에 봐야 고를 수 있다 — 가로 스크롤 금지, 줄바꿈.
-                FlowLayout(spacing: 6, lineSpacing: 0) {
-                    tab(nil, "전체")
-                    ForEach(model.types) { t in tab(t.type, "\(t.emoji) \(t.label)") }
-                }
-                // 카카오톡 채팅 목록처럼 글 종류 탭 바로 아래·목록 맨 위에 카드 하나(2026-09-21 운영자 결정).
-                // 글이 하나도 없는 탭에는 두지 않는다(콘텐츠 없는 화면의 광고 — AdMob 정책). 로드 중엔 이전 목록 기준으로 유지.
-                if model.posts.contains(where: { !prefs.isBlocked($0.authorId) }) { AdSlot() }
-                switch model.state {
-                case .idle, .loading: Skeleton(height: 300)
-                case .failed(let e): ErrorState(title: "커뮤니티를 불러오지 못했어요", message: e.localizedDescription, error: e, retry: { Task { await model.load(reset: true) } })
-                case .loaded:
-                    let visible = model.posts.filter { !prefs.isBlocked($0.authorId) }
-                    if visible.isEmpty {
-                        // 한 줄 문구 + 광고만 남아 고장난 화면처럼 보였다 — 시스템 빈 상태 + 바로 쓰기 동작.
-                        ContentUnavailableView {
-                            Label("아직 글이 없어요", systemImage: "text.bubble")
-                        } description: {
-                            Text("첫 글을 남겨 이야기를 시작해 보세요.")
-                        } actions: {
-                            Button("첫 글 쓰기") { Task { await openCompose() } }
-                                .buttonStyle(.borderedProminent).tint(FC.tint).foregroundStyle(FC.tintInk)
+        VStack(spacing: 0) {
+            header
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        GeometryReader { g in
+                            Color.clear.preference(key: ScrollOffsetKey.self, value: g.frame(in: .named("cmScroll")).minY)
                         }
-                        .padding(.top, 24)
+                        .frame(height: 0).id("top")
+                        content
                     }
-                    LazyVStack(spacing: 12) {
-                        ForEach(visible) { p in
-                            Button { router.push(.post(p.id)) } label: { PostRow(post: p) }.buttonStyle(.plain)
-                                // 마지막 글이 보이면 다음 장을 미리 붙인다 — 버튼을 누를 필요가 없다.
-                                .onAppear { if p.id == visible.last?.id { Task { await model.loadMore() } } }
-                        }
-                    }
-                    if model.hasMore {
-                        HStack { Spacer(); ProgressView(); Spacer() }.padding(.vertical, 12)
-                    } else if visible.count > 8 {
-                        Text("마지막 글이에요").fcFont(12).foregroundStyle(FC.muted)
-                            .frame(maxWidth: .infinity).padding(.vertical, 12)
-                    }
+                    .padding(.bottom, 90)   // FAB 가 마지막 행을 가리지 않게
                 }
-            }.padding(16)
+                .coordinateSpace(name: "cmScroll")
+                .onPreferenceChange(ScrollOffsetKey.self) { y in trackScroll(y) }
+                .refreshable {
+                    await model.load(reset: true)
+                    CMHaptic.selection()
+                }
+                .onChange(of: model.tab) { _, _ in proxy.scrollTo("top", anchor: .top) }
+            }
         }
-        .fcScreen().navigationTitle("커뮤니티").navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { Task { await openCompose() } } label: { Image(systemName: "square.and.pencil") }.accessibilityLabel("글쓰기") } }
-        .sheet(isPresented: $showCompose) { ComposeView(types: model.types, initialType: model.type) { Task { await model.load(reset: true) } } }
-        .sheet(isPresented: $showLogin) { LoginView(reason: "글을 쓰려면 로그인이 필요해요") }
+        .background(FC.bg.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
+        .toolbarBackground(FC.bg, for: .tabBar)
+        .overlay(alignment: .bottomTrailing) { fab }
+        .overlay(alignment: .top) { CMToast(text: toast) }
+        .sheet(item: $composeReq) { req in
+            ComposeView(types: model.types, initialType: req.type) { newId in
+                Task {
+                    await model.load(reset: true)
+                    flash(newId)
+                }
+            }
+        }
+        .sheet(isPresented: $showLogin) { LoginView(reason: "로그인이 필요해요") }
+        .sheet(isPresented: $showNotifications) {
+            NotificationsSheet { id in showNotifications = false; router.push(.post(id)) }
+        }
         .alert("닉네임을 먼저 등록해 주세요", isPresented: $needNickname) {
             Button("내 정보로 이동") { router.tab = .me }
             Button("취소", role: .cancel) {}
         } message: { Text("커뮤니티에 글을 쓰려면 내 정보 탭에서 닉네임을 등록해야 해요.") }
-        .task { await model.load() }
-        .refreshable { await model.load(reset: true) }
+        .reportDialog(target: $reportTarget) { msg in showToast(msg) } needLogin: { showLogin = true }
+        .task {
+            guard model.state.value == nil else { return }
+            let t = CommunityTab(rawValue: savedTab) ?? .all
+            model.tab = (t == .hot && !cprefs.hotSupported) ? .all : t
+            model.chip = model.tab.types.contains(savedChip) ? savedChip : nil
+            if !model.tab.types.isEmpty, model.chip == nil, !model.groupFilter { model.chip = model.tab.types.first }
+            #if DEBUG
+            CommunityDebugLaunch.runOnce(router: router, model: model) { composeReq = ComposeRequest(type: $0) }
+            #endif
+            await model.load()
+        }
+        .onChange(of: model.tab) { _, t in savedTab = t.rawValue }
+        .onChange(of: model.chip) { _, c in savedChip = c ?? "" }
+    }
+
+    // MARK: 머리 — 큰 제목 + 🔔 + 1차 탭
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center) {
+                Text("커뮤니티").cmText(24, .bold).kerning(-0.6).foregroundStyle(FC.ink)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                // 🔍 은 백엔드 검색(q) 전까지 두지 않는다(SPEC 4절)
+                if CommunityAPI.isLoggedIn {
+                    Button { showNotifications = true } label: {
+                        Image(systemName: "bell").font(.system(size: 20, weight: .medium)).foregroundStyle(FC.ink)
+                            .frame(width: 44, height: 44).contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("내 글 새 댓글 알림")
+                }
+            }
+            .padding(.leading, 16).padding(.trailing, 6).padding(.top, 4).frame(minHeight: 52)
+
+            HStack(spacing: 22) {
+                ForEach(visibleTabs) { t in tabButton(t) }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16)
+            Rectangle().fill(CM.hair).frame(height: 1)
+        }
+        .background(FC.bg)
+    }
+
+    private func tabButton(_ t: CommunityTab) -> some View {
+        let on = model.tab == t
+        return Button { selectTab(t) } label: {
+            VStack(spacing: 0) {
+                HStack(spacing: 3) {
+                    Text(t.label).cmText(15, on ? .bold : .semibold).foregroundStyle(on ? FC.ink : FC.muted)
+                    if t == .hot { Text("HOT").cmScore(11, .bold).foregroundStyle(CM.coral) }
+                }
+                .frame(minHeight: 40)
+                ZStack {
+                    Color.clear.frame(height: 2.5)
+                    if on {
+                        Capsule().fill(FC.ink).frame(height: 2.5)
+                            .matchedGeometryEffect(id: "tabUnderline", in: tabNS)
+                    }
+                }
+            }
+            .fixedSize()
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    private func selectTab(_ t: CommunityTab) {
+        let changed = withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) { model.switchTab(t) }
+        guard changed else { return }
+        CMHaptic.selection()
+        Task { await model.load(reset: true) }
+    }
+
+    // MARK: 본문
+
+    @ViewBuilder private var content: some View {
+        if !model.tab.types.isEmpty { chips }
+        switch model.state {
+        case .idle, .loading:
+            if model.posts.isEmpty { skeletonRows } else { list }
+        case .failed(let e):
+            ErrorState(title: "커뮤니티를 불러오지 못했어요", message: e.localizedDescription, error: e, retry: { Task { await model.load(reset: true) } })
+        case .loaded:
+            list
+        }
+    }
+
+    private var chips: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            FlowLayout(spacing: 8, lineSpacing: 0) {
+                if model.groupFilter { chipButton(nil, "전체") }
+                ForEach(model.tab.types, id: \.self) { t in chipButton(t, PostTypeNames.short(t, types: model.types)) }
+            }
+            .padding(.horizontal, 16).padding(.top, 6)
+            HStack {
+                let n = todayCount
+                if n > 0 {
+                    (Text("새 글 ") + Text("\(n)").font(.cm(13, typeSize, .bold)).foregroundColor(FC.ink) + Text("개 · 오늘"))
+                        .cmText(13).foregroundStyle(FC.muted)
+                }
+                Spacer()
+                if model.groupFilter {
+                    Menu {
+                        Picker("정렬", selection: Binding(get: { model.sort }, set: { v in model.sort = v; Task { await model.load(reset: true) } })) {
+                            Text("최신순").tag("new")
+                            Text("댓글순").tag("comments")
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(model.sort == "comments" ? "댓글순" : "최신순").cmText(13, .semibold)
+                            Image(systemName: "chevron.down").font(.system(size: 10, weight: .bold))
+                        }
+                        .foregroundStyle(FC.ink).frame(minHeight: 36).contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("정렬: \(model.sort == "comments" ? "댓글순" : "최신순")")
+                }
+            }
+            .padding(.horizontal, 16).frame(minHeight: 34)
+        }
+    }
+
+    private var todayCount: Int {
+        let cal = Calendar.current
+        return model.posts.filter { DateFmt.parse($0.createdAt).map { cal.isDateInToday($0) } ?? false }.count
+    }
+
+    private func chipButton(_ t: String?, _ label: String) -> some View {
+        let on = model.chip == t
+        return Button {
+            guard model.switchChip(t) else { return }
+            CMHaptic.selection()
+            Task { await model.load(reset: true) }
+        } label: {
+            Text(label).cmText(13, .semibold)
+                .foregroundStyle(on ? FC.tint : FC.muted)
+                .padding(.horizontal, 14).frame(height: 32)
+                .background(on ? FC.tint.opacity(0.12) : FC.surface2, in: Capsule())
+                .overlay(Capsule().strokeBorder(on ? FC.tint : .clear, lineWidth: 1.5))
+                .frame(minHeight: 44).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    private var visiblePosts: [Post] { model.posts.filter { !prefs.isBlocked($0.authorId) } }
+
+    @ViewBuilder private var list: some View {
+        let visible = visiblePosts
+        let hot = model.hot.filter { !prefs.isBlocked($0.authorId) }
+        if model.tab == .all, !hot.isEmpty {
+            HotBox(posts: hot, open: { open($0) }, more: { selectTab(.hot) })
+                .padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 6)
+        }
+        if visible.isEmpty, model.state.value != nil {
+            emptyState
+        } else {
+            LazyVStack(spacing: 0) {
+                ForEach(Array(visible.enumerated()), id: \.element.id) { i, p in
+                    row(p)
+                        .onAppear { if p.id == visible.last?.id { Task { await model.loadMore() } } }
+                    // 광고 — 3번째 행 뒤(행이 3개 미만이면 마지막 행 뒤). 크기는 기존 AdSlot 그대로(운영자 결정).
+                    if i == min(2, visible.count - 1) {
+                        AdSlot().padding(.horizontal, 16).padding(.vertical, 8)
+                    }
+                }
+            }
+            footer(count: visible.count)
+        }
+    }
+
+    private func row(_ p: Post) -> some View {
+        Button { open(p) } label: {
+            PostListRow(post: p, types: model.types, read: cprefs.isRead(p.id))
+                .background(highlightId == p.id ? FC.tint.opacity(0.12) : Color.clear)
+        }
+        .buttonStyle(PressRowStyle())
+        .contextMenu {
+            ShareLink(item: AppConfig.absolute("/community/\(p.id)")) { Label("공유", systemImage: "square.and.arrow.up") }
+            Button { reportTarget = ReportTarget(type: "post", id: p.id) } label: { Label("신고", systemImage: "exclamationmark.bubble") }
+            Button(role: .destructive) {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) { prefs.block(p.authorId) }
+                Haptic.warning()
+                showToast("\(p.author.nickname)님의 글을 숨겼어요")
+            } label: { Label("작성자 차단", systemImage: "hand.raised") }
+        } preview: {
+            PostPreviewCard(post: p, types: model.types)
+        }
+    }
+
+    private func open(_ p: Post) {
+        cprefs.markRead(p.id)
+        router.push(.post(p.id))
+    }
+
+    @ViewBuilder private func footer(count: Int) -> some View {
+        if model.moreFailed {
+            Button { Task { await model.retryMore() } } label: {
+                Text("불러오지 못했어요 · 다시 시도").cmText(13, .semibold).foregroundStyle(FC.tint)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            }
+            .padding(.vertical, 8)
+        } else if model.hasMore {
+            HStack { Spacer(); ProgressView(); Spacer() }.padding(.vertical, 16)
+        } else if count > 8 {
+            Text("다 봤어요 👀").cmText(13).foregroundStyle(CM.faint)
+                .frame(maxWidth: .infinity).padding(.vertical, 20)
+        }
+    }
+
+    private var skeletonRows: some View {
+        VStack(spacing: 0) {
+            ForEach(0..<8, id: \.self) { i in
+                GeometryReader { g in
+                    VStack(alignment: .leading, spacing: 10) {
+                        ShimmerBar(width: g.size.width * [0.78, 0.58, 0.85, 0.66, 0.74, 0.6, 0.82, 0.7][i], height: 14)
+                        ShimmerBar(width: g.size.width * 0.46, height: 10)
+                    }
+                    .frame(maxHeight: .infinity, alignment: .center)
+                }
+                .frame(height: 64)
+                .padding(.horizontal, 16)
+                .overlay(alignment: .bottom) { Rectangle().fill(CM.hair).frame(height: 1) }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("글 목록을 불러오는 중")
+    }
+
+    private var emptyCopy: (emoji: String, title: String, desc: String, cta: String, type: String?) {
+        switch model.tab {
+        case .all: return ("📝", "아직 글이 없어요", "첫 글의 주인공이 돼 보세요", "첫 글 쓰기", nil)
+        case .hot: return ("🔥", "아직 뜨는 글이 없어요", "추천과 댓글이 쌓이면 여기에 떠요", "글쓰기", nil)
+        case .squad, .club:
+            if model.chip == "tournament" { return ("🏆", "아직 대회 글이 없어요", "첫 대회를 열면 여기 맨 위에 떠요.\n규칙·일정만 적으면 끝!", "대회 열기", "tournament") }
+            let name = model.chip.map { PostTypeNames.short($0, types: model.types) } ?? model.tab.label
+            let emoji = model.tab == .club ? "🤝" : "🛡️"
+            return (emoji, "아직 \(name) 글이 없어요", "첫 글의 주인공이 돼 보세요", "글쓰기", model.chip ?? model.tab.types.first)
+        }
+    }
+
+    private var emptyState: some View {
+        let c = emptyCopy
+        return VStack(spacing: 8) {
+            Text(c.emoji).font(.system(size: 44)).padding(.bottom, 6).accessibilityHidden(true)
+            Text(c.title).cmText(17, .bold).foregroundStyle(FC.ink)
+            Text(c.desc).cmText(14).foregroundStyle(FC.muted).multilineTextAlignment(.center).lineSpacing(4)
+            Button(c.cta) { Task { await openCompose(c.type) } }
+                .buttonStyle(BrandButtonStyle())
+                .padding(.top, 14)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 70).padding(.horizontal, 24)
+    }
+
+    // MARK: 글쓰기 FAB
+
+    private var fab: some View {
+        Button { Task { await openCompose(model.chip) } } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "pencil").font(.system(size: 19, weight: .bold))
+                if !fabCollapsed { Text("글쓰기").cmText(17, .bold).fixedSize().transition(.opacity) }
+            }
+            .foregroundStyle(FC.brandInk)
+            .padding(.horizontal, fabCollapsed ? 0 : 22)
+            .frame(width: fabCollapsed ? 52 : nil, height: 52)
+            .background(FC.brand, in: Capsule())
+            .shadow(color: FC.brandEnd.opacity(0.35), radius: 12, y: 5)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(PressScaleStyle())
+        .padding(.trailing, 16).padding(.bottom, 18)
+        .accessibilityLabel("글쓰기")
+    }
+
+    private func trackScroll(_ y: CGFloat) {
+        let delta = y - lastOffset
+        lastOffset = y
+        let anim: Animation? = reduceMotion ? nil : .easeInOut(duration: 0.2)
+        if y > -20 { if fabCollapsed { withAnimation(anim) { fabCollapsed = false } }; return }
+        if delta < -6, !fabCollapsed { withAnimation(anim) { fabCollapsed = true } }
+        else if delta > 6, fabCollapsed { withAnimation(anim) { fabCollapsed = false } }
+    }
+
+    // MARK: 토스트·하이라이트
+
+    private func showToast(_ s: String) {
+        withAnimation { toast = s }
+        Task { try? await Task.sleep(for: .seconds(2.2)); withAnimation { if toast == s { toast = nil } } }
+    }
+    private func flash(_ id: String) {
+        highlightId = id
+        Task {
+            try? await Task.sleep(for: .milliseconds(600))
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.6)) { highlightId = nil }
+        }
     }
 
     /// 글을 다 쓴 뒤 서버가 403(닉네임 없음)으로 거절하지 않도록, 작성 화면을 열기 전에 닉네임부터 확인한다.
-    private func openCompose() async {
-        guard auth.isLoggedIn else { showLogin = true; return }
-        if let r: ProfileResponse = try? await APIClient.shared.get("/api/profile"),
+    private func openCompose(_ type: String?) async {
+        guard CommunityAPI.isLoggedIn else { showLogin = true; return }
+        if let r = try? await CommunityAPI.profile(),
            (r.profile?.nickname ?? "").trimmingCharacters(in: .whitespaces).isEmpty {
             needNickname = true
             return
         }
-        showCompose = true   // 확인 실패(네트워크)면 막지 않는다 — 서버가 최종 판단
-    }
-    private func tab(_ t: String?, _ label: String) -> some View {
-        Button { model.type = t; Task { await model.load(reset: true) } } label: {
-            Text(label).fcFont(13, weight: .semibold).padding(.horizontal, 10).padding(.vertical, 7)
-                .background(model.type == t ? FC.tint : FC.surface2, in: Capsule()).foregroundStyle(model.type == t ? FC.tintInk : FC.muted).tapTarget()
-        }
-        // 선택 여부가 색으로만 표현돼 VoiceOver 는 어떤 필터가 켜졌는지 알 수 없었다.
-        .accessibilityAddTraits(model.type == t ? .isSelected : [])
+        composeReq = ComposeRequest(type: type)   // 확인 실패(네트워크)면 막지 않는다 — 서버가 최종 판단
     }
 }
 
-struct PostRow: View {
-    let post: Post
+private struct ScrollOffsetKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+/// 행 누름 피드백 — 배경만 살짝
+struct PressRowStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(configuration.isPressed ? FC.surface2.opacity(0.6) : Color.clear)
+            .contentShape(Rectangle())
+    }
+}
+
+struct PressScaleStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .opacity(configuration.isPressed ? 0.9 : 1)
+    }
+}
+
+/// 상단 토스트(신고 접수·차단 등)
+struct CMToast: View {
+    let text: String?
     var body: some View {
-        Panel(padding: 12) {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 6) {
-                    Chip(text: "\(post.typeEmoji) \(post.typeLabel)", color: FC.ink)
-                    if post.status == "closed" { Chip(text: "마감") }
-                    if let r = post.region { Chip(text: "📍\(r)", color: FC.tint, bg: FC.tint.opacity(0.12)) }
-                    Spacer()
-                    Text(DateFmt.relative(post.createdAt)).fcFont(11).foregroundStyle(FC.muted)
-                }
-                Text(post.title).fcFont(15, weight: .bold).foregroundStyle(FC.ink).lineLimit(2)
-                if let pv = post.preview, !pv.isEmpty { Text(pv).fcFont(13).lineSpacing(4).foregroundStyle(FC.muted).lineLimit(2) }
-                HStack(spacing: 8) {
-                    Text(post.author.nickname).fcFont(12, weight: .semibold).foregroundStyle(FC.ink)
-                    if post.author.isOperator == true { OperatorBadge() }
-                    if let v = post.author.verifiedNickname { Text("✓ \(v)").fcFont(11).foregroundStyle(FC.tint) }
-                    Spacer()
-                    if post.squadId != nil { Text("🧩 스쿼드").fcFont(11).foregroundStyle(FC.muted) }
-                    Text("💬 \(post.commentCount ?? 0)").fcFont(11).foregroundStyle(FC.muted)
-                }
-            }
+        if let text {
+            Text(text).cmText(14, .semibold).foregroundStyle(FC.ink)
+                .padding(.horizontal, 16).padding(.vertical, 10)
+                .background(FC.surface2, in: Capsule())
+                .overlay(Capsule().stroke(FC.line, lineWidth: 1))
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .accessibilityAddTraits(.updatesFrequently)
         }
     }
 }
 
-// MARK: - 상세
-
-struct PostDetailView: View {
-    let postId: String
-    @State private var state: Loadable<PostDetailResponse> = .idle
-    @State private var prefs = LocalPrefs.shared
-    @State private var comment = ""
-    @State private var busy = false
-    @State private var msg: String?
-    @State private var showReport: (String, String)? = nil
-    @State private var showLogin = false
-    @State private var confirmDeletePost = false
-    @State private var confirmDeleteComment: String?
-    @Environment(AppRouter.self) private var router
-
-    var body: some View {
-        ScrollView {
-            switch state {
-            case .idle, .loading: VStack(spacing: 10) { Skeleton(height: 200); Skeleton(height: 120) }.padding(16)
-            case .failed(let e): ErrorState(title: "글을 불러오지 못했어요", message: e.localizedDescription, error: e, retry: { Task { await load() } })
-            case .loaded(let d): content(d)
-            }
-        }
-        .fcScreen().navigationTitle(state.value?.post.typeLabel ?? "커뮤니티").navigationBarTitleDisplayMode(.inline)
-        .task { await load() }
-        .alert("알림", isPresented: Binding(get: { msg != nil }, set: { _ in msg = nil })) { Button("확인") {} } message: { Text(msg ?? "") }
-        .sheet(isPresented: $showLogin) { LoginView(reason: "댓글을 쓰려면 로그인이 필요해요") }
-        .alert("글을 삭제할까요?", isPresented: $confirmDeletePost) {
-            Button("삭제", role: .destructive) { Task { await deletePost() } }
-            Button("취소", role: .cancel) {}
-        } message: { Text("댓글까지 함께 삭제되며 되돌릴 수 없어요.") }
-        .alert("댓글을 삭제할까요?", isPresented: Binding(get: { confirmDeleteComment != nil }, set: { if !$0 { confirmDeleteComment = nil } })) {
-            Button("삭제", role: .destructive) { if let id = confirmDeleteComment { Task { await deleteComment(id) } } }
-            Button("취소", role: .cancel) {}
-        } message: { Text("되돌릴 수 없어요.") }
-        .confirmationDialog("신고 사유", isPresented: Binding(get: { showReport != nil }, set: { if !$0 { showReport = nil } }), titleVisibility: .visible) {
-            ForEach([("spam", "스팸·도배·광고"), ("abuse", "욕설·비하·혐오"), ("illegal", "불법·음란·거래 유도"), ("other", "기타")], id: \.0) { r in
-                Button(r.1) { if let t = showReport { Task { await report(type: t.0, id: t.1, reason: r.0) } } }
-            }
-            Button("취소", role: .cancel) {}
-        }
-    }
-
-    private func load() async {
-        // 댓글 작성·삭제 후 재로드 때 화면(과 광고)을 통째로 갈아 끼우지 않는다 — 이미 있으면 그 위에서 갱신
-        if state.value == nil { state = .loading }
-        do { state = .loaded(try await APIClient.shared.get("/api/v1/community/posts/\(postId)")) } catch { state = .failed(error) }
-    }
-
-    private func content(_ d: PostDetailResponse) -> some View {
-        let p = d.post
-        return VStack(alignment: .leading, spacing: 12) {
-            // 다른 화면과 같은 상단 카드 광고(화면당 1개) — 본문 중간에 끼우지 않는다. 차단한 글(안내 한 줄)엔 두지 않는다.
-            if !prefs.isBlocked(p.authorId) { AdSlot() }
-            if prefs.isBlocked(p.authorId) {
-                Panel { HStack { Text("차단한 사용자의 글이에요.").foregroundStyle(FC.muted); Spacer(); Button("차단 해제") { prefs.unblock(p.authorId) } } }
-            } else {
-                Panel {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 6) { Chip(text: "\(p.typeEmoji) \(p.typeLabel)", color: FC.ink); if p.status == "closed" { Chip(text: "마감") }; if let r = p.region { Chip(text: "📍\(r)", color: FC.tint, bg: FC.tint.opacity(0.12)) } }
-                        Text(p.title).fcFont(22, weight: .bold).foregroundStyle(FC.ink)
-                        Text(DateFmt.relative(p.createdAt)).fcFont(12).foregroundStyle(FC.muted)
-                        if !p.positions.isEmpty { FlowLayout(spacing: 4) { ForEach(p.positions, id: \.self) { Chip(text: $0, color: FC.ink) } } }
-                        if let rows = p.metaRows, !rows.isEmpty {
-                            ForEach(rows) { r in HStack { Text(r.label).fcFont(12).foregroundStyle(FC.muted).frame(width: 70, alignment: .leading); Text(r.value).fcFont(14, weight: .semibold).foregroundStyle(FC.ink) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.chip)) }
-                        }
-                        // 기본 행간은 한글 본문이 빽빽해 읽기 어려웠다 — 줄 사이를 넉넉히(15pt 글자에 +8)
-                        Text(p.body).fcFont(16).lineSpacing(8).foregroundStyle(FC.ink).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                        if p.type == "squad_battle", let a = p.squadId, let b = p.squadB { BattleBlock(postId: p.id, squadA: a, squadB: b) }
-                        else if let s = p.squadId { squadLink(s) }
-                        if let c = p.contact { HStack { Text("연락").fcFont(12, weight: .semibold).foregroundStyle(FC.muted); Text(c).fcFont(14).foregroundStyle(FC.ink).textSelection(.enabled) } }
-                        Divider().background(FC.line)
-                        HStack(spacing: 12) {
-                            if d.viewer.isOwner {
-                                Button(role: .destructive) { confirmDeletePost = true } label: { Text("삭제").fcFont(13) }
-                            } else {
-                                Button { showReport = ("post", p.id) } label: { Text("신고").fcFont(13).foregroundStyle(FC.muted) }
-                                Button { prefs.block(p.authorId); Haptic.warning() } label: { Text("차단").fcFont(13).foregroundStyle(FC.muted) }
-                            }
-                            Spacer()
-                            ShareLink(item: AppConfig.absolute("/community/\(p.id)")) { Image(systemName: "square.and.arrow.up") }.accessibilityLabel("글 공유")
-                        }
-                    }
-                }
-                comments(d)
-                Panel(padding: 12) {
-                    HStack {
-                        VStack(alignment: .leading) { SectionLabel("작성자"); HStack(spacing: 6) { Text(p.author.nickname).fcFont(16, weight: .bold).foregroundStyle(FC.ink); if p.author.isOperator == true { OperatorBadge() } }; if let v = p.author.verifiedNickname { Text("✓ FC Online: \(v)").fcFont(12).foregroundStyle(FC.tint) } }
-                        Spacer()
-                        if let v = p.author.verifiedNickname { Button("전적·진단") { router.push(.user(v)) }.buttonStyle(.borderedProminent).tint(FC.tint).foregroundStyle(FC.tintInk) }
-                    }
-                }
-            }
-        }.padding(16)
-    }
-
-    private func squadLink(_ id: String) -> some View {
-        Button { router.push(.squad(id)) } label: { HStack { Text("🧩 첨부 스쿼드 보기").fcFont(14, weight: .semibold).foregroundStyle(FC.tint); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) }.padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control)) }.buttonStyle(.plain)
-    }
-
-    private func comments(_ d: PostDetailResponse) -> some View {
-        Panel {
-            VStack(alignment: .leading, spacing: 10) {
-                SectionLabel("댓글 \(d.comments.count)")
-                ForEach(d.comments.filter { !prefs.isBlocked($0.authorId) }) { c in
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 6) {
-                            Text(c.author.nickname).fcFont(13, weight: .semibold).foregroundStyle(FC.ink)
-                            if c.author.isOperator == true { OperatorBadge() }
-                            Text(DateFmt.relative(c.createdAt)).fcFont(11).foregroundStyle(FC.muted)
-                            Spacer()
-                            // 12pt 텍스트 버튼(신고·차단)이 붙어 있어 탭 영역이 44pt 에 한참 못 미쳤고 오탭이 잦았다.
-                            // 삭제는 확인 알림이 있으니 그대로 두되 탭 영역만 넓히고, 신고·차단은 메뉴 하나로 모은다.
-                            if c.isOwn {
-                                Button("삭제") { confirmDeleteComment = c.id }.fcFont(12).foregroundStyle(FC.lose)
-                                    .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
-                            } else {
-                                Menu {
-                                    Button { showReport = ("comment", c.id) } label: { Label("신고", systemImage: "exclamationmark.bubble") }
-                                    Button(role: .destructive) { prefs.block(c.authorId); Haptic.warning() } label: { Label("작성자 차단", systemImage: "hand.raised") }
-                                } label: {
-                                    Image(systemName: "ellipsis").fcFont(14, weight: .semibold).foregroundStyle(FC.muted)
-                                        .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
-                                }
-                                .accessibilityLabel("\(c.author.nickname) 댓글 더보기")
-                            }
-                        }
-                        Text(c.body).fcFont(15).lineSpacing(6).foregroundStyle(FC.ink).frame(maxWidth: .infinity, alignment: .leading).padding(12).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control))
-                        if let s = c.squadId { Button("🧩 제안 스쿼드 보기 →") { router.push(.squad(s)) }.fcFont(12, weight: .semibold).foregroundStyle(FC.tint) }
-                    }
-                }
-                if d.viewer.canComment {
-                    HStack(alignment: .bottom) {
-                        TextField("의견을 남겨보세요", text: $comment, axis: .vertical).textFieldStyle(.roundedBorder).lineLimit(1...4)
-                        Button { Task { await submitComment() } } label: { Text(busy ? "…" : "등록") }.buttonStyle(.borderedProminent).tint(FC.tint).foregroundStyle(FC.tintInk).disabled(busy || comment.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
-                } else if d.viewer.loggedIn {
-                    Button("댓글을 쓰려면 닉네임 등록이 필요해요 →") { router.tab = .me }.fcFont(13).foregroundStyle(FC.tint)
-                } else {
-                    Button("로그인하고 의견 남기기") { showLogin = true }.fcFont(13).foregroundStyle(FC.tint)
-                }
-            }
-        }
-    }
-
-    private func submitComment() async {
-        busy = true; defer { busy = false }
-        do { try await APIClient.shared.sendNoContent("/api/community/posts/\(postId)/comments", method: "POST", json: ["body": comment.trimmingCharacters(in: .whitespaces)]); comment = ""; Haptic.success(); await load() } catch { msg = error.localizedDescription }
-    }
-    private func deleteComment(_ id: String) async {
-        do { try await APIClient.shared.sendNoContent("/api/community/posts/\(postId)/comments", method: "DELETE", json: ["comment_id": id]); await load() } catch { msg = error.localizedDescription }
-    }
-    private func deletePost() async {
-        do { try await APIClient.shared.sendNoContent("/api/community/posts/\(postId)", method: "DELETE"); router.communityPath = NavigationPath() } catch { msg = error.localizedDescription }
-    }
-    private func report(type: String, id: String, reason: String) async {
-        do { try await APIClient.shared.sendNoContent("/api/community/report", method: "POST", json: ["target_type": type, "target_id": id, "reason": reason]); msg = "신고가 접수됐어요. 확인 후 조치할게요." }
-        catch let e as APIError where e.code == nil && "\(e)".contains("unauthorized") { showLogin = true }
-        catch { msg = (error as? APIError) == nil ? error.localizedDescription : ((error as? APIError).map { if case .unauthorized = $0 { return "신고하려면 로그인이 필요해요." } else { return $0.localizedDescription } } ?? "") }
-    }
+enum CMHaptic {
+    static func selection() { UISelectionFeedbackGenerator().selectionChanged() }
 }
 
-struct BattleBlock: View {
-    let postId: String; let squadA: String; let squadB: String
-    @State private var votes: BattleVotes?
-    /// 서버가 "내 투표"를 돌려주지 않으므로 이 화면에서만 기억한다(중복 투표는 서버가 upsert 로 막는다).
-    @State private var myPick: String?
-    @State private var voteError: String?
-    @Environment(AppRouter.self) private var router
-    var body: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                side("🅰️ A팀", squadA, FC.tint); side("🅱️ B팀", squadB, FC.lose)
+// MARK: - 신고 다이얼로그(목록·상세 공용)
+
+private struct ReportDialog: ViewModifier {
+    @Binding var target: ReportTarget?
+    let done: (String) -> Void
+    let needLogin: () -> Void
+    func body(content: Content) -> some View {
+        content.confirmationDialog("신고 사유", isPresented: Binding(get: { target != nil }, set: { if !$0 { target = nil } }), titleVisibility: .visible, presenting: target) { t in
+            ForEach(ReportReason.allCases) { r in
+                Button(r.label) { Task { await send(t, r) } }
             }
-            let a = votes?.a ?? 0, b = votes?.b ?? 0, total = max(1, a + b)
-            ZStack {
-                let ratio = CGFloat(a) / CGFloat(total)
-                BarSegment(to: ratio).fill(FC.tint)
-                BarSegment(from: ratio, to: 1, leadingGap: 2).fill(FC.lose)  // 예전 HStack(spacing: 2) 의 틈
-            }.frame(height: 10).clipShape(Capsule())
-            HStack { Text("A \(a)표").fcScoreboard(12).foregroundStyle(FC.tint); Spacer(); Text("B \(b)표").fcScoreboard(12).foregroundStyle(FC.lose) }
-            HStack(spacing: 8) {
-                Button("A에 투표") { Task { await vote("A") } }.buttonStyle(.bordered).tint(FC.tint).disabled(myPick != nil)
-                Button("B에 투표") { Task { await vote("B") } }.buttonStyle(.bordered).tint(FC.lose).disabled(myPick != nil)
-            }
-            if let e = voteError { Text(e).fcFont(12).foregroundStyle(FC.lose) }
+            Button("취소", role: .cancel) {}
+        } message: { _ in
+            Text("운영자가 확인하고 조치해요. 신고가 쌓인 글은 자동으로 숨겨져요.")
         }
-        .task { votes = try? await APIClient.shared.get("/api/community/battle", query: ["postId": postId]) }
     }
-    private func side(_ t: String, _ id: String, _ c: Color) -> some View {
-        Button { router.push(.squad(id)) } label: { VStack { Text(t).fcScoreboard(13).foregroundStyle(c); Text("스쿼드 보기").fcFont(12).foregroundStyle(FC.muted) }.frame(maxWidth: .infinity).padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control)) }.buttonStyle(.plain)
-    }
-    private func vote(_ pick: String) async {
-        let device = UIDevice.current.identifierForVendor?.uuidString ?? "anon"
+    @MainActor private func send(_ t: ReportTarget, _ r: ReportReason) async {
+        guard CommunityAPI.isLoggedIn else { needLogin(); return }
         do {
-            let v: BattleVotes = try await APIClient.shared.send("/api/community/battle", method: "POST", json: ["postId": postId, "pick": pick, "voter": device])
-            votes = v
-            myPick = pick
-            voteError = nil
+            try await CommunityAPI.report(type: t.type, id: t.id, reason: r.rawValue)
             Haptic.success()
+            done("신고 접수됐어요. 확인하고 조치할게요")
+        } catch APIError.unauthorized {
+            needLogin()
         } catch {
-            voteError = "투표를 반영하지 못했어요. 잠시 후 다시 시도해 주세요."
-            Haptic.warning()
+            done(error.localizedDescription)
         }
     }
 }
 
-// MARK: - 글쓰기
+extension View {
+    func reportDialog(target: Binding<ReportTarget?>, done: @escaping (String) -> Void, needLogin: @escaping () -> Void) -> some View {
+        modifier(ReportDialog(target: target, done: done, needLogin: needLogin))
+    }
+}
 
-struct ComposeView: View {
-    let types: [PostTypeInfo]
-    var initialType: String?
-    var onDone: () -> Void
+// MARK: - 알림(내 글 새 댓글)
+
+struct NotificationsSheet: View {
+    let open: (String) -> Void
+    @State private var state: Loadable<NotificationsResponse> = .idle
     @Environment(\.dismiss) private var dismiss
-    @State private var type: PostTypeInfo?
-    @State private var title = ""
-    @State private var body_ = ""
-    @State private var squad = ""
-    @State private var squadB = ""
-    @State private var region = "전국(온라인)"
-    @State private var contact = ""
-    @State private var extras: [String: String] = [:]
-    @State private var busy = false
-    @State private var msg: String?
-    private let regions = ["전국(온라인)", "서울", "경기", "인천", "강원", "대전", "세종", "충북", "충남", "대구", "경북", "부산", "울산", "경남", "광주", "전북", "전남", "제주"]
-
     var body: some View {
         NavigationStack {
-            Form {
-                Section("유형") {
-                    Picker("유형", selection: Binding(get: { type?.type ?? "" }, set: { v in type = types.first { $0.type == v }; if body_.isEmpty { body_ = type?.template ?? "" } })) {
-                        ForEach(types) { t in Text("\(t.emoji) \(t.label)").tag(t.type) }
-                    }
-                    if let t = type { Text(t.blurb).fcFont(12).foregroundStyle(FC.muted) }
-                }
-                Section("제목 · 내용") {
-                    TextField("제목 (60자)", text: $title)
-                    TextEditor(text: $body_).frame(minHeight: 140)
-                }
-                if let t = type {
-                    Section("추가 정보") {
-                        if t.fields.contains("squad") { TextField(t.type == "squad_battle" ? "A팀 스쿼드 공유코드" : "스쿼드 공유코드 (선택)", text: $squad) }
-                        if t.fields.contains("squad_b") { TextField("B팀 스쿼드 공유코드", text: $squadB) }
-                        if t.fields.contains("region") { Picker("지역", selection: $region) { ForEach(regions, id: \.self) { Text($0) } } }
-                        if t.fields.contains("contact") { TextField("연락 방법 (선택)", text: $contact) }
-                        ForEach(t.fields.filter { ["budget", "schedule", "date", "format", "entry"].contains($0) }, id: \.self) { f in
-                            TextField(["budget": "예산", "schedule": "가능 시간", "date": "일정", "format": "형식", "entry": "참가 방법"][f] ?? f, text: Binding(get: { extras[f] ?? "" }, set: { extras[f] = $0 }))
+            Group {
+                switch state {
+                case .idle, .loading: ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                case .failed(let e): ErrorState(title: "알림을 불러오지 못했어요", message: e.localizedDescription, error: e) { Task { await load() } }
+                case .loaded(let r):
+                    if r.items.isEmpty {
+                        VStack(spacing: 8) {
+                            Text("🔔").font(.system(size: 40))
+                            Text("새 댓글이 없어요").cmText(16, .bold).foregroundStyle(FC.ink)
+                            Text("최근 7일 동안 내 글에 달린 댓글을 모아 보여 줘요").cmText(13).foregroundStyle(FC.muted)
                         }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        List(r.items) { it in
+                            Button { open(it.postId) } label: {
+                                HStack {
+                                    Text(it.title).cmText(15, .medium).foregroundStyle(FC.ink).lineLimit(1)
+                                    Spacer()
+                                    Text("새 댓글 \(it.count)").cmText(12, .semibold).foregroundStyle(FC.tint)
+                                }
+                                .frame(minHeight: 44)
+                            }
+                            .listRowBackground(FC.surface)
+                        }
+                        .scrollContentBackground(.hidden)
                     }
                 }
-                Section { Text("욕설·비하·도배·거래 유도 글은 신고 누적 시 숨김 처리되며 반복 시 이용이 제한돼요.").fcFont(12).foregroundStyle(FC.muted) }
             }
-            .navigationTitle("글쓰기").navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("취소") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button(busy ? "등록 중…" : "등록") { Task { await submit() } }.disabled(busy || type == nil || title.isEmpty || body_.isEmpty) }
-            }
-            .alert("알림", isPresented: Binding(get: { msg != nil }, set: { _ in msg = nil })) { Button("확인") {} } message: { Text(msg ?? "") }
-            .onAppear { type = types.first { $0.type == initialType } ?? types.first; if body_.isEmpty { body_ = type?.template ?? "" } }
+            .background(FC.bg.ignoresSafeArea())
+            .navigationTitle("알림").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } } }
+            .task { await load() }
         }
+        .presentationDetents([.medium, .large])
     }
-    private func submit() async {
-        guard let t = type else { return }
-        busy = true; defer { busy = false }
-        var json: [String: Any] = ["type": t.type, "title": title, "body": body_]
-        if !squad.isEmpty { json["squad_id"] = squad }
-        if !squadB.isEmpty { json["squad_b"] = squadB }
-        if t.fields.contains("region") { json["region"] = region }
-        if !contact.isEmpty { json["contact"] = contact }
-        for (k, v) in extras where !v.isEmpty { json[k] = v }
-        do { let _: IdBody = try await APIClient.shared.send("/api/community/posts", method: "POST", json: json); Haptic.success(); onDone(); dismiss() }
-        catch { msg = error.localizedDescription }
-    }
-}
-
-/// 운영자 계정(서버 ADMIN_EMAILS)이 쓴 글·댓글 옆 배지 — 제목에 "[운영자]"를 적는 대신 작성자에 붙인다.
-struct OperatorBadge: View {
-    var body: some View {
-        Text("운영자").fcFont(10, weight: .bold).foregroundStyle(FC.gold)
-            .padding(.horizontal, 5).padding(.vertical, 2)
-            .background(FC.gold.opacity(0.15), in: RoundedRectangle(cornerRadius: 5))
-            .accessibilityLabel("운영자 계정")
+    private func load() async {
+        state = .loading
+        do { state = .loaded(try await CommunityAPI.notifications()) } catch { state = .failed(error) }
     }
 }

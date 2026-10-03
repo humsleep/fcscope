@@ -38,6 +38,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         Task { @MainActor in await PushManager.shared.registerIfAuthorized() }
         #if DEBUG
         CardDebugExport.runIfRequested()
+        CommunityDebugLaunch.prepare()
         #endif
         return true
     }
