@@ -51,8 +51,8 @@ struct MatchReportView: View {
                         PlayerImage(spid: p.spId, size: 56, radius: 12)
                         VStack(alignment: .leading, spacing: 3) {
                             Text("POTM").fcScoreboard(12, weight: .semibold).foregroundStyle(FC.gold).lineLimit(1)
-                            // 한 줄: 구단주명 · 포지션 · 선수
-                            (Text(p.side).foregroundStyle(FC.muted) + Text(" · \(p.positionLabel) · ").foregroundStyle(FC.muted) + Text(p.name).foregroundStyle(FC.ink).bold())
+                            // 한 줄: 포지션 · 선수 — 구단주명 접두는 위 히어로에 이미 있어 뺐다(디자인 N7). 상대 선수면 그때만 밝힌다.
+                            (Text(p.side == m.me.nickname ? "" : "\(p.side) · ").foregroundStyle(FC.muted) + Text("\(p.positionLabel) · ").foregroundStyle(FC.muted) + Text(p.name).foregroundStyle(FC.ink).bold())
                                 .font(.fcFont(15, typeSize)).lineLimit(1).minimumScaleFactor(0.75)
                         }
                         Spacer()
@@ -62,13 +62,13 @@ struct MatchReportView: View {
             }
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel("슛맵")
-                // 범례: 왼쪽 = 상대(왼쪽 골대 공격), 오른쪽 = 나(오른쪽 골대 공격)
+                // 범례: 왼쪽 = 나, 오른쪽 = 상대 — 위 히어로(나 왼쪽)와 같은 방향(유저 패널 C). 상대는 패배 빨강이 아니라 중립 muted(디자인 M9).
                 HStack(spacing: 6) {
-                    if let o = m.opponent { shotLegend(o, tone: FC.lose) }
-                    Spacer(minLength: 8)
                     shotLegend(m.me, tone: FC.tint)
+                    Spacer(minLength: 8)
+                    if let o = m.opponent { shotLegend(o, tone: FC.muted) }
                 }
-                ShotMapView(mine: m.me.shots, theirs: m.opponent?.shots ?? [], myTone: FC.tint, theirTone: FC.lose)
+                ShotMapView(mine: m.me.shots, theirs: m.opponent?.shots ?? [], myTone: FC.tint, theirTone: FC.muted)
                 Text("● 골 · ○ 노골 · 금색 골대 · 점을 누르면 시간·선수").fcFont(11).foregroundStyle(FC.muted)
             }
             // 광고는 스코어·판정·POTM·슛맵을 본 다음 — 경기 직후 화면 맨 위가 광고이던 것을 내렸다(UX-AUDIT-GENZ #1). 화면당 1개.
@@ -152,8 +152,9 @@ struct MatchReportView: View {
 /// `inPenalty=false` 인 슛은 x=0.824 로 페널티 박스 경계(1 − 16.5/105 = 0.843) 바로 밖이었다.
 /// 예전 코드는 x·y 를 반대로 읽어 슛이 터치라인에 붙고 운동장이 90° 돌아간 것처럼 보였다.
 ///
-/// 팀마다 **자기 공격 방향 기준**이므로, 한 화면에 놓으려면 상대 팀을 180° 돌린다
+/// 팀마다 **자기 공격 방향 기준**이므로, 한 화면에 놓으려면 한 팀을 180° 돌린다
 /// (가로 반전 + 세로 반전). 가로만 뒤집으면 좌우가 거울처럼 어긋난다.
+/// 내 슛은 **화면 왼쪽 골대 쪽**에 모인다(`meOnLeft`) — 히어로·범례·공유 카드의 "나 왼쪽"과 같은 방향.
 struct ShotMapView: View {
     let mine: [Shot]
     let theirs: [Shot]
@@ -172,12 +173,12 @@ struct ShotMapView: View {
                 ZStack {
                     Canvas { ctx, size in Self.drawPitch(ctx, size, ground: FC.surface2, line: FC.line) }
                         .accessibilityHidden(true)
-                    // 내 슛 — 오른쪽 골대를 공격
+                    // 내 슛 — 왼쪽 골대를 공격(히어로의 "나 왼쪽"과 같은 쪽)
                     ForEach(mine) { s in
                         dot(s, tone: myTone, isMine: true)
                             .position(Self.point(s, sx: sx, sy: sy, mine: true, in: g.size))
                     }
-                    // 상대 슛 — 왼쪽 골대를 공격(180° 회전)
+                    // 상대 슛 — 오른쪽 골대를 공격
                     ForEach(theirs) { s in
                         dot(s, tone: theirTone, isMine: false)
                             .position(Self.point(s, sx: sx, sy: sy, mine: false, in: g.size))
@@ -200,15 +201,17 @@ struct ShotMapView: View {
         return m > 1.5 ? m : 1
     }
 
+    /// 내 슛을 화면 왼쪽 골대 쪽에 모은다 — 헤더·범례·공유 카드가 모두 "나 왼쪽"이라 슛맵만 반대이던 것을 맞췄다.
+    static let meOnLeft = true
+
     static func point(_ s: Shot, sx: Double, sy: Double, mine isMine: Bool, in size: CGSize) -> CGPoint {
         let length = CGFloat(min(1, max(0, s.x / sx)))     // 1 = 상대 골라인
         let width = CGFloat(min(1, max(0, s.y / sy)))      // 좌우
-        if isMine {
-            // 나는 오른쪽 골대를 공격 — 전체 운동장 비율 그대로
-            return CGPoint(x: length * size.width, y: width * size.height)
+        // 왼쪽에 놓을 팀은 180° 회전(가로·세로 모두 반전) — 왼쪽 골대를 공격하게
+        if isMine == meOnLeft {
+            return CGPoint(x: (1 - length) * size.width, y: (1 - width) * size.height)
         }
-        // 상대는 180° 회전 — 가로·세로 모두 반전해 왼쪽 골대를 공격
-        return CGPoint(x: (1 - length) * size.width, y: (1 - width) * size.height)
+        return CGPoint(x: length * size.width, y: width * size.height)
     }
 
     private func dot(_ s: Shot, tone: Color, isMine: Bool) -> some View {
@@ -274,7 +277,7 @@ struct MiniShotMap: View {
         let sx = ShotMapView.scale(mine + theirs, \.x), sy = ShotMapView.scale(mine + theirs, \.y)
         Canvas { ctx, size in
             ShotMapView.drawPitch(ctx, size, ground: FC.surface2, line: FC.line)
-            for (shots, isMine, tone) in [(theirs, false, FC.lose), (mine, true, FC.tint)] {
+            for (shots, isMine, tone) in [(theirs, false, FC.muted), (mine, true, FC.tint)] {
                 for s in shots {
                     let pt = ShotMapView.point(s, sx: sx, sy: sy, mine: isMine, in: size)
                     let r: CGFloat = s.isGoal ? 5 : 3.5

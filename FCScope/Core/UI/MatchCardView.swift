@@ -72,7 +72,8 @@ struct MatchCardView: View {
                 if m.verdict.label != m.verdict.grade {
                     Text(m.verdict.label).font(.pretendard(40, .bold)).foregroundStyle(color).lineLimit(1)
                 }
-                Text(m.liner).font(.pretendard(34, .bold)).foregroundStyle(m.storyTag == nil ? CardPalette.muted : CardPalette.ink).lineLimit(1).minimumScaleFactor(0.7)
+                // "무승부 / 3:3 난타전 무승부"처럼 큰 라벨과 같은 말을 반복하지 않는다(디자인 M9)
+                Text(m.liner(after: [m.verdict.grade, m.verdict.label])).font(.pretendard(34, .bold)).foregroundStyle(m.storyTag == nil ? CardPalette.muted : CardPalette.ink).lineLimit(1).minimumScaleFactor(0.7)
             }
             Spacer(minLength: 0)
         }
@@ -89,19 +90,20 @@ struct MatchCardView: View {
         let sx = ShotMapView.scale(all, \.x), sy = ShotMapView.scale(all, \.y)
         let size = CGSize(width: 880, height: 880 / ShotMapView.pitchRatio)
         return VStack(alignment: .leading, spacing: 14) {
+            // 나 왼쪽 · 상대 오른쪽(스코어보드와 같은 방향). 상대는 중립 muted — 패배 빨강을 쓰면 이긴 카드에도 "나쁨"이 섞였다(디자인 M9).
             HStack {
-                Text("\(m.opponent?.nickname ?? "상대") 슛 \(m.opponent?.stats.shots ?? 0)").foregroundStyle(CardPalette.lose)
+                Text("\(m.me.nickname) 슛 \(m.me.stats.shots)").foregroundStyle(CardPalette.tint)
                 Spacer()
                 HStack(spacing: 8) { Circle().fill(CardPalette.muted).frame(width: 16, height: 16); Text("골"); Circle().stroke(CardPalette.muted, lineWidth: 3).frame(width: 16, height: 16); Text("슛") }
                     .foregroundStyle(CardPalette.muted)
                 Spacer()
-                Text("\(m.me.nickname) 슛 \(m.me.stats.shots)").foregroundStyle(CardPalette.tint)
+                Text("\(m.opponent?.nickname ?? "상대") 슛 \(m.opponent?.stats.shots ?? 0)").foregroundStyle(CardPalette.muted)
             }
             .font(.pretendard(28, .semibold)).lineLimit(1).minimumScaleFactor(0.7)
             ZStack(alignment: .topLeading) {
                 Canvas { ctx, s in
                     ShotMapView.drawPitch(ctx, s, ground: CardPalette.surface, line: CardPalette.line, lineWidth: 3)
-                    for (shots, mine, color) in [(theirs, false, CardPalette.lose), (m.me.shots, true, CardPalette.tint)] {
+                    for (shots, mine, color) in [(theirs, false, CardPalette.muted), (m.me.shots, true, CardPalette.tint)] {
                         for shot in shots {
                             let pt = ShotMapView.point(shot, sx: sx, sy: sy, mine: mine, in: s)
                             let r: CGFloat = shot.isGoal ? 16 : 12
@@ -131,8 +133,8 @@ struct MatchCardView: View {
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             VStack(alignment: .leading, spacing: 8) {
                 Text("POTM").font(.scoreboard(30)).kerning(3).foregroundStyle(CardPalette.gold)
-                // 한 줄: 구단주명 · 포지션 · 선수
-                (Text("\(p.side) · \(p.positionLabel) · ").foregroundStyle(CardPalette.muted) + Text(p.name).foregroundStyle(CardPalette.ink))
+                // 한 줄: 포지션 · 선수(상대 선수일 때만 구단주명) — 디자인 N7
+                (Text(p.side == m.me.nickname ? "\(p.positionLabel) · " : "\(p.side) · \(p.positionLabel) · ").foregroundStyle(CardPalette.muted) + Text(p.name).foregroundStyle(CardPalette.ink))
                     .font(.pretendard(40, .bold)).lineLimit(1).minimumScaleFactor(0.6)
             }
             Spacer(minLength: 0)
