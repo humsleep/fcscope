@@ -1,46 +1,42 @@
 import SwiftUI
 
-/// 실행 인트로 — 앱 아이콘(원근 페널티 박스 + 골대 + 히트맵)을 선으로 그려 낸 뒤
-/// 히트 글로우를 피우고, 페널티 스폿을 찍고, 워드마크를 띄우고 사라진다.
+/// 실행 인트로 — 앱 아이콘 "S-spot"(그라디언트 S + 잘린 윗끝에서 튀어나온 공)을 그린다.
+/// S 가 아래 끝에서 위 끝으로 공의 궤적처럼 그려지고, 잘린 윗끝에서 공이 제자리로 튀어나온 뒤
+/// 워드마크가 뜨고 사라진다.
 ///
 /// - 콜드 스타트마다 한 번(RootView 의 @State). 백그라운드 복귀에서는 다시 뜨지 않는다.
-/// - 전체 약 1.4초. 탭하면 바로 넘어간다. "동작 줄이기"가 켜져 있으면 그리기 없이 짧게 페이드만 한다.
-/// - 배경은 런치 스크린과 **같은 컬러셋**(`LaunchBackground`, 라이트 #EEF1F6 / 다크 #0A0922)을 직접 써서
-///   이음새가 생길 수 없게 한다. 다크 값은 아이콘 배경의 남흑색 — 바꾸려면 컬러셋 하나만 바꾸면 된다.
-/// - 도형 좌표는 `docs/store-v2/icon-v2/final/final.svg`(1024 기준)에서 그대로 가져왔다.
+/// - 전체 약 1.3초. 탭하면 바로 넘어간다. "동작 줄이기"가 켜져 있으면 그리기 없이 짧게 페이드만 한다.
+/// - 배경은 런치 스크린과 **같은 컬러셋**(`LaunchBackground`, 라이트 #EEF1F6 / 다크 #0D0B2B)을 직접 써서
+///   이음새가 생길 수 없게 한다. 다크 값은 아이콘 배경 가장자리의 남흑색.
+/// - 도형 좌표는 `docs/store-v2/icon-v3/final/mark.svg`(1024 기준)에서 가져왔다.
 struct IntroView: View {
     var onFinish: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
 
-    @State private var goalLine: CGFloat = 0
-    @State private var box: CGFloat = 0
-    @State private var goal: CGFloat = 0
-    @State private var arc: CGFloat = 0
-    @State private var netIn = false
-    @State private var heat = false
-    @State private var spot = false
+    @State private var draw: CGFloat = 0
+    @State private var glow = false
+    @State private var ballIn = false
     @State private var textIn = false
     @State private var leaving = false
     @State private var finished = false
 
     private var dark: Bool { scheme == .dark }
-    /// 선 색 — 다크는 아이콘처럼 흰 유리선, 라이트는 아이콘 배경의 인디고로 뒤집는다(밝은 배경 위 흰 선은 안 보인다).
-    private var lineColor: Color { dark ? .white : FCScopeMark.indigo }
-    private var spotColor: Color { dark ? .white : FCScopeMark.indigo }
+    /// 공 색 — 다크는 아이콘처럼 흰색, 라이트는 아이콘 배경 인디고(밝은 배경 위 흰 공은 안 보인다).
+    private var ballColor: Color { dark ? .white : SpotMark.indigo }
 
     var body: some View {
         ZStack {
             Color("LaunchBackground")
-            // 아이콘 왼쪽 위의 인디고 하이라이트. 런치 스크린은 단색이라 글로우와 함께 서서히 올린다.
+            // 아이콘 왼쪽 위의 인디고 하이라이트. 런치 스크린은 단색이라 S 가 그려지는 동안 서서히 올린다.
             RadialGradient(
-                colors: [FCScopeMark.indigo.opacity(dark ? 0.85 : 0.10), .clear],
-                center: UnitPoint(x: 0.2, y: 0.05), startRadius: 0, endRadius: 560
+                colors: [SpotMark.highlight.opacity(dark ? 0.9 : 0.08), .clear],
+                center: UnitPoint(x: 0.38, y: 0.12), startRadius: 0, endRadius: 520
             )
-            .opacity(heat ? 1 : 0)
+            .opacity(glow ? 1 : 0)
 
-            VStack(spacing: 26) {
+            VStack(spacing: 30) {
                 mark
                 wordmark
             }
@@ -57,82 +53,46 @@ struct IntroView: View {
 
     // MARK: - 마크
 
-    private static let markWidth: CGFloat = 340
+    /// 1024 단위 → pt. S 높이(약 630단위)가 160pt 안팎이 되게.
+    private static let s: CGFloat = 0.25
 
     private var mark: some View {
-        let w = Self.markWidth
-        let s = w / 1024
+        let s = Self.s
+        let spot = SpotMark.point(SpotMark.ball, s)
+        let tip = SpotMark.point(SpotMark.topTerminal, s)
         return ZStack {
-            lines(s: s)
-                .mask(
-                    LinearGradient(stops: [
-                        .init(color: .clear, location: 0),
-                        .init(color: .black, location: 0.24),
-                        .init(color: .black, location: 0.76),
-                        .init(color: .clear, location: 1),
-                    ], startPoint: .leading, endPoint: .trailing)
-                )
-                .shadow(color: dark ? .white.opacity(0.22) : .clear, radius: 6)
+            // S 뒤의 은은한 마젠타 빛 — 블러 없이 방사 그라디언트만(블러는 콜드 스타트 첫 프레임을 막았다).
+            RadialGradient(colors: [SpotMark.magenta.opacity(dark ? 0.32 : 0.16), .clear],
+                           center: .center, startRadius: 0, endRadius: 150)
+                .frame(width: 320, height: 320)
+                .position(SpotMark.point(CGPoint(x: 512, y: 540), s))
+                .opacity(glow ? 1 : 0)
 
+            SpotMark.SPath()
+                .trim(from: 0, to: draw)
+                .stroke(SpotMark.gradient, style: StrokeStyle(lineWidth: 122 * s, lineCap: .butt, lineJoin: .round))
+
+            // 공 — 잘린 윗끝에서 제자리로 튀어나온다
             Circle()
-                .fill(spotColor)
-                .frame(width: 2 * 27.3 * s, height: 2 * 27.3 * s)
-                .shadow(color: dark ? Color(UIColor(hex: 0xFFF3C2)).opacity(0.9) : .clear, radius: 8)
-                .position(FCScopeMark.point(512, 595, s))
-                .scaleEffect(spot ? 1 : 0.2, anchor: UnitPoint(x: 0.5, y: (595 - FCScopeMark.viewY) / FCScopeMark.viewH))
-                .opacity(spot ? 1 : 0)
+                .fill(ballColor)
+                .frame(width: 2 * 68 * s, height: 2 * 68 * s)
+                .shadow(color: dark ? .white.opacity(0.55) : SpotMark.magenta.opacity(0.35), radius: ballIn ? 10 : 0)
+                .scaleEffect(ballIn ? 1 : 0.3)
+                .position(ballIn ? spot : tip)
+                .opacity(ballIn ? 1 : 0)
         }
-        .frame(width: w, height: FCScopeMark.viewH * s)
-        // 글로우 캔버스는 블러 여유 때문에 마크보다 크다. ZStack 형제로 두면 선 도형의 제안 크기까지
-        // 키워 버리므로 배경으로 붙여 마크 프레임(340pt)은 그대로 둔다.
-        .background {
-            // 미리 구운 이미지(scripts/render-intro-heat.swift). 라이트·다크 변형은 에셋 appearance 로 갈린다.
-            Image("IntroHeat")
-                .resizable()
-                .frame(width: (1024 + 2 * FCScopeMark.heatPad) * s,
-                       height: (FCScopeMark.viewH + 2 * FCScopeMark.heatPad) * s)
-                .scaleEffect(heat ? 1 : 0.55)
-                .opacity(heat ? 1 : 0)
-                .allowsHitTesting(false)
-        }
-    }
-
-    private func lines(s: CGFloat) -> some View {
-        let wide = StrokeStyle(lineWidth: 44 * s * 0.82, lineCap: .round, lineJoin: .round)
-        let frame = StrokeStyle(lineWidth: 35.2 * s * 0.82, lineCap: .round, lineJoin: .round)
-        return ZStack {
-            // 골망 — 프레임이 서면 은은하게 들어온다
-            FCScopeMark.NetFill().fill(lineColor.opacity(0.10)).opacity(netIn ? 1 : 0)
-            FCScopeMark.Net().stroke(lineColor.opacity(0.32), lineWidth: 7 * s).opacity(netIn ? 1 : 0)
-            FCScopeMark.NetBack()
-                .stroke(lineColor.opacity(0.5), style: StrokeStyle(lineWidth: 11.4 * s, lineCap: .round, lineJoin: .round))
-                .opacity(netIn ? 1 : 0)
-
-            mirrored(FCScopeMark.goalLine, t: goalLine, style: wide)
-            mirrored(FCScopeMark.penaltyBox, t: box, style: wide)
-            mirrored(FCScopeMark.sixYard, t: box, style: wide)
-            mirrored(FCScopeMark.dArc, t: arc, style: wide)
-            mirrored(FCScopeMark.goalFrame, t: goal, style: frame)
-        }
-    }
-
-    /// 좌우 대칭 도형 — 왼쪽 절반과 거울상을 같은 진행도로 동시에 그린다.
-    private func mirrored(_ pts: [CGPoint], t: CGFloat, style: StrokeStyle) -> some View {
-        ZStack {
-            FCScopeMark.Polyline(points: pts, mirrored: false).trim(from: 0, to: t).stroke(lineColor, style: style)
-            FCScopeMark.Polyline(points: pts, mirrored: true).trim(from: 0, to: t).stroke(lineColor, style: style)
-        }
+        .frame(width: SpotMark.viewW * s, height: SpotMark.viewH * s)
     }
 
     // MARK: - 워드마크
 
     private var wordmark: some View {
         VStack(spacing: 6) {
-            // 로그인 화면과 같은 워드마크(Chakra Petch). 강조색은 아이콘 히트 그라디언트.
-            (Text("FC ").foregroundStyle(FCScopeMark.heatText(light: !dark)) + Text("SCOPE").foregroundStyle(FC.ink))
+            // 로그인 화면과 같은 워드마크(Chakra Petch). 강조색은 아이콘 그라디언트.
+            (Text("FC ").foregroundStyle(SpotMark.textAccent(light: !dark)) + Text("SCOPE").foregroundStyle(FC.ink))
                 .font(.scoreboard(32))
                 .tracking(1.5)
-            (Text("감이 아니라, ") + Text("데이터").foregroundStyle(FCScopeMark.heatText(light: !dark)) + Text("로."))
+            (Text("감이 아니라, ") + Text("데이터").foregroundStyle(SpotMark.textAccent(light: !dark)) + Text("로."))
                 .fcFont(14, weight: .medium)
                 .foregroundStyle(FC.muted)
         }
@@ -144,29 +104,22 @@ struct IntroView: View {
 
     private func play() async {
         if reduceMotion {
-            goalLine = 1; box = 1; goal = 1; arc = 1
-            netIn = true; heat = true; spot = true; textIn = true
+            draw = 1; glow = true; ballIn = true; textIn = true
             try? await Task.sleep(for: .seconds(0.6))
             finish()
             return
         }
         // 전 과정을 한 트랜잭션의 delay 체인으로 건다. 콜드 스타트에서는 첫 프레임이 .task 시작보다
-        // 0.5초쯤 늦게 그려지는데, Task.sleep 으로 단계를 나누면 벽시계가 먼저 흘러 스폿·워드마크가
-        // 선보다 앞서 튀어나왔다(2026-10-03 시뮬레이터 녹화). delay 는 렌더 시점 기준이라 순서가 지켜진다.
-        // 선: 골라인이 가운데서 양옆으로 → 박스가 위에서 내려와 아래 가운데서 닫힘 → 골대 → D 아크
-        withAnimation(.easeOut(duration: 0.38)) { goalLine = 1 }
-        withAnimation(.easeInOut(duration: 0.46).delay(0.08)) { box = 1 }
-        withAnimation(.easeOut(duration: 0.36).delay(0.14)) { goal = 1 }
-        withAnimation(.easeOut(duration: 0.34).delay(0.26)) { arc = 1 }
-        withAnimation(.easeOut(duration: 0.3).delay(0.4)) { netIn = true }
-        // 히트 글로우가 피어오르고, 페널티 스폿이 찍히고, 워드마크
-        withAnimation(.easeOut(duration: 0.55).delay(0.42)) { heat = true }
-        withAnimation(.spring(response: 0.34, dampingFraction: 0.55).delay(0.66)) { spot = true }
-        withAnimation(.easeOut(duration: 0.35).delay(0.72), completionCriteria: .logicallyComplete) {
+        // 0.5초쯤 늦게 그려지는데, Task.sleep 으로 단계를 나누면 벽시계가 먼저 흘러 뒤 단계가
+        // 앞 단계보다 먼저 튀어나왔다(2026-10-03 시뮬레이터 녹화). delay 는 렌더 시점 기준이라 순서가 지켜진다.
+        withAnimation(.easeInOut(duration: 0.55)) { draw = 1 }
+        withAnimation(.easeOut(duration: 0.45).delay(0.25)) { glow = true }
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.58).delay(0.5)) { ballIn = true }
+        withAnimation(.easeOut(duration: 0.32).delay(0.62), completionCriteria: .logicallyComplete) {
             textIn = true
         } completion: {
             Task {
-                try? await Task.sleep(for: .seconds(0.06))
+                try? await Task.sleep(for: .seconds(0.08))
                 finish()
             }
         }
@@ -186,84 +139,56 @@ struct IntroView: View {
     }
 }
 
-/// 앱 아이콘 도형 — `final.svg` 의 1024 좌표를 그대로 쓴다. 보이는 영역은 y 140…910.
-enum FCScopeMark {
+/// 앱 아이콘 "S-spot" 도형 — mark.svg 의 1024 좌표.
+///
+/// SVG: `M562.94 270.37 A140 120 0 1 0 506 500 A156 134 0 1 1 370.90 701.00`, stroke 122, 공 (640.58, 346.92) r68.
+/// 두 호를 중심 매개변수로 바꾸면 윗호 중심 (506,380) 반지름 (140,120), 아랫호 중심 (506,634) 반지름 (156,134).
+/// 인트로는 공의 궤적처럼 **아래 끝 → 위 끝** 으로 그리므로 SVG 와 반대 방향으로 샘플링한다.
+enum SpotMark {
     static let indigo = Color(UIColor(hex: 0x1E1957))
-    static let viewY: CGFloat = 140
-    static let viewH: CGFloat = 770
-    /// 블러가 잘리지 않게 히트 캔버스를 사방으로 넓히는 여백(아이콘 단위)
-    static let heatPad: CGFloat = 320
+    static let highlight = Color(UIColor(hex: 0x28217A))
+    static let magenta = Color(UIColor(hex: 0xE0218A))
 
-    static func point(_ x: CGFloat, _ y: CGFloat, _ s: CGFloat) -> CGPoint {
-        CGPoint(x: x * s, y: (y - viewY) * s)
+    /// 보이는 영역(아이콘 단위) — S(305…723 × 200…830)와 공을 감싸는 상자
+    static let viewX: CGFloat = 262, viewY: CGFloat = 180
+    static let viewW: CGFloat = 500, viewH: CGFloat = 670
+
+    static let ball = CGPoint(x: 640.58, y: 346.92)
+    static let topTerminal = CGPoint(x: 562.94, y: 270.37)
+
+    static func point(_ p: CGPoint, _ s: CGFloat) -> CGPoint {
+        CGPoint(x: (p.x - viewX) * s, y: (p.y - viewY) * s)
     }
 
-    // 왼쪽 절반(그리는 순서대로). 오른쪽은 x → 1024 - x 거울상.
-    static let goalLine = [CGPoint(x: 512, y: 330), CGPoint(x: -60, y: 330)]
-    static let penaltyBox = [CGPoint(x: 250, y: 330), CGPoint(x: -40, y: 760), CGPoint(x: 512, y: 760)]
-    static let sixYard = [CGPoint(x: 347, y: 330), CGPoint(x: 327, y: 405), CGPoint(x: 512, y: 405)]
-    static let goalFrame = [CGPoint(x: 387, y: 330), CGPoint(x: 387, y: 180), CGPoint(x: 512, y: 180)]
-    static let dArc: [CGPoint] = [
-        (281.7, 760.0), (289.7, 771.3), (298.2, 782.2), (307.1, 792.7), (316.6, 802.7), (326.5, 812.2),
-        (336.8, 821.2), (347.6, 829.7), (358.7, 837.7), (370.2, 845.1), (382.0, 851.9), (394.1, 858.1),
-        (406.5, 863.6), (419.2, 868.6), (432.0, 872.9), (445.1, 876.6), (458.3, 879.6), (471.6, 882.0),
-        (485.0, 883.6), (498.5, 884.7), (512.0, 885.0),
-    ].map { CGPoint(x: $0.0, y: $0.1) }
+    /// 아이콘 세로 그라디언트: y 230 오렌지 → 마젠타 → y 860 바이올렛
+    static let gradient = LinearGradient(
+        colors: [Color(UIColor(hex: 0xFF5A26)), magenta, Color(UIColor(hex: 0x4A1FD6))],
+        startPoint: UnitPoint(x: 0.5, y: (230 - viewY) / viewH),
+        endPoint: UnitPoint(x: 0.5, y: (860 - viewY) / viewH)
+    )
 
-    struct Polyline: Shape {
-        let points: [CGPoint]
-        let mirrored: Bool
+    struct SPath: Shape {
         func path(in rect: CGRect) -> Path {
-            let s = rect.width / 1024
+            let s = rect.width / SpotMark.viewW
             var path = Path()
-            for (i, p) in points.enumerated() {
-                let q = FCScopeMark.point(mirrored ? 1024 - p.x : p.x, p.y, s)
-                if i == 0 { path.move(to: q) } else { path.addLine(to: q) }
+            func add(cx: CGFloat, cy: CGFloat, rx: CGFloat, ry: CGFloat, from a0: Double, to a1: Double, first: Bool) {
+                let n = 64
+                for i in 0...n {
+                    let t = (a0 + (a1 - a0) * Double(i) / Double(n)) * .pi / 180
+                    let p = SpotMark.point(CGPoint(x: cx + rx * CGFloat(cos(t)), y: cy + ry * CGFloat(sin(t))), s)
+                    if first && i == 0 { path.move(to: p) } else if i > 0 { path.addLine(to: p) }
+                }
             }
+            // 아랫호: 아래 끝(150°) → 가운데(-90°)
+            add(cx: 506, cy: 634, rx: 156, ry: 134, from: 150, to: -90, first: true)
+            // 윗호: 가운데(90° ≡ -270°) → 잘린 윗끝(-66.01°)
+            add(cx: 506.01, cy: 380, rx: 140, ry: 120, from: -270, to: -66.01, first: false)
             return path
         }
     }
 
-    /// 골망 세로·가로줄
-    struct Net: Shape {
-        func path(in rect: CGRect) -> Path {
-            let s = rect.width / 1024
-            var path = Path()
-            let cols: [(CGFloat, CGFloat)] = [(422.7, 432.7), (458.4, 464.4), (494.1, 496.1),
-                                              (529.9, 527.9), (565.6, 559.6), (601.3, 591.3)]
-            for (front, back) in cols {
-                path.move(to: point(front, 180, s))
-                path.addLine(to: point(back, 156.2, s))
-                path.addLine(to: point(back, 296, s))
-            }
-            for y in [191.1, 226.1, 261.1] as [CGFloat] {
-                path.move(to: point(401, y, s)); path.addLine(to: point(623, y, s))
-            }
-            return path
-        }
-    }
-
-    /// 골대 뒤 프레임(원근)
-    struct NetBack: Shape {
-        func path(in rect: CGRect) -> Path {
-            let s = rect.width / 1024
-            var path = Path()
-            path.move(to: point(387, 180, s)); path.addLine(to: point(401, 156.2, s)); path.addLine(to: point(401, 296, s))
-            path.move(to: point(637, 180, s)); path.addLine(to: point(623, 156.2, s)); path.addLine(to: point(623, 296, s))
-            path.move(to: point(401, 156.2, s)); path.addLine(to: point(623, 156.2, s))
-            return path
-        }
-    }
-
-    struct NetFill: Shape {
-        func path(in rect: CGRect) -> Path {
-            let s = rect.width / 1024
-            return Path(CGRect(origin: point(401, 156.2, s), size: CGSize(width: 222 * s, height: 139.8 * s)))
-        }
-    }
-
-    /// 워드마크 강조용 히트 그라디언트(마젠타 → 오렌지). 라이트는 대비를 위해 한 톤 진하게.
-    static func heatText(light: Bool) -> LinearGradient {
+    /// 워드마크 강조용 그라디언트(마젠타 → 오렌지). 라이트는 대비를 위해 한 톤 진하게.
+    static func textAccent(light: Bool) -> LinearGradient {
         LinearGradient(
             colors: light
                 ? [Color(UIColor(hex: 0xC2187A)), Color(UIColor(hex: 0xE04A12))]
