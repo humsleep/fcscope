@@ -244,6 +244,8 @@ struct SquadBuilderView: View {
                 Text("슬롯을 탭해 선수를 검색·배치하고, 배치된 선수를 탭하면 교체·제거할 수 있어요. 선수를 길게 눌러 다른 자리에 놓으면 서로 바뀌고, 빈 잔디에 놓으면 그 자리의 포지션이 바뀌어요(예: LW → LM). 11자리가 어떤 포메이션과 딱 맞으면 포메이션 이름도 바뀌어요. 같은 선수는 시즌이 달라도 한 명만.").fcFont(12).foregroundStyle(FC.muted)
             }.padding(16)
         }
+        // 저장·비우기 줄이 유리 탭 바 뒤에 깔리지 않게(디자인 M10)
+        .safeAreaPadding(.bottom, 24)
         .scrollDisabled(model.isDraggingSlot)
         .fcScreen().navigationTitle("스쿼드 빌더").navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showFormations) { FormationPicker(model: model) }
@@ -261,7 +263,7 @@ struct SquadBuilderView: View {
             Button("비우기", role: .destructive) { model.clear() }
             Button("취소", role: .cancel) {}
         } message: { Text("되돌릴 수 없어요.") }
-        .confirmationDialog("\(placing?.name ?? "선수")을(를) 어느 자리에 둘까요?", isPresented: Binding(get: { placing != nil }, set: { if !$0 { placing = nil } }), titleVisibility: .visible) {
+        .confirmationDialog("\(Josa.eulReul(placing?.name ?? "선수")) 어느 자리에 둘까요?", isPresented: Binding(get: { placing != nil }, set: { if !$0 { placing = nil } }), titleVisibility: .visible) {
             if let hit = placing {
                 ForEach(model.formation.slots.filter { model.slots[$0.id] == nil }) { slot in
                     Button(model.pos(of: slot)) { model.assign(hit, to: slot); placing = nil }
@@ -276,32 +278,41 @@ struct SquadBuilderView: View {
         switch p {
         case .owner(let nick): Task { await model.importFromUser(nick) }
         case .load(let id): Task { await model.load(id: id) }
-        case .add(let hit, let line): place(hit, line: line)
+        case .add(let hit, let line, let pos): place(hit, line: line, pos: pos)
         }
     }
     /// 선수 상세의 "스쿼드 빌더에 배치" — 주 포지션 라인의 빈 슬롯에 넣는다.
     /// 포지션을 모르거나(랭커 기록 없음) 그 라인이 꽉 찼으면 추측하지 않고 자리를 고르게 한다 — 골키퍼가 공격수 자리에 들어가면 안 된다.
-    private func place(_ hit: PlayerHit, line: String?) {
+    private func place(_ hit: PlayerHit, line: String?, pos: String? = nil) {
         let empty = model.formation.slots.filter { model.slots[$0.id] == nil }
         guard !empty.isEmpty else {
             model.message = "빈 자리가 없어요. 바꿀 선수를 탭해서 교체해 주세요."
             return
         }
-        guard let line, let slot = empty.first(where: { Formation.lineOf(model.pos(of: $0)) == line }) else {
+        // 1) 주 포지션과 같은 빈칸(ST → ST) 2) 같은 라인의 빈칸 — ST 가 같은 라인의 첫 빈칸 LW 에 들어가던 문제(QA P2-9)
+        let exact = pos.flatMap { p in empty.first { model.pos(of: $0) == p } }
+        guard let line, let slot = exact ?? empty.first(where: { Formation.lineOf(model.pos(of: $0)) == line }) else {
             placing = hit
             return
         }
         model.assign(hit, to: slot, line: line)
-        model.message = "\(hit.name)을(를) \(model.pos(of: slot))에 배치했어요."
+        model.message = "\(Josa.eulReul(hit.name)) \(model.pos(of: slot))에 배치했어요."
     }
-    private var formationChip: some View { Button { showFormations = true } label: { chipButton("⚙️ \(model.formationTitle)") } }
-    private var presetChip: some View { Button { showPresets = true } label: { chipButton("🏟 프리셋") } }
+    // 칩 이모지(⚙️🏟⬇️)는 3D 라 낡아 보였다 — SF Symbol 14pt tint 로(디자인 N6)
+    private var formationChip: some View { Button { showFormations = true } label: { chipButton("rectangle.split.3x1", model.formationTitle) } }
+    private var presetChip: some View { Button { showPresets = true } label: { chipButton("tray.full", "프리셋") } }
     /// 기본은 내 구단주명(설정에 저장된 것)이 채워진 채로 열린다 — "최근 선발"만으로는 누구 선발인지 몰랐다.
-    private var importChip: some View { Button { importNick = LocalPrefs.shared.myNickname ?? ""; showImport = true } label: { chipButton("⬇️ 내 최근 선발") } }
+    private var importChip: some View { Button { importNick = LocalPrefs.shared.myNickname ?? ""; showImport = true } label: { chipButton("arrow.down.circle", "내 최근 선발") } }
     private var filledCount: some View { Text("\(model.filled)/11").fcScoreboard(14).foregroundStyle(model.filled == 11 ? FC.tint : FC.muted) }
-    private func chipButton(_ t: String) -> some View {
+    private func chipButton(_ icon: String, _ t: String) -> some View {
         // "커스텀 (≈4-4-2)" 가 두 줄로 접히면 칩 줄 높이가 흔들린다 — 한 줄로 두고 줄여서 맞춘다.
-        Text(t).fcFont(12.5, weight: .semibold).lineLimit(1).foregroundStyle(FC.ink).padding(.horizontal, 8).padding(.vertical, 8).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control)).tapTarget()
+        HStack(spacing: 5) {
+            Image(systemName: icon).font(.system(size: 13, weight: .semibold)).foregroundStyle(FC.tint)
+            Text(t).fcText(.chip).lineLimit(1).minimumScaleFactor(0.85).foregroundStyle(FC.ink)
+        }
+        .padding(.horizontal, 10).frame(height: 34)
+        .background(FC.surface2, in: Capsule())
+        .tapTarget()
     }
 }
 

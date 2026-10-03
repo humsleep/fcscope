@@ -23,10 +23,8 @@ struct HomeView: View {
     @Environment(AppRouter.self) private var router
     @State private var vm = HomeViewModel()
     @State private var prefs = LocalPrefs.shared
-    @State private var query = ""
-    /// 검색창 활성 상태 — 제안 탭 후 닫고, "전적 · 분석 리포트" 카드에서 열 때 쓴다.
-    @State private var searchPresented = false
-    /// 히어로 검색 필드 — 내비 바 `.searchable`(최근 검색 제안)과 따로 둔다.
+    /// 히어로 검색 필드 — 홈의 유일한 검색 입력. 내비 바 `.searchable`은 같은 일을 하는 두 번째 검색창이라
+    /// 첫 화면의 40% 가 검색창 둘이었다(QA P1-1 · 디자인 M11 · 유저 패널 A). 최근 검색 제안은 이 필드 아래 드롭다운으로.
     @State private var heroQuery = ""
     @FocusState private var heroFocused: Bool
     /// 내 구단 "지난 방문 이후 새 경기" — 디스크 캐시에 남은 전적(백그라운드 갱신·이전 조회)으로만 계산한다. 홈에서 네트워크 0.
@@ -52,19 +50,20 @@ struct HomeView: View {
             }
             .padding(16)
         }
+        .scrollDismissesKeyboard(.interactively)
         .fcScreen()
         .navigationTitle("전적").navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $query, isPresented: $searchPresented, prompt: "구단주명 검색")
-        .onSubmit(of: .search) { search(query) }
-        .searchSuggestions {
-            // .searchCompletion 은 onSubmit(of: .search) 를 태워 직접 입력 검색으로 셌다(SearchGate 광고 카운트).
-            // 최근 검색 제안은 칩과 같은 탐색이라 바로 이동한다.
-            ForEach(prefs.recentSearches.filter { query.isEmpty || $0.localizedCaseInsensitiveContains(query) }, id: \.self) { n in
-                Button {
-                    query = ""
-                    searchPresented = false
-                    router.push(.user(n))
-                } label: { Text(n) }
+        .toolbar {
+            // 앱 안에서 아이콘 마크가 한 번도 안 나오던 문제 — 홈 내비에 S 마크 + 워드마크(디자인 M11)
+            ToolbarItem(placement: .principal) {
+                HStack(spacing: 7) {
+                    SpotGlyph(height: 22)
+                    (Text("FC ").foregroundStyle(FC.brand) + Text("SCOPE").foregroundStyle(FC.ink))
+                        .font(.scoreboard(17)).tracking(1)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("FC Scope")
+                .accessibilityAddTraits(.isHeader)
             }
         }
         .task { await vm.load() }
@@ -84,7 +83,6 @@ struct HomeView: View {
         let nick = raw.trimmingCharacters(in: .whitespaces)
         guard !nick.isEmpty else { return }
         Haptic.light()
-        query = ""
         Task {
             let gated = SearchGate.shouldShowAd()
             Analytics.shared.track(.search, ["gated": gated])
@@ -94,7 +92,7 @@ struct HomeView: View {
     }
 
     /// 검색 히어로(UX-AUDIT-GENZ #6) — 내비게이션 바의 회색 검색 필드는 눈에 안 띄었다. 첫 화면 주인공을 검색 하나로.
-    /// 기능 나열 대신 유저의 질문을 카피로 쓴다. `.searchable` 은 최근 검색 제안용으로 그대로 둔다.
+    /// 기능 나열 대신 유저의 질문을 카피로 쓴다. 포커스되면 최근 검색이 필드 바로 아래에 뜬다.
     private var hero: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionLabel("FC온라인 비공식 데이터 랩", color: FC.tint)
@@ -117,8 +115,41 @@ struct HomeView: View {
             .padding(.leading, 14).padding(.trailing, 6).frame(minHeight: 52)
             .background(FC.surface, in: Capsule())
             .overlay(Capsule().strokeBorder(FC.brand, lineWidth: 1.5))
-            Text("전적·슛맵·선수 성적표·플레이스타일 · 로그인 없이").fcFont(12).foregroundStyle(FC.muted)
+            if heroFocused, !heroSuggestions.isEmpty { suggestionList }
+            else { Text("전적·슛맵·선수 성적표·플레이스타일 · 로그인 없이").fcText(.meta).foregroundStyle(FC.muted) }
         }
+    }
+
+    /// 최근 검색 중 입력과 맞는 것(최대 5개)
+    private var heroSuggestions: [String] {
+        let q = heroQuery.trimmingCharacters(in: .whitespaces)
+        return Array(prefs.recentSearches.filter { q.isEmpty || $0.localizedCaseInsensitiveContains(q) }.prefix(5))
+    }
+
+    /// 최근 검색 드롭다운 — 칩과 같은 "탐색"이라 검색 광고 카운트(SearchGate)를 태우지 않고 바로 이동한다.
+    private var suggestionList: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(heroSuggestions.enumerated()), id: \.element) { i, n in
+                if i > 0 { Rectangle().fill(FC.line).frame(height: 1).padding(.leading, 40) }
+                Button {
+                    heroFocused = false
+                    heroQuery = ""
+                    router.push(.user(n))
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "clock.arrow.circlepath").font(.system(size: 13, weight: .medium)).foregroundStyle(FC.muted).frame(width: 18)
+                        Text(n).fcText(.callout, weight: .medium).foregroundStyle(FC.ink).lineLimit(1)
+                        Spacer()
+                        Image(systemName: "arrow.up.left").font(.system(size: 11, weight: .semibold)).foregroundStyle(FC.muted)
+                    }
+                    .padding(.horizontal, 12).frame(minHeight: 44).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .background(FC.surface, in: RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.row, style: .continuous).stroke(FC.line, lineWidth: 1))
+        .transition(.opacity)
     }
 
     private func submitHero() {
@@ -211,11 +242,15 @@ struct HomeView: View {
     private func liveChips(_ names: [String]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("지금 검색되는 구단주")
-            FlowLayout(spacing: 6, lineSpacing: 0) {
-                ForEach(names, id: \.self) { n in
-                    Button { router.push(.user(n)) } label: { Chip(text: n, color: FC.ink, size: .large).tapTarget() }.buttonStyle(.plain)
+            // 3~4줄로 접히던 칩 묶음을 한 줄 가로 스크롤로(디자인 N8 · UX-AUDIT #6 미완료분)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(names, id: \.self) { n in
+                        Button { router.push(.user(n)) } label: { Chip(text: n, color: FC.ink, size: .large).tapTarget() }.buttonStyle(.plain)
+                    }
                 }
             }
+            .scrollClipDisabled()
         }
     }
 
@@ -261,7 +296,7 @@ struct HomeView: View {
     private func openReportFeature() {
         if let mine = prefs.myNickname { router.push(.user(mine)) }
         else if let demo = vm.state.value?.demoNickname { router.push(.user(demo)) }
-        else { searchPresented = true }
+        else { heroFocused = true }
     }
     private func feature(_ tag: String, _ title: String, _ desc: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -286,6 +321,7 @@ struct OnboardingView: View {
     @State private var check: NickCheck = .idle
     /// check 가 어떤 입력에 대한 결과인가 — 입력이 바뀐 뒤 옛 결과를 저장하면 남의 구단이 "내 구단"이 됐다(E2E 2026-09-20)
     @State private var checkedFor = ""
+    @FocusState private var nickFocused: Bool
 
     /// 구단주명 확인 상태. 네트워크 실패는 막지 않는다(확인 못 한 채로 저장 → 전적 화면이 최종 판정).
     enum NickCheck: Equatable { case idle, checking, ok(String), notFound, unknown }
@@ -303,15 +339,19 @@ struct OnboardingView: View {
                     // 다른 페이지와 같은 좌우 여백 — 없으면 이 페이지만 설명이 화면 끝까지 붙는다.
                     Text("홈에 내 폼 카드가 고정되고, 위젯·주간 성적표에 쓰여요. 나중에 바꿀 수 있어요.").fcFont(14).foregroundStyle(FC.muted).multilineTextAlignment(.center).padding(.horizontal, 32)
                     TextField("FC온라인 구단주명", text: $nick).textFieldStyle(.roundedBorder).padding(.horizontal, 32).autocorrectionDisabled()
+                        .focused($nickFocused)
                         .textInputAutocapitalization(.never).submitLabel(.done)
                     checkLine.frame(minHeight: 20)
                 }.tag(1)
                 onboardPage(icon: "sportscourt", title: "마지막 경기부터 바로", desc: "방금 끝난 경기의 슛맵·POTM·선수 평점을 한눈에. 카드 한 장으로 공유도 돼요.").tag(2)
             }
             .tabViewStyle(.page)
+            // 2쪽에서 키보드를 띄운 채 넘기면 3쪽에 키보드가 남았다(QA P2-5)
+            .onChange(of: page) { _, p in if p != 1 { nickFocused = false } }
             // 기본 페이지 점은 흰색이라 라이트 모드 배경(거의 흰색)에서 보이지 않았다 — 반투명 배경 캡슐을 깐다.
             .indexViewStyle(.page(backgroundDisplayMode: .always))
             Button {
+                nickFocused = false
                 if page < 2 { withAnimation { page += 1 } } else { finish() }
             } label: { Text(primaryLabel) }
             .buttonStyle(BrandButtonStyle(fullWidth: true))

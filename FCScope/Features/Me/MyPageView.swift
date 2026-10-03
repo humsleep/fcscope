@@ -33,11 +33,11 @@ struct MyPageView: View {
                 if let posts = profile?.posts, !posts.isEmpty {
                     Panel(padding: 12) { VStack(alignment: .leading, spacing: 6) { SectionLabel("내가 쓴 글"); ForEach(posts) { p in Button { router.push(.post(p.id)) } label: { HStack { Text(p.title).fcFont(14, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.chip)) }.buttonStyle(.plain) } } }
                 }
-                // 광고는 내 정보 카드들 뒤·설정 앞(화면당 1개). 맨 위 계정 카드 바로 아래이던 것을 내렸다(UX-AUDIT-GENZ #1).
-                AdSlot()
                 if prefs.streak.current >= 2 { Text("🔥 \(prefs.streak.current)일 연속 방문 (최고 \(prefs.streak.best)일)").fcFont(13, weight: .semibold).foregroundStyle(FC.gold) }
                 // 시스템 기본 폰트는 AX5 까지 3배로 커져 이 한 줄이 화면 절반을 차지했다 — 앱 공통 배율(1.6배 상한)을 쓴다.
                 NavigationLink { SettingsView() } label: { Panel(padding: 12) { HStack { Label("설정 · 약관 · 계정", systemImage: "gearshape").fcFont(15).lineLimit(1).minimumScaleFactor(0.8).foregroundStyle(FC.ink); Spacer(); Image(systemName: "chevron.right").font(.system(size: 13 * TypeScale.factor(typeSize), weight: .semibold)).foregroundStyle(FC.muted) } } }.buttonStyle(.plain)
+                // 광고는 설정 행 아래 맨 끝(화면당 1개) — 첫 화면 가운데에 있던 것을 내렸다(디자인 N10).
+                AdSlot()
             }.padding(16)
         }
         .fcScreen().navigationTitle("내 정보").navigationBarTitleDisplayMode(.inline)

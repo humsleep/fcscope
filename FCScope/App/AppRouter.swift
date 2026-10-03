@@ -33,7 +33,8 @@ final class AppRouter {
     enum SquadImport: Hashable {
         case owner(String), load(String)
         /// line: 선수가 주로 뛰는 라인(GK/DEF/MID/ATT). 모르면 nil → 빈 슬롯 아무 곳.
-        case add(PlayerHit, line: String?)
+        /// pos: 랭커 주 포지션(ST 등) — 같은 라인(FW)의 첫 빈칸(LW)보다 정확한 자리를 먼저 찾는다(QA P2-9)
+        case add(PlayerHit, line: String?, pos: String? = nil)
     }
 
     func push(_ r: Route) {

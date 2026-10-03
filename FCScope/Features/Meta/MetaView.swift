@@ -14,9 +14,12 @@ struct MetaView: View {
             VStack(alignment: .leading, spacing: 12) {
                 SectionLabel("픽 랭킹", color: FC.tint)
                 Text("최근 \(modeName)에서 선발로 가장 많이 쓰인 카드와, 그 카드의 넥슨 상위 랭커 성적.\(state.value?.date.map { " (\($0) 스냅샷)" } ?? "")").fcFont(13).foregroundStyle(FC.muted)
-                // 빈 라벨이면 VoiceOver 가 이름 없는 컨트롤로 읽는다 — 라벨은 주고 화면에서만 숨긴다.
-                Picker("매치 유형", selection: $matchType) { Text("공식경기").tag(50); Text("감독모드").tag(52) }.pickerStyle(.segmented).labelsHidden()
-                    .onChange(of: matchType) { _, _ in Task { await load() } }
+                // 시스템 세그먼트 대신 커뮤니티 2차 칩과 같은 캡슐(선택 = tint 12% + 1.5pt 테두리) — 선택 UI 문법 통일(디자인 M6)
+                HStack(spacing: 8) {
+                    modeChip(50, "공식경기"); modeChip(52, "감독모드")
+                    Spacer(minLength: 0)
+                }
+                .onChange(of: matchType) { _, _ in Task { await load() } }
                 if !hits.isEmpty {
                     Panel(padding: 8) {
                         VStack(spacing: 0) {
@@ -85,6 +88,25 @@ struct MetaView: View {
     }
 
 
+    private func modeChip(_ type: Int, _ label: String) -> some View {
+        let on = matchType == type
+        return Button {
+            guard !on else { return }
+            Haptic.light()
+            matchType = type
+        } label: {
+            Text(label).fcText(.chip)
+                .foregroundStyle(on ? FC.tint : FC.muted)
+                .padding(.horizontal, 14).frame(height: 32)
+                .background(on ? FC.tint.opacity(0.12) : FC.surface2, in: Capsule())
+                .overlay(Capsule().strokeBorder(on ? FC.tint : .clear, lineWidth: 1.5))
+                .tapTarget()
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("매치 유형 \(label)")
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
     private func lineBlock(_ line: MetaLine) -> some View {
         Panel(padding: 12) {
             VStack(alignment: .leading, spacing: 6) {
@@ -100,11 +122,13 @@ struct MetaView: View {
                                 RatioBar(ratio: CGFloat(r.count) / CGFloat(maxCount), color: FC.tint, height: 4)
                             }
                             Spacer()
-                            VStack(alignment: .trailing, spacing: 2) {
-                                Text(r.usage.map { "\($0)회" } ?? "n=\(r.matchCount)").fcScoreboard(11).foregroundStyle(FC.muted)
+                            // 순위 변동을 횟수 왼쪽 같은 줄에 — 둘째 줄로 떨어지면 오른쪽 열 높이가 들쭉날쭉했다(디자인 N5)
+                            HStack(spacing: 6) {
                                 if r.isNew { Text("NEW").fcScoreboard(11).foregroundStyle(FC.gold) }
                                 else if let d = r.deltaValue, d != 0 { Text(d > 0 ? "▲\(d)" : "▼\(-d)").fcScoreboard(11).foregroundStyle(d > 0 ? FC.win : FC.lose) }
+                                Text(r.usage.map { "\($0)회" } ?? "n=\(r.matchCount)").fcScoreboard(11).foregroundStyle(FC.muted)
                             }
+                            .frame(minWidth: 64, alignment: .trailing)
                         }
                     }.buttonStyle(.plain)
                 }
@@ -165,7 +189,7 @@ struct PlayerDetailView: View {
                         let hit = PlayerHit(spid: p.spid, pid: p.pid ?? p.spid % 1_000_000, name: p.name, season: season, seasons: p.seasons)
                         // 랭커가 가장 많이 뛴 포지션의 라인에 넣는다 — 골키퍼가 공격 슬롯에 들어가지 않게.
                         let main = p.ranker.positions.filter { $0.positionLabel != "SUB" }.max { $0.matchCount < $1.matchCount }?.positionLabel
-                        router.pendingSquadImport = .add(hit, line: main.map(Formation.lineOf))
+                        router.pendingSquadImport = .add(hit, line: main.map(Formation.lineOf), pos: main)
                         router.tab = .squad
                     } label: {
                         Text("🛡️ 스쿼드 빌더에 배치").frame(maxWidth: .infinity)

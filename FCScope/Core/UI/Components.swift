@@ -299,7 +299,8 @@ struct ShareCardButton: View {
         .frame(maxWidth: .infinity, minHeight: 50)
         .background {
             if hero {
-                Capsule().fill(FC.brand).shadow(color: FC.brandEnd.opacity(0.35), radius: 10, y: 4)
+                // 큰 컬러 글로우는 "AI 랜딩" 느낌이었다 — 반경·불투명도를 줄였다(디자인 N2)
+                Capsule().fill(FC.brand).shadow(color: FC.brandEnd.opacity(0.18), radius: 6, y: 3)
             } else {
                 Capsule().fill(FC.surface2).overlay(Capsule().strokeBorder(FC.line, lineWidth: 1))
             }
@@ -339,8 +340,13 @@ struct ShareCardButton: View {
 
     @MainActor
     private func make() async {
+        // 탭 즉시 반응 — 카드 렌더(부가 응답 3개 + 이미지)가 3초 넘게 걸려도 아무 반응이 없었다(QA P2-8).
+        // 햅틱 + "만드는 중…"을 먼저 그리고(yield 로 한 프레임 양보) 무거운 작업을 시작한다.
+        Haptic.light()
         busy = true
         defer { busy = false }
+        await Task.yield()
+        try? await Task.sleep(for: .milliseconds(16))
         switch source {
         case .spec(let spec):
             image = ShareCardRenderer.render(spec)

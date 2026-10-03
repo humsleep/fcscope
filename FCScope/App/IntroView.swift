@@ -197,3 +197,23 @@ enum SpotMark {
         )
     }
 }
+
+/// 앱 안의 작은 S 마크(홈 내비 워드마크용) — 인트로와 같은 도형·그라디언트. 아이콘 마크가 앱 안에 한 번도 안 나오던 문제(디자인 M11·N1).
+struct SpotGlyph: View {
+    /// 마크 높이(pt)
+    var height: CGFloat = 24
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        let s = height / SpotMark.viewH
+        ZStack {
+            SpotMark.SPath()
+                .stroke(SpotMark.gradient, style: StrokeStyle(lineWidth: 122 * s, lineCap: .butt, lineJoin: .round))
+            Circle()
+                .fill(scheme == .dark ? Color.white : SpotMark.indigo)
+                .frame(width: 2 * 68 * s, height: 2 * 68 * s)
+                .position(SpotMark.point(SpotMark.ball, s))
+        }
+        .frame(width: SpotMark.viewW * s, height: height)
+        .accessibilityHidden(true)
+    }
+}

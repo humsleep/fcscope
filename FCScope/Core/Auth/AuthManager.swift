@@ -20,10 +20,12 @@ final class AuthManager {
     private init() {
         // 값이 하나라도 비면 로그인 없이 동작(전적·스쿼드·픽 랭킹은 비로그인 기능).
         if let url = AppConfig.supabaseURL, let key = AppConfig.supabaseAnonKey {
+            // emitLocalSessionAsInitialSession: 다음 메이저의 기본 동작을 미리 켠다 — 미설정 경고가 실행마다 18번 찍혔다(QA P2-12).
+            // 켜면 initialSession 이 만료된 로컬 세션도 그대로 내보낸다 → handle() 에서 만료 세션은 로그인으로 치지 않는다.
             #if DEBUG
-            client = SupabaseClient(supabaseURL: url, supabaseKey: key, options: .init(global: .init(logger: SupabaseDebugLogger())))
+            client = SupabaseClient(supabaseURL: url, supabaseKey: key, options: .init(auth: .init(emitLocalSessionAsInitialSession: true), global: .init(logger: SupabaseDebugLogger())))
             #else
-            client = SupabaseClient(supabaseURL: url, supabaseKey: key)
+            client = SupabaseClient(supabaseURL: url, supabaseKey: key, options: .init(auth: .init(emitLocalSessionAsInitialSession: true)))
             #endif
         } else {
             client = nil
@@ -49,7 +51,10 @@ final class AuthManager {
 
     private func handle(event: AuthChangeEvent, session: Session?) {
         switch event {
-        case .signedIn, .tokenRefreshed, .initialSession, .userUpdated: user = session?.user
+        case .initialSession:
+            // 만료된 로컬 세션은 SDK 가 곧 갱신(tokenRefreshed)하거나 로그아웃시킨다 — 그 전엔 기존 상태를 유지한다.
+            if let session, !session.isExpired { user = session.user } else if session == nil { user = nil }
+        case .signedIn, .tokenRefreshed, .userUpdated: user = session?.user
         case .signedOut, .userDeleted: user = nil
         default: break
         }
