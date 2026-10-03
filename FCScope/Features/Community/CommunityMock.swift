@@ -4,12 +4,14 @@ import Foundation
 /// 개발 전용 목 데이터 — `-communityMock full|legacy|empty` 로 실행하면 커뮤니티가 서버 대신 이걸 쓴다.
 /// - full: v2 서버(조회·추천·답글·hot·mine·shortLabel 있음)
 /// - legacy: 0023 마이그레이션 전 서버(v2 키가 전부 없음) — UI 가 조용히 숨는지 검수
+/// - hybrid: **스키마 v2 + 코드 v1**(2026-10 프로덕션 실측, QA P0-1) — like_count·view_count 는 오지만(0)
+///   목록에 sort·hot 없음, 추천 라우트 404, parent_id 는 버려진다. 앱은 추천을 숨기고 답글을 "@닉 "으로 보내야 한다.
 /// - empty: 글 0개(빈 상태)
 /// 추가 인자: `-communityScreen detail|battle|compose|comments`, `-communityPost <id>` — 바로 해당 화면을 연다.
 /// 릴리스 빌드에는 컴파일되지 않는다.
 @MainActor
 final class CommunityMock {
-    enum Mode: String { case full, legacy, empty }
+    enum Mode: String { case full, legacy, hybrid, empty }
     static let active: CommunityMock? = {
         guard let raw = UserDefaults.standard.string(forKey: "communityMock"), let m = Mode(rawValue: raw) else { return nil }
         return CommunityMock(mode: m)
@@ -69,7 +71,7 @@ final class CommunityMock {
             "id": id, "author_id": author ?? "u-\(nick)", "type": type, "title": title,
             "body": body.isEmpty ? "\(title)\n\n본문 예시입니다. 실제 서버 데이터가 아닌 개발용 목 데이터예요." : body,
             "positions": positions, "meta": meta, "status": "open", "created_at": ago(min), "comment_count": comments,
-            "author": ["id": author ?? "u-\(nick)", "nickname": nick, "verifiedNickname": verified ? nick : NSNull(), "isOperator": op],
+            "author": ["id": author ?? "u-\(nick)", "nickname": nick, "verifiedNickname": verified ? nick as Any : NSNull(), "isOperator": op],
             "typeLabel": label, "typeEmoji": "📝", "preview": "미리보기", "metaRows": metaRows,
         ]
         if let squad { p["squad_id"] = squad }
@@ -77,6 +79,8 @@ final class CommunityMock {
         if let region { p["region"] = region }
         if let contact { p["contact"] = contact }
         if mode == .full { p["view_count"] = views; p["like_count"] = likes; p["viewerLiked"] = false }
+        // 혼합 서버: 컬럼 기본값(0)만 오고 조회·추천은 늘지 않는다
+        if mode == .hybrid { p["view_count"] = 0; p["like_count"] = 0 }
         return p
     }
 
@@ -99,16 +103,26 @@ final class CommunityMock {
             post("p10", "club_match", "토요일 밤 클럽전 상대 구해요 (5:5)", nick: "새벽FC", min: 1700, comments: 2, views: 120, likes: 1, region: "서울", meta: ["schedule": "토 22시"]),
             post("p11", "squad_rate", "4-1-2-1-2 좁은 전술 평가 좀", nick: "투볼란치", min: 2000, comments: 7, views: 401, likes: 4, squad: "bvb1"),
             post("p12", "squad_show", "맨시티 팀컬러 완성 기념", nick: "하늘색", min: 2600, comments: 9, views: 655, likes: 12, squad: "bvb1"),
+            // 2페이지(무한 스크롤 검수) — 예전엔 1페이지 글을 id 만 바꿔 다시 줘서 같은 행이 두 번 보였다(디자인 리뷰)
+            post("p13", "squad_rate", "4-4-2 다이아 투톱 조합 어떤가요", nick: "투톱러버", min: 3100, comments: 4, views: 210, likes: 3, squad: "bvb1"),
+            post("p14", "club_recruit", "부산 클럽 '해운대FC' 미드필더 구합니다", nick: "해운대FC", min: 3600, comments: 2, views: 98, likes: 1, region: "부산",
+                 positions: ["CM", "CAM"], contact: "오픈채팅 해운대FC"),
+            post("p15", "squad_show", "첫 금카 강화 성공 기념 스쿼드", nick: "강화왕", min: 4300, comments: 11, views: 870, likes: 15, squad: "bvb1"),
+            post("p16", "squad_make", "1천억으로 라리가 팀컬러 가능할까요", nick: "엘클라시코", min: 5000, comments: 6, views: 260, likes: 2, meta: ["budget": "1천억"]),
+            post("p17", "tournament", "주말 번개 16강 컵 (참가비 없음)", nick: "주말리그", min: 5800, comments: 14, views: 640, likes: 9,
+                 meta: ["date": "10/12(일) 20시", "format": "16강 싱글", "entry": "댓글로 구단주명"]),
+            post("p18", "squad_rate", "수비가 너무 약한데 어디부터 바꿀까요", nick: "실점머신", min: 6500, comments: 8, views: 330, likes: 4, squad: "bvb1"),
         ]
         var c1: [[String: Any]] = []
         func c(_ id: String, _ nick: String, _ body: String, min: Double, likes: Int, parent: String? = nil, author: String? = nil, op: Bool = false, squad: String? = nil, own: Bool = false, verified: Bool = false) -> [String: Any] {
             var d: [String: Any] = ["id": id, "post_id": "p1", "author_id": author ?? "u-\(nick)", "body": body, "created_at": ago(min),
-                                    "author": ["id": author ?? "u-\(nick)", "nickname": nick, "isOperator": op, "verifiedNickname": verified ? nick : NSNull()], "isOwn": own]
+                                    "author": ["id": author ?? "u-\(nick)", "nickname": nick, "isOperator": op, "verifiedNickname": verified ? nick as Any : NSNull()], "isOwn": own]
             if let squad { d["squad_id"] = squad }
             if mode == .full {
                 d["like_count"] = likes; d["viewerLiked"] = false
                 if let parent { d["parent_id"] = parent }
             }
+            if mode == .hybrid { d["like_count"] = 0 }
             return d
         }
         c1 = [
@@ -127,9 +141,23 @@ final class CommunityMock {
         // 시간순(등록순) — 서버도 created_at 오름차순으로 준다
         c1.sort { ($0["created_at"] as! String) < ($1["created_at"] as! String) }
         comments["p1"] = c1
-        comments["p2"] = [
-            ["id": "b1", "post_id": "p2", "author_id": "u-x", "body": "EPL 압박이 랭겜에선 더 셈", "created_at": ago(9), "author": ["id": "u-x", "nickname": "압박장인"], "isOwn": false],
-        ]
+        // 시드 댓글이 없는 글은 목록의 comment_count 만큼 채운다 — 목록 [47] 인데 상세 "댓글 1"이던 목 불일치(유저 패널 C)
+        let fillers = ["EPL 압박이 랭겜에선 더 셈", "라리가 미드 퀄리티가 다름", "둘 다 좋은데 저는 A", "B 수비라인이 더 단단해 보여요",
+                       "이건 투표 박빙이겠네", "ㅋㅋㅋ 둘 다 갖고 싶다", "공격은 A, 밸런스는 B", "랭겜이면 무조건 A", "와 스쿼드 미쳤다"]
+        let nicks = ["압박장인", "티키타카", "역습의신", "수미장인", "골넣는GK", "카세미루팬", "윙어사랑", "볼란치"]
+        for p in posts where comments[p["id"] as! String] == nil {
+            let id = p["id"] as! String
+            let n = min(12, (p["comment_count"] as? Int) ?? 0)
+            comments[id] = (0..<n).map { i in
+                var d: [String: Any] = ["id": "\(id)-c\(i)", "post_id": id, "author_id": "u-f\(i % nicks.count)", "body": fillers[i % fillers.count],
+                                        "created_at": ago(Double(60 - i)), "author": ["id": "u-f\(i % nicks.count)", "nickname": nicks[i % nicks.count]], "isOwn": false]
+                if mode == .full { d["like_count"] = (i * 7) % 5; d["viewerLiked"] = false }
+                if mode == .hybrid { d["like_count"] = 0 }
+                return d
+            }
+            // 목록 숫자 = 실제로 받는 댓글 수(채움 상한 12)
+            if let i = posts.firstIndex(where: { ($0["id"] as! String) == id }) { posts[i]["comment_count"] = n }
+        }
         votes["p2"] = (193, 119, UserDefaults.standard.string(forKey: "communityVoted"))
     }
 
@@ -151,9 +179,11 @@ final class CommunityMock {
         if sort == "hot" { rows.sort { (($0["like_count"] as? Int) ?? 0) > (($1["like_count"] as? Int) ?? 0) } }
         if sort == "comments" { rows.sort { (($0["comment_count"] as? Int) ?? 0) > (($1["comment_count"] as? Int) ?? 0) } }
         let page = Int(q["page"] ?? "1") ?? 1
-        // 페이지네이션 검수 — 1페이지 12개, 2페이지는 같은 글을 id 만 바꿔 한 번 더
-        if page == 2 { rows = rows.map { var r = $0; r["id"] = "\(r["id"]!)-2"; return r } }
-        var res: [String: Any] = ["page": page, "totalPages": rows.isEmpty ? 1 : 2, "types": types, "posts": rows]
+        // 페이지네이션 — 한 장 12개. 필터로 글이 적으면 1장뿐이다(같은 글을 두 번 주지 않는다).
+        let pageSize = 12
+        let totalPages = max(1, Int((Double(rows.count) / Double(pageSize)).rounded(.up)))
+        let slice = Array(rows.dropFirst((page - 1) * pageSize).prefix(pageSize))
+        var res: [String: Any] = ["page": page, "totalPages": totalPages, "types": types, "posts": slice]
         if let sort { res["sort"] = sort }
         if mode == .full, page == 1, q["types"] == nil, q["type"] == nil, sort == "new" {
             res["hot"] = ["p2", "p9", "p6"].compactMap { id in posts.first { ($0["id"] as! String) == id } }
@@ -163,21 +193,25 @@ final class CommunityMock {
 
     func detail(_ rawId: String) async throws -> PostDetailResponse {
         try? await Task.sleep(for: .milliseconds(300))
-        let id = rawId.replacingOccurrences(of: "-2", with: "")
+        let id = rawId
         guard var p = posts.first(where: { ($0["id"] as! String) == id }) else {
             throw APIError.server(code: "not_found", message: "삭제됐거나 숨겨진 글이에요.", status: 404, retryAfter: nil)
         }
         if mode == .full { p["viewerLiked"] = likedPosts.contains(id) }
         var cs = comments[id] ?? []
         if mode == .full { cs = cs.map { var c = $0; c["viewerLiked"] = likedComments.contains(c["id"] as! String); return c } }
-        p["comment_count"] = cs.count
+        // p1 은 서버 카운터가 신고로 숨겨진 댓글 1개를 더 세는 실제 상황을 흉내 낸다(목록 12 → 상세 11).
+        // 앱은 상세를 본 뒤 목록 [N] 을 상세 기준으로 맞춰야 한다.
+        p["comment_count"] = cs.count + (id == "p1" ? 1 : 0)
         let own = (p["author_id"] as? String) == me
         return try decode(["post": p, "comments": cs, "viewer": ["loggedIn": true, "isOwner": own, "canComment": true]])
     }
 
     func squad(_ id: String) throws -> Squad {
         let (name, fid): (String, String) = id == "epl" ? ("EPL 올스타", "433") : id == "laliga" ? ("라리가 올스타", "4231") : ("BVB 꿀벌 스쿼드", "4231")
-        let slots = Formation.get(fid).slots.map { ["slotId": $0.id, "spid": 101000001, "name": $0.pos] as [String: Any] }
+        let names = ["GK": "코벨", "LB": "벤세바이니", "CB": "후멜스", "RB": "류에르손", "CDM": "잔", "CM": "벨링엄", "LAM": "로이스",
+                     "CAM": "브란트", "RAM": "산초", "ST": "할란드", "LW": "아데예미", "RW": "말런"]
+        let slots = Formation.get(fid).slots.map { ["slotId": $0.id, "spid": 101000001, "name": names[$0.pos] ?? $0.pos] as [String: Any] }
         return try decode(["id": id, "name": name, "formation": fid, "slots": slots])
     }
 
@@ -194,6 +228,7 @@ final class CommunityMock {
     }
 
     func like(_ target: CommunityAPI.LikeTarget, _ id: String, on: Bool) throws -> LikeResponse {
+        if mode == .hybrid { throw APIError.server(code: "not_found", message: "Not Found", status: 404, retryAfter: nil) }
         guard mode == .full else { throw APIError.server(code: "not_ready", message: "아직 준비 중인 기능이에요.", status: 503, retryAfter: nil) }
         func bump(_ arr: inout [[String: Any]]) -> Int? {
             guard let i = arr.firstIndex(where: { ($0["id"] as! String) == id }) else { return nil }
@@ -217,7 +252,10 @@ final class CommunityMock {
                                 "author": ["id": me, "nickname": "개발자"], "isOwn": true]
         if let s = json["squad_id"] { d["squad_id"] = s }
         if mode == .full { d["like_count"] = 0; d["viewerLiked"] = false; if let p = json["parent_id"] { d["parent_id"] = p } }
-        comments[postId.replacingOccurrences(of: "-2", with: ""), default: []].append(d)
+        // 구 코드(legacy·hybrid)는 parent_id 를 버린다 — 실서버와 같게
+        if mode == .hybrid { d["like_count"] = 0 }
+        comments[postId, default: []].append(d)
+        if let i = posts.firstIndex(where: { ($0["id"] as! String) == postId }) { posts[i]["comment_count"] = ((posts[i]["comment_count"] as? Int) ?? 0) + 1 }
         return id
     }
     func deleteComment(postId: String, commentId: String) {
@@ -263,6 +301,8 @@ enum CommunityDebugLaunch {
         guard arg("communityMock") != nil || arg("communityScreen") != nil else { return }
         LocalPrefs.shared.onboardingDone = true
         AppRouter.shared.tab = .community
+        // `-openURL fcscope://user/…` — 캡처 검수용 딥링크(시스템 "열겠습니까?" 확인 창 없이)
+        if let raw = arg("openURL"), let url = URL(string: raw) { AppRouter.shared.handle(url: url) }
     }
 
     static var scrollTarget: String? { arg("communityScroll") ?? (arg("communityScreen") == "comments" ? "comments" : nil) }

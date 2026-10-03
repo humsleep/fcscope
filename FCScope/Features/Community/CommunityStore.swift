@@ -20,6 +20,16 @@ final class CommunityPrefs {
     /// 서버가 `types=a,b`·`sort` 쿼리를 지원하는지(응답에 `sort` 키가 있는가)
     var groupFilterSupported: Bool { didSet { d.set(groupFilterSupported, forKey: "cm.groupFilter") } }
 
+    /// **v2 코드가 배포된 서버인가** — 추천·답글(parent_id)·조회수 UI 를 켜는 유일한 기준.
+    ///
+    /// 예전엔 글에 `like_count` 가 오는지로 판단했다. 그런데 프로덕션은 DB 마이그레이션(0023)만 먼저 들어가고
+    /// 웹 v2 코드가 배포되지 않은 **혼합 상태**가 있었다(QA 1라운드 P0-1): `like_count` 는 오지만 추천 라우트는 404,
+    /// 구 댓글 라우트는 `parent_id` 를 버려 답글이 누구에게 단 건지 사라진 채 저장됐다(되돌릴 수 없는 데이터).
+    /// DB 컬럼이 아니라 **코드가 만드는 값**인 목록 응답의 `sort` 키로 판단한다(v2 코드만 내려준다).
+    var serverV2: Bool { groupFilterSupported }
+    /// 이번 실행에서 목록 응답으로 서버 기능을 확인했는가 — 딥링크로 상세부터 열면 한 번 확인한다.
+    var capabilityChecked = false
+
     private init() {
         let ids = UserDefaults.standard.stringArray(forKey: "cm.read") ?? []
         readIds = ids
@@ -28,6 +38,19 @@ final class CommunityPrefs {
         battlePicks = (ud.dictionary(forKey: "cm.battle") as? [String: String]) ?? [:]
         hotSupported = ud.bool(forKey: "cm.hotSupported")
         groupFilterSupported = ud.bool(forKey: "cm.groupFilter")
+    }
+
+    /// 글 id → (서버 comment_count − 상세에서 받은 댓글 수). 서버 카운터는 신고로 숨겨진 댓글까지 센다
+    /// (0009 트리거는 insert/delete 만 보고, 상세는 hidden 을 걸러 낸다). 이번 실행 동안만 기억한다.
+    private(set) var commentGaps: [String: Int] = [:]
+    func noteCommentGap(_ id: String, gap: Int) {
+        let g = max(0, gap)
+        if commentGaps[id] != g { commentGaps[id] = g }
+    }
+    /// 목록에 그릴 댓글 수 — 상세에서 확인한 차이만큼 뺀다(모르면 서버 값 그대로).
+    func displayCommentCount(_ p: Post) -> Int? {
+        guard let n = p.commentCount else { return nil }
+        return max(0, n - (commentGaps[p.id] ?? 0))
     }
 
     func isRead(_ id: String) -> Bool { readSet.contains(id) }
@@ -88,6 +111,17 @@ enum CommunityAPI {
         if let m = CommunityMock.active { return try await m.list(query) }
         #endif
         return try await APIClient.shared.get("/api/v1/community/posts", query: query)
+    }
+
+    /// 서버 v2 여부를 이번 실행에서 아직 못 봤으면 목록 1장으로 확인한다(상세를 딥링크로 먼저 연 경우).
+    /// 실패하면 마지막으로 본 값을 그대로 쓴다 — 모르면 v2 기능(추천·parent_id)은 꺼진 쪽이 안전하다.
+    static func ensureCapability() async {
+        let prefs = CommunityPrefs.shared
+        guard !prefs.capabilityChecked else { return }
+        if let r = try? await list(["page": "1"]) {
+            prefs.groupFilterSupported = r.sort != nil
+            prefs.capabilityChecked = true
+        }
     }
 
     static func detail(_ id: String) async throws -> PostDetailResponse {

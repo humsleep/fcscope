@@ -101,6 +101,7 @@ final class CommunityModel {
             types = r.types
             // 서버 기능 감지 — 구 서버에서는 새 기능을 조용히 숨긴다
             prefs.groupFilterSupported = r.sort != nil
+            prefs.capabilityChecked = true
             if target == 1, tab == .all, sort == "new" { prefs.hotSupported = r.hot != nil }
             if tab == .hot, r.sort != "hot" {
                 // 인기 정렬 미지원(0023 전) — 탭을 숨기고 전체로 되돌린다
@@ -184,7 +185,8 @@ struct CommunityView: View {
         .background(FC.bg.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .toolbarBackground(FC.bg, for: .tabBar)
-        .overlay(alignment: .bottomTrailing) { fab }
+        // 빈 상태에는 화면 가운데 CTA 가 있다 — 그라디언트 버튼 두 개(CTA + FAB)를 동시에 두지 않는다(QA P2-11)
+        .overlay(alignment: .bottomTrailing) { if !showsEmptyState { fab } }
         .overlay(alignment: .top) { CMToast(text: toast) }
         .sheet(item: $composeReq) { req in
             ComposeView(types: model.types, initialType: req.type) { newId in
@@ -350,6 +352,12 @@ struct CommunityView: View {
     }
 
     private var visiblePosts: [Post] { model.posts.filter { !prefs.isBlocked($0.authorId) } }
+    private var showsEmptyState: Bool {
+        if case .loaded = model.state { return visiblePosts.isEmpty }
+        return false
+    }
+    /// 글은 있는데 전부 차단한 작성자의 글 — "아직 글이 없어요"는 틀린 말이다(QA P2-7)
+    private var allHiddenByBlock: Bool { !model.posts.isEmpty && visiblePosts.isEmpty }
 
     @ViewBuilder private var list: some View {
         let visible = visiblePosts
@@ -445,7 +453,23 @@ struct CommunityView: View {
         }
     }
 
-    private var emptyState: some View {
+    @ViewBuilder private var emptyState: some View {
+        if allHiddenByBlock {
+            VStack(spacing: 8) {
+                Text("🙈").font(.system(size: 44)).padding(.bottom, 6).accessibilityHidden(true)
+                Text("차단한 사용자의 글만 있어요").cmText(17, .bold).foregroundStyle(FC.ink)
+                Text("내 정보 → 설정 · 약관 · 계정에서 차단을 풀 수 있어요").cmText(14).foregroundStyle(FC.muted).multilineTextAlignment(.center)
+                Button("새로고침") { Task { await model.load(reset: true) } }
+                    .cmText(15, .semibold).foregroundStyle(FC.tint).frame(minHeight: 44).padding(.top, 8)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 70).padding(.horizontal, 24)
+        } else {
+            emptyCreate
+        }
+    }
+
+    private var emptyCreate: some View {
         let c = emptyCopy
         return VStack(spacing: 8) {
             Text(c.emoji).font(.system(size: 44)).padding(.bottom, 6).accessibilityHidden(true)
@@ -471,7 +495,8 @@ struct CommunityView: View {
             .padding(.horizontal, fabCollapsed ? 0 : 22)
             .frame(width: fabCollapsed ? 52 : nil, height: 52)
             .background(FC.brand, in: Capsule())
-            .shadow(color: FC.brandEnd.opacity(0.35), radius: 12, y: 5)
+            // 컬러 글로우를 줄였다 — 큰 번짐은 "AI 랜딩" 느낌이었다(디자인 N2)
+            .shadow(color: FC.brandEnd.opacity(0.18), radius: 6, y: 3)
             .contentShape(Capsule())
         }
         .buttonStyle(PressScaleStyle())
@@ -562,8 +587,12 @@ private struct ReportDialog: ViewModifier {
     @Binding var target: ReportTarget?
     let done: (String) -> Void
     let needLogin: () -> Void
+    /// 로그인하러 간 사이 기다리는 신고 — 로그인되면 사유 선택을 이어서 띄운다
+    @State private var pending: ReportTarget?
+    @State private var auth = AuthManager.shared
+
     func body(content: Content) -> some View {
-        content.confirmationDialog("신고 사유", isPresented: Binding(get: { target != nil }, set: { if !$0 { target = nil } }), titleVisibility: .visible, presenting: target) { t in
+        content.confirmationDialog("신고 사유", isPresented: Binding(get: { target != nil && CommunityAPI.isLoggedIn }, set: { if !$0 { target = nil } }), titleVisibility: .visible, presenting: target) { t in
             ForEach(ReportReason.allCases) { r in
                 Button(r.label) { Task { await send(t, r) } }
             }
@@ -571,14 +600,26 @@ private struct ReportDialog: ViewModifier {
         } message: { _ in
             Text("운영자가 확인하고 조치해요. 신고가 쌓인 글은 자동으로 숨겨져요.")
         }
+        // 비로그인이면 사유를 고르기 **전에** 로그인부터 — 예전엔 사유를 고른 뒤 로그인 시트가 떠 사유가 사라졌다(QA P2-6)
+        .onChange(of: target) { _, t in
+            guard let t, !CommunityAPI.isLoggedIn else { return }
+            pending = t
+            target = nil
+            needLogin()
+        }
+        .onChange(of: auth.isLoggedIn) { _, loggedIn in
+            guard loggedIn, let p = pending else { return }
+            pending = nil
+            Task { try? await Task.sleep(for: .milliseconds(500)); target = p }
+        }
     }
     @MainActor private func send(_ t: ReportTarget, _ r: ReportReason) async {
-        guard CommunityAPI.isLoggedIn else { needLogin(); return }
         do {
             try await CommunityAPI.report(type: t.type, id: t.id, reason: r.rawValue)
             Haptic.success()
             done("신고 접수됐어요. 확인하고 조치할게요")
         } catch APIError.unauthorized {
+            pending = t
             needLogin()
         } catch {
             done(error.localizedDescription)

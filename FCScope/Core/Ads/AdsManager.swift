@@ -250,34 +250,44 @@ struct BannerAdView: UIViewRepresentable {
 /// "본문 카드"처럼 보이거나 탭바에 눌린 흰 덩어리로 보인다. 라벨 + 카드로 감싸 광고임을 분명히 하고
 /// 탭바와 간격을 둔다. 광고가 없으면(height == 0) 자리까지 접는다.
 struct AdSlot: View {
+    /// 로드 전에 예상 높이를 미리 잡을지. 기본 false — 로드되기 전 "AD · 광고" 빈 상자가 150pt 를 차지해
+    /// 화면 한가운데 회색 덩어리로 남았다(디자인 리뷰 M7 · 배틀 상세). 받으면 페이드로 나타난다.
+    /// 손가락 바로 위에서 콘텐츠가 밀리면 안 되는 자리(목록 맨 위 등)만 true.
+    var reserve = false
     @State private var ads = AdsManager.shared
-    /// nil = 로딩 중(예상 높이만큼 자리 확보), 0 = 광고 없음(접힘)
+    /// nil = 로딩 중, 0 = 광고 없음(접힘)
     @State private var height: CGFloat?
     /// 적응형 배너 높이는 폭만으로 정해진다 — 60pt 로 잡아 두면 실제 높이(보통 90pt+)로 바뀌며 아래 콘텐츠가 뛰었다.
     private var expectedHeight: CGFloat {
         largeAnchoredAdaptiveBanner(width: UIScreen.main.bounds.width - 52).size.height
     }
     var body: some View {
-        // 상단 배치라 광고가 나중에 끼어들면 탭·버튼이 손가락 밑에서 밀린다(오클릭) — SDK 시작이 결정되면 같은 높이의 자리를 먼저 잡는다.
         // 시작 전(첫 검색 전)·시작 불가(동의 거부)에는 아무것도 그리지 않는다(빈 회색 카드 회귀 방지, E2E 2026-09-22).
         if ads.starting, ads.canShowAds, height != 0 {
+            let loaded = height != nil
+            let shown = loaded || reserve
             // 카카오톡 목록 상단 광고처럼 둥근 카드 + "AD" 표기(광고 소재 위에는 아무것도 겹치지 않는다 — AdMob 정책)
-            VStack(alignment: .leading, spacing: 6) {
-                Text("AD · 광고").fcFont(10, weight: .semibold).foregroundStyle(FC.muted)
+            VStack(alignment: .leading, spacing: shown ? 6 : 0) {
+                if shown { Text("AD · 광고").fcText(.caption, weight: .semibold).foregroundStyle(FC.muted) }
                 GeometryReader { geo in
                     // 첫 배치 때 폭이 0 으로 오면 잘못된 크기로 요청해 실패 → 자리가 영구히 접혔다. 폭이 잡힌 뒤에만 만든다.
                     if ads.ready, geo.size.width > 100 {
                         BannerAdView(width: geo.size.width, height: $height)
                     }
                 }
-                .frame(height: height ?? expectedHeight)
+                // 로드 전에는 높이 0(배너 뷰는 계층에 있어야 요청이 나간다) — 받은 뒤 실제 높이로 편다.
+                .frame(height: height ?? (reserve ? expectedHeight : 0))
                 // 배너 자체는 클리핑하지 않는다 — 우상단 AdChoices 아이콘이 잘리면 소재 변형(정책 위반)
             }
-            .padding(10)
-            .background(FC.surface2, in: RoundedRectangle(cornerRadius: 18))
-            .padding(.vertical, 2)
+            // 가로 여백은 항상 같게 — 배너 폭은 처음 잡힌 폭으로 고정되므로 펼칠 때 폭이 바뀌면 안 된다.
+            .padding(.horizontal, 10).padding(.vertical, shown ? 10 : 0)
+            .background(shown ? FC.surface2 : Color.clear, in: RoundedRectangle(cornerRadius: 18))
+            .padding(.vertical, shown ? 2 : 0)
+            .opacity(shown ? 1 : 0)
+            .animation(.easeOut(duration: 0.25), value: loaded)
             .accessibilityElement(children: .contain)
             .accessibilityLabel("광고")
+            .accessibilityHidden(!shown)
         }
     }
 }

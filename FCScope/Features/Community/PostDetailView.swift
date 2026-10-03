@@ -15,20 +15,34 @@ final class PostDetailModel {
     init(postId: String) { self.postId = postId }
 
     var detail: PostDetailResponse? { state.value }
-    /// v2 마이그레이션(조회·추천·답글)이 적용된 서버인가 — 글에 like_count 가 오는지로 판단
-    var v2: Bool { detail?.post.likeCount != nil && !likesDisabled }
+    /// v2 **코드**가 배포된 서버인가(목록 응답의 `sort` 키 — CommunityPrefs.serverV2). DB 필드(`like_count`)로
+    /// 판단하면 "스키마 v2 + 코드 v1" 혼합 서버에서 추천 404·답글 parent_id 유실이 났다(QA 1라운드 P0-1).
+    var serverV2: Bool { CommunityPrefs.shared.serverV2 }
+    /// 답글(parent_id) 전송 — v2 확인됐을 때만. 아니면 "@닉 " 접두로 대신한다.
+    var repliesEnabled: Bool { serverV2 }
+    /// 추천 UI — v2 확인 + 서버가 404/503 으로 거절한 적 없음 + 값이 실제로 옴
+    var likesEnabled: Bool { serverV2 && !likesDisabled && detail?.post.likeCount != nil }
 
     func load() async {
         // 댓글 작성·삭제 후 재로드 때 화면(과 광고)을 통째로 갈아 끼우지 않는다 — 이미 있으면 그 위에서 갱신
         if state.value == nil { state = .loading }
+        // 딥링크로 상세부터 열었으면 서버 v2 여부를 먼저 확인한다(실행당 1회 · 목록 1장)
+        async let cap: Void = CommunityAPI.ensureCapability()
         do {
             let d = try await CommunityAPI.detail(postId)
+            await cap
             state = .loaded(d)
             if let n = d.post.likeCount { postLike = LikeState(liked: d.post.viewerLiked ?? false, count: n) } else { postLike = nil }
             var m: [String: LikeState] = [:]
             for c in d.comments { if let n = c.likeCount { m[c.id] = LikeState(liked: c.viewerLiked ?? false, count: n) } }
             commentLikes = m
+            // 목록 [N] 은 서버 comment_count(숨김 댓글 포함 · 트리거) — 상세에서 실제로 받은 댓글 수와의 차이를 기억해
+            // 목록으로 돌아갔을 때 같은 숫자를 보이게 한다(유저 패널 C "12 vs 11").
+            // 차단한 작성자의 댓글도 상세에선 안 보이므로 같이 뺀다 — 상세 "댓글 N" 과 목록 [N] 이 같은 기준.
+            let visible = d.comments.filter { !LocalPrefs.shared.isBlocked($0.authorId) }.count
+            if let listed = d.post.commentCount { CommunityPrefs.shared.noteCommentGap(postId, gap: listed - visible) }
         } catch {
+            await cap
             if state.value == nil { state = .failed(error) }
         }
     }
@@ -89,6 +103,10 @@ struct PostDetailView: View {
     @State private var commentSort = "asc"
     @State private var expanded: Set<String> = []
     @State private var highlightComment: String?
+    /// 원래 자리에서 펼친 BEST 댓글(기본은 한 줄로 접힘)
+    @State private var expandedBest: Set<String> = []
+    /// 제목이 스크롤로 사라졌는가 — 그때만 내비 제목에 글 제목을 띄운다(디자인 M5)
+    @State private var showNavTitle = false
     // 입력창
     @State private var text = ""
     @State private var replyTo: Comment?
@@ -142,7 +160,11 @@ struct PostDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Text(post.map { $0.typeLabel } ?? "커뮤니티").cmText(15, .semibold).foregroundStyle(FC.muted)
+                // 말머리가 내비 제목과 태그에 두 번 나오던 것을 없앴다 — 제목이 화면 밖으로 나간 뒤에만 글 제목을 띄운다.
+                if showNavTitle, let p = post {
+                    Text(p.title).cmText(15, .semibold).foregroundStyle(FC.ink).lineLimit(1)
+                        .transition(.opacity)
+                }
             }
             ToolbarItem(placement: .topBarTrailing) { if let d = model.detail { moreMenu(d) } }
         }
@@ -224,15 +246,13 @@ struct PostDetailView: View {
                     }
                     if let c = p.contact { contactRow(c) }
                     actionRow(d, proxy: proxy)
-                    // 광고 — 행동 줄 아래·댓글 위(본문이 끝난 뒤). 크기는 기존 AdSlot 그대로.
-                    AdSlot()
+                    // 광고는 본문 바로 아래가 아니라 댓글 첫 묶음(BEST) 뒤로 내렸다 — 상세 첫 화면에서 댓글이 하나도
+                    // 안 보이던 문제(유저 패널 B). comments() 안에서 배치한다.
                 }
                 .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 18)
 
-                // 8pt 띠
+                // 8pt 띠 — 위아래 hair 를 붙이면 "이중선"으로 보였다(디자인 리뷰). 채움만 둔다.
                 Rectangle().fill(FC.surface).frame(height: 8)
-                    .overlay(alignment: .top) { Rectangle().fill(CM.hair).frame(height: 1) }
-                    .overlay(alignment: .bottom) { Rectangle().fill(CM.hair).frame(height: 1) }
 
                 comments(d, proxy: proxy).id("comments")
             }
@@ -241,12 +261,17 @@ struct PostDetailView: View {
 
     private func head(_ p: Post) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            PostTag(text: p.typeLabel, color: PostFamily(type: p.type).color, closed: p.status == "closed")
+            // 목록과 같은 짧은 이름("평가") — 긴 이름("스쿼드 평가 요청")은 목록 태그와 달라 보였다.
+            PostTag(text: PostTypeNames.short(p.type, types: [], label: p.typeLabel), color: PostFamily(type: p.type).color, closed: p.status == "closed")
             Text(p.title).cmText(20, .bold).kerning(-0.5).lineSpacing(5)
                 .foregroundStyle(FC.ink)
                 .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
                 .accessibilityAddTraits(.isHeader)
+                .onGeometryChange(for: Bool.self) { $0.frame(in: .scrollView).maxY < 0 } action: { gone in
+                    guard gone != showNavTitle else { return }
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { showNavTitle = gone }
+                }
         }
     }
 
@@ -261,7 +286,8 @@ struct PostDetailView: View {
                     }
                     if p.author.isOperator == true { OperatorBadge() }
                 }
-                Text([DateFmt.relative(p.createdAt), p.viewCount.map { "조회 \(CMFormat.count($0))" }].compactMap { $0 }.joined(separator: " · "))
+                // 조회수는 v2 서버에서만 센다 — 혼합 서버(코드 v1)는 늘 0 이라 "조회 0"만 박혔다.
+                Text([DateFmt.relative(p.createdAt), p.viewCount.flatMap { v in (model.serverV2 || v > 0) ? "조회 \(CMFormat.count(v))" : nil }].compactMap { $0 }.joined(separator: " · "))
                     .cmText(12).foregroundStyle(CM.faint)
             }
             Spacer(minLength: 8)
@@ -350,7 +376,7 @@ struct PostDetailView: View {
 
     private func actionRow(_ d: PostDetailResponse, proxy: ScrollViewProxy) -> some View {
         HStack(spacing: 10) {
-            if let like = model.postLike, !model.likesDisabled {
+            if let like = model.postLike, model.likesEnabled {
                 Button { Task { await likePost() } } label: {
                     HStack(spacing: 6) {
                         Image(systemName: like.liked ? "heart.fill" : "heart")
@@ -420,8 +446,11 @@ struct PostDetailView: View {
     private func comments(_ d: PostDetailResponse, proxy: ScrollViewProxy) -> some View {
         let list = visibleComments(d)
         let threads = CommentThread.build(list, newestFirst: commentSort == "desc")
-        let best = model.likesDisabled ? [] : CommentThread.best(list) { model.commentLikes[$0.id]?.count }
+        let best = model.likesEnabled ? CommentThread.best(list) { model.commentLikes[$0.id]?.count } : []
+        let bestIds = Set(best.map(\.id))
         let byId = Dictionary(uniqueKeysWithValues: list.map { ($0.id, $0) })
+        // 광고 자리: BEST 묶음 뒤. BEST 가 없으면 세 번째 댓글 스레드 뒤(댓글이 적으면 마지막 뒤).
+        let adAfterThread: String? = best.isEmpty ? threads.prefix(3).last?.id : nil
         return VStack(alignment: .leading, spacing: 0) {
             HStack {
                 (Text("댓글 ").font(.cm(16, typeSize, .bold)).foregroundColor(FC.ink)
@@ -448,11 +477,18 @@ struct PostDetailView: View {
             ForEach(best.map { ("best-\($0.id)", $0) }, id: \.0) { item in
                 commentRow(item.1, d: d, best: true, parentNick: item.1.parentId.flatMap { byId[$0]?.author.nickname })
             }
+            if !best.isEmpty {
+                adBlock
+            }
             ForEach(threads) { t in
-                commentRow(t.root, d: d).id(t.root.id)
+                rootOrCollapsed(t.root, d: d, isBest: bestIds.contains(t.root.id))
                 let showAll = t.replies.count <= 3 || expanded.contains(t.id)
                 ForEach(showAll ? t.replies : Array(t.replies.prefix(2))) { r in
-                    commentRow(r, d: d, reply: true, parentNick: t.root.author.nickname).id(r.id)
+                    if bestIds.contains(r.id) && !expandedBest.contains(r.id) {
+                        bestPlaceholder(r.id, reply: true)
+                    } else {
+                        commentRow(r, d: d, reply: true, parentNick: t.root.author.nickname).id(r.id)
+                    }
                 }
                 if !showAll {
                     Button {
@@ -466,9 +502,43 @@ struct PostDetailView: View {
                     }
                     .buttonStyle(.plain)
                 }
+                if t.id == adAfterThread { adBlock }
             }
         }
         .padding(.bottom, 24)
+    }
+
+    /// 댓글 흐름 속 광고 — 로드되기 전에는 자리를 잡지 않는다(AdSlot 기본값). 위아래 여백만 둔다.
+    private var adBlock: some View {
+        AdSlot().padding(.horizontal, 16).padding(.vertical, 6)
+    }
+
+    /// 원래 자리 — BEST 로 올라간 댓글은 한 줄로 접는다(같은 글이 한 화면에 두 번 보이면 버그처럼 읽혔다 · 디자인 M4).
+    @ViewBuilder private func rootOrCollapsed(_ c: Comment, d: PostDetailResponse, isBest: Bool) -> some View {
+        if isBest && !expandedBest.contains(c.id) {
+            bestPlaceholder(c.id, reply: false)
+        } else {
+            commentRow(c, d: d).id(c.id)
+        }
+    }
+
+    private func bestPlaceholder(_ id: String, reply: Bool) -> some View {
+        Button {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { _ = expandedBest.insert(id) }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.up").font(.system(size: 11, weight: .bold))
+                Text("BEST로 올라간 댓글").cmText(13, .medium)
+                Text("· 펼치기").cmText(13)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(CM.faint)
+            .padding(.leading, reply ? 54 : 16).padding(.trailing, 16)
+            .frame(minHeight: 40).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .id(id)
+        .accessibilityLabel("베스트 댓글로 올라간 댓글. 펼치기")
     }
 
     private func sortButton(_ key: String, _ label: String) -> some View {
@@ -486,7 +556,7 @@ struct PostDetailView: View {
             comment: c, isReply: reply && !best, isBest: best,
             isPostAuthor: c.authorId == d.post.authorId,
             parentNick: parentNick,
-            like: model.likesDisabled ? nil : model.commentLikes[c.id],
+            like: model.likesEnabled ? model.commentLikes[c.id] : nil,
             highlighted: highlightComment == c.id,
             onLike: { Task { await likeComment(c.id) } },
             onReply: { startReply(c) },
@@ -503,7 +573,7 @@ struct PostDetailView: View {
         let gate: CommentComposer.Gate = d.viewer.canComment ? .ready : (d.viewer.loggedIn || CommunityAPI.isLoggedIn) ? .nickname : .login
         return CommentComposer(
             gate: gate, text: $text,
-            replyNick: model.v2 ? replyTo?.author.nickname : nil,
+            replyNick: model.repliesEnabled ? replyTo?.author.nickname : nil,
             squadName: attach?.name, sending: sending, focus: $composerFocused,
             onLogin: { showLogin = true },
             onNickname: { router.tab = .me },
@@ -524,7 +594,7 @@ struct PostDetailView: View {
             if model.detail?.viewer.loggedIn == true { router.tab = .me } else { showLogin = true }
             return
         }
-        if model.v2 {
+        if model.repliesEnabled {
             replyTo = c
         } else {
             // parent_id 를 모르는 서버 — @닉 을 미리 채우는 것으로 대신한다(SPEC 7절)
@@ -538,7 +608,7 @@ struct PostDetailView: View {
         var body = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty else { return }
         var parentId: String?
-        if let r = replyTo, model.v2 {
+        if let r = replyTo, model.repliesEnabled {
             // 1단 평면화 — 답글의 답글은 원 댓글에 붙이고, 대상은 @멘션으로 남긴다
             parentId = r.parentId ?? r.id
             if r.parentId != nil, !body.hasPrefix("@") { body = "@\(r.author.nickname) " + body }
@@ -603,18 +673,30 @@ struct PostDetailView: View {
 
 struct LinkedBody: View {
     let text: String
-    var body: some View {
-        Text(attributed)
-            .cmText(16)
-            .lineSpacing(7)
-            .kerning(-0.3)
-            .foregroundStyle(CM.ink2)
-            .tint(FC.tint)
-            .textSelection(.enabled)
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
+    /// 빈 줄로 나눈 문단 — 빈 줄을 그대로 두면 26pt 줄 높이가 통째로 벌어졌다. 문단 사이는 10pt(디자인 M5).
+    private var paragraphs: [String] {
+        let normalized = text.replacingOccurrences(of: "\r\n", with: "\n")
+        let parts = normalized.components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .newlines) }
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        return parts.isEmpty ? [text] : parts
     }
-    private var attributed: AttributedString {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, para in
+                Text(Self.attributed(para))
+                    .cmText(16)
+                    .lineSpacing(7)
+                    .kerning(-0.3)
+                    .foregroundStyle(CM.ink2)
+                    .tint(FC.tint)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    static func attributed(_ text: String) -> AttributedString {
         var a = AttributedString(text)
         guard let det = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else { return a }
         let ns = text as NSString
@@ -643,6 +725,10 @@ struct AttachedSquadCard: View {
                     Text(squad?.name ?? (failed ? "첨부 스쿼드 보기" : " ")).cmText(15, .semibold).foregroundStyle(FC.ink).lineLimit(1)
                     if let s = squad {
                         Text("\(Formation.get(s.formation).name) · \(s.slots.count)명").cmText(13).foregroundStyle(CM.faint)
+                        // 썸네일은 점뿐이라 들어가 보기 전엔 정보가 없었다(유저 패널 C) — 앞선 3명 이름을 붙인다.
+                        if !Self.keyPlayers(s).isEmpty {
+                            Text(Self.keyPlayers(s).joined(separator: " · ")).cmText(12.5, .medium).foregroundStyle(FC.ink).lineLimit(1)
+                        }
                     }
                 }
                 Spacer()
@@ -658,6 +744,15 @@ struct AttachedSquadCard: View {
             do { squad = try await CommunityAPI.squad(squadId) } catch { failed = true }
         }
     }
+
+    /// 공격 쪽(포메이션 좌표 y 가 작은 쪽)부터 3명 — 스쿼드 얼굴이 되는 선수들
+    static func keyPlayers(_ s: Squad) -> [String] {
+        let def = Dictionary(Formation.get(s.formation).slots.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        return s.slots
+            .filter { !$0.name.isEmpty }
+            .sorted { ($0.y ?? def[$0.slotId]?.y ?? 50) < ($1.y ?? def[$1.slotId]?.y ?? 50) }
+            .prefix(3).map(\.name)
+    }
 }
 
 /// 52×64 썸네일 — 슬롯 좌표(없으면 포메이션 기본 좌표)에 점
@@ -667,14 +762,15 @@ struct MiniPitch: View {
         GeometryReader { g in
             ZStack {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(LinearGradient(colors: [Color(UIColor(hex: 0x1f7a45)), Color(UIColor(hex: 0x14532d))], startPoint: .top, endPoint: .bottom))
+                    // 스쿼드 빌더 피치와 같은 잔디색 — 채도 높은 #1E6B35 는 팔레트 밖이었다(디자인 M5)
+                    .fill(LinearGradient(colors: [FC.pitchTop, FC.pitchBottom], startPoint: .top, endPoint: .bottom))
                 if let s = squad {
                     let f = Formation.get(s.formation)
                     let def = Dictionary(f.slots.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
                     ForEach(s.slots) { slot in
                         let x = slot.x ?? def[slot.slotId]?.x ?? 50
                         let y = slot.y ?? def[slot.slotId]?.y ?? 50
-                        Circle().fill(.white).frame(width: 6, height: 6)
+                        Circle().fill(Color.white.opacity(0.85)).frame(width: 6, height: 6)
                             .position(x: g.size.width * x / 100, y: g.size.height * (y * 0.88 + 6) / 100)
                     }
                 }

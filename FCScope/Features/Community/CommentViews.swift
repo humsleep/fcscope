@@ -20,11 +20,14 @@ struct CommentThread: Identifiable {
         return roots.map { CommentThread(root: $0, replies: replies[$0.id] ?? []) }
     }
 
-    /// BEST — 추천 3 이상 상위 2개, 댓글 5개 미만이면 없음. 원래 자리에도 그대로 남는다(에펨 방식).
+    /// BEST — 댓글 8개 이상인 글에서 추천 5 이상 상위 2개(디자인 리뷰 M4: 5개·3추천은 너무 흔하게 떴다).
+    /// 원래 자리는 한 줄("BEST로 올라간 댓글 · 펼치기")로 접는다 — 같은 글이 한 화면에 두 번 보이면 버그처럼 읽혔다.
+    static let minComments = 8
+    static let minLikes = 5
     static func best(_ comments: [Comment], likes: (Comment) -> Int?) -> [Comment] {
-        guard comments.count >= 5 else { return [] }
+        guard comments.count >= minComments else { return [] }
         var scored: [(c: Comment, n: Int)] = []
-        for c in comments { if let n = likes(c), n >= 3 { scored.append((c, n)) } }
+        for c in comments { if let n = likes(c), n >= minLikes { scored.append((c, n)) } }
         scored.sort { a, b in a.n != b.n ? a.n > b.n : a.c.createdAt < b.c.createdAt }
         return scored.prefix(2).map { $0.c }
     }
@@ -58,7 +61,7 @@ struct CommentRow: View {
         HStack(alignment: .top, spacing: isReply ? 10 : 12) {
             NickAvatar(nickname: comment.author.nickname, size: isReply ? 24 : 30)
                 .padding(.top, isReply ? 1 : 0)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 header
                 bodyText
                 if let s = comment.squadId {
@@ -69,20 +72,21 @@ struct CommentRow: View {
                             .background(FC.tint.opacity(0.12), in: Capsule())
                     }
                     .buttonStyle(.plain)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 3)
                 }
                 actions
             }
         }
-        .padding(.leading, isReply ? 54 : 16).padding(.trailing, 6)
-        .padding(.top, 10)
+        // 좌우 16 하나로 — 행 trailing 6 + 본문 trailing 10 조합이 빌드·경로마다 6pt 로 붙던 버그(디자인 M3)
+        .padding(.leading, isReply ? 54 : 16).padding(.trailing, 16)
+        .padding(.top, 10).padding(.bottom, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(alignment: .leading) {
-            if isBest {
-                LinearGradient(colors: [FC.gold.opacity(0.12), FC.gold.opacity(0.02)], startPoint: .leading, endPoint: .trailing)
-            } else if highlighted {
-                FC.tint.opacity(0.12)
-            }
+            if highlighted { FC.tint.opacity(0.12) }
+        }
+        // BEST — 채움 없이 왼쪽 2pt 골드 바만(인디고 위 골드 12% 채움이 탁한 갈색·살구색이 됐다 · 디자인 M4)
+        .overlay(alignment: .leading) {
+            if isBest { Rectangle().fill(Self.bestGold).frame(width: 2).padding(.vertical, 6) }
         }
         .overlay(alignment: .topLeading) {
             if isReply { ReplyConnector().stroke(FC.line, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)).frame(width: 20, height: 23).padding(.leading, 31) }
@@ -97,9 +101,10 @@ struct CommentRow: View {
     private var header: some View {
         HStack(spacing: 6) {
             if isBest {
-                Text("BEST").cmScore(11, .bold).foregroundStyle(CM.onGold)
+                // 다크·라이트 공통 #F7C948 채움 + #3A2A00 글자(대비 9:1) — 두 모드에서 같은 배지
+                Text("BEST").cmScore(11, .bold).foregroundStyle(Self.bestInk)
                     .padding(.horizontal, 5).padding(.vertical, 1.5)
-                    .background(FC.gold, in: RoundedRectangle(cornerRadius: 4))
+                    .background(Self.bestGold, in: RoundedRectangle(cornerRadius: 4))
             }
             Text(comment.author.nickname).cmText(13, .semibold).foregroundStyle(FC.ink).lineLimit(1)
             if comment.author.verifiedNickname != nil {
@@ -129,9 +134,11 @@ struct CommentRow: View {
                 Button(role: .destructive, action: onBlock) { Label("작성자 차단", systemImage: "hand.raised") }
             }
         } label: {
+            // 탭 영역 44×44(HIG) — 레이아웃 높이는 머리 줄(20)만 차지하게 음수 패딩, 점 아이콘은 본문 오른쪽 끝과 맞춘다
             Image(systemName: "ellipsis").font(.system(size: 14, weight: .bold)).foregroundStyle(CM.faint)
-                .frame(width: 44, height: 32).contentShape(Rectangle())
+                .frame(width: 44, height: 44).contentShape(Rectangle())
         }
+        .padding(.vertical, -12).padding(.trailing, -14)
         .accessibilityLabel("\(comment.author.nickname) 댓글 더보기")
     }
 
@@ -150,11 +157,11 @@ struct CommentRow: View {
             + Text(rest).font(.cm(15, typeSize)).foregroundColor(CM.ink2)
         return t.lineSpacing(4).kerning(-0.2)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.trailing, 10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .textSelection(.enabled)
     }
 
+    /// 행동 줄 — 보이는 높이 26, 탭 영역은 위아래로 넓혀 44(디자인 M2: 한 줄 댓글 105 → 약 80pt)
     private var actions: some View {
         HStack(spacing: 18) {
             if let like {
@@ -163,10 +170,14 @@ struct CommentRow: View {
                         Image(systemName: like.liked ? "heart.fill" : "heart")
                             .font(.system(size: 14, weight: .semibold))
                             .symbolEffect(.bounce, value: like.liked)
-                        Text("\(like.count)").cmText(13, .medium).contentTransition(.numericText())
+                        // 0 이면 숫자를 숨긴다 — "♡ 0" 이 줄마다 깔리면 회색 숫자만 늘었다
+                        if like.count > 0 {
+                            Text("\(like.count)").cmText(13, .medium).contentTransition(.numericText())
+                        }
                     }
                     .foregroundStyle(like.liked ? CM.coral : CM.faint)
-                    .frame(minHeight: 36).contentShape(Rectangle())
+                    .frame(minWidth: 28, minHeight: 26, alignment: .leading)
+                    .contentShape(Rectangle().inset(by: -9))
                 }
                 .buttonStyle(.plain)
                 .sensoryFeedback(.impact(weight: .light), trigger: like.liked)
@@ -174,12 +185,14 @@ struct CommentRow: View {
             }
             Button(action: onReply) {
                 Text("답글 달기").cmText(12.5, .medium).foregroundStyle(CM.faint)
-                    .frame(minHeight: 36).contentShape(Rectangle())
+                    .frame(minHeight: 26).contentShape(Rectangle().inset(by: -9))
             }
             .buttonStyle(.plain)
         }
-        .padding(.bottom, 2)
     }
+
+    static let bestGold = Color(UIColor(hex: 0xF7C948))
+    static let bestInk = Color(UIColor(hex: 0x3A2A00))
 
     private var a11yLabel: String {
         var s = comment.author.nickname

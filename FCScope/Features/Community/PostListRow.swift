@@ -4,15 +4,19 @@ import SwiftUI
 ///
 /// ```
 /// [평가] 도르트문트 팀컬러 4-2-3-1 평가 부탁드려요 🛡 [12]
-/// 보엠✓ · 3분 전 · 조회 248 · 추천 9
+/// 보엠✓ · 3분 전 · 추천 9
 /// ```
+/// 조회수는 목록에서 뺐다(유저 패널 합의: 회색 숫자가 많아진다) — 상세 작성자 줄에만 둔다.
 struct PostListRow: View {
     let post: Post
     let types: [PostTypeInfo]
     var read = false
     @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var cprefs = CommunityPrefs.shared
 
     private var family: PostFamily { PostFamily(type: post.type) }
+    /// 상세에서 확인한 실제 댓글 수 기준(서버 카운터는 숨김 댓글까지 센다)
+    private var commentCount: Int? { cprefs.displayCommentCount(post) }
     private var shortName: String { PostTypeNames.short(post.type, types: types, label: post.typeLabel) }
 
     var body: some View {
@@ -27,7 +31,7 @@ struct PostListRow: View {
                     Image(systemName: "shield.fill").font(.system(size: 13 * TypeScale.factor(typeSize)))
                         .foregroundStyle(CM.faint).accessibilityHidden(true)
                 }
-                if let n = post.commentCount, n > 0 {
+                if let n = commentCount, n > 0 {
                     Text("[\(n)]").cmScore(13).foregroundStyle(FC.tint).fixedSize()
                 }
                 Spacer(minLength: 0)
@@ -53,20 +57,20 @@ struct PostListRow: View {
         var parts = ["\(post.typeLabel). \(post.title)"]
         if post.status == "closed" { parts.append("마감") }
         if post.squadId != nil { parts.append("스쿼드 첨부") }
-        if let n = post.commentCount, n > 0 { parts.append("댓글 \(n)개") }
+        if let n = commentCount, n > 0 { parts.append("댓글 \(n)개") }
         parts.append("\(post.author.nickname), \(DateFmt.relative(post.createdAt))")
-        if let v = post.viewCount { parts.append("조회 \(v)") }
-        if let l = post.likeCount, l > 0 { parts.append("추천 \(l)") }
+        if cprefs.serverV2, let l = post.likeCount, l > 0 { parts.append("추천 \(l)") }
         if read { parts.append("읽음") }
         return parts.joined(separator: ". ")
     }
 }
 
-/// 메타 한 줄 — 닉 ✓ 운영자 · 시간 · 조회 N · 추천 N · 지역
+/// 메타 한 줄 — 닉 ✓ 운영자 · 시간 · 추천 N · 지역 (추천은 v2 서버에서만)
 struct PostMetaLine: View {
     let post: Post
     var showNick = true
     @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var cprefs = CommunityPrefs.shared
 
     var body: some View {
         HStack(spacing: 0) {
@@ -83,10 +87,7 @@ struct PostMetaLine: View {
     private var rest: Text {
         let dot = Text(" · ").font(.cm(12, typeSize)).foregroundColor(CM.faint)
         var t = (showNick ? dot : Text("")) + Text(DateFmt.relative(post.createdAt)).font(.cm(12, typeSize)).foregroundColor(CM.faint)
-        if let v = post.viewCount {
-            t = t + dot + Text("조회 \(CMFormat.count(v))").font(.cm(12, typeSize)).foregroundColor(CM.faint)
-        }
-        if let l = post.likeCount, l > 0 {
+        if cprefs.serverV2, let l = post.likeCount, l > 0 {
             let hot = l >= 50
             t = t + (hot ? Text(" · ").font(.cm(12, typeSize)).foregroundColor(CM.coral) : dot)
                 + Text("추천 \(CMFormat.count(l))").font(.cm(12, typeSize, hot ? .bold : .regular)).foregroundColor(hot ? CM.coral : CM.faint)
@@ -121,7 +122,7 @@ struct HotBox: View {
                         Text("\(i + 1)").cmScore(15, .bold).foregroundStyle(CM.coral).frame(width: 14)
                         Text(p.title).cmText(14, .medium).foregroundStyle(FC.ink).lineLimit(1)
                         Spacer(minLength: 4)
-                        if let n = p.commentCount, n > 0 { Text("[\(n)]").cmScore(13).foregroundStyle(FC.tint).fixedSize() }
+                        if let n = CommunityPrefs.shared.displayCommentCount(p), n > 0 { Text("[\(n)]").cmScore(13).foregroundStyle(FC.tint).fixedSize() }
                     }
                     .frame(minHeight: 30).contentShape(Rectangle())
                 }

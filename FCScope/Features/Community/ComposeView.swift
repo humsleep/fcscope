@@ -154,7 +154,8 @@ struct ComposeView: View {
     // MARK: 제목·본문
 
     private var titleField: some View {
-        HStack(alignment: .lastTextBaseline, spacing: 8) {
+        // 카운터는 제목 첫 줄 기준선에 — lastTextBaseline 이면 6pt 내려가 보였다(디자인 N4)
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
             TextField("제목", text: Binding(get: { draft.title }, set: { v in
                 let clean = v.replacingOccurrences(of: "\n", with: " ")
                 if clean.count > titleMax { draft.title = String(clean.prefix(titleMax)); titleLimitHit += 1 } else { draft.title = clean }
@@ -189,6 +190,8 @@ struct ComposeView: View {
                 .focused($focus, equals: .body)
                 .frame(minHeight: 200)
         }
+        // TextEditor 기본 안쪽 여백(5pt)만큼 당겨 본문 첫 글자를 제목 x 에 맞춘다(디자인 N4)
+        .padding(.leading, -5)
         .padding(.top, 8)
         .accessibilityLabel(type?.bodyLabel ?? "내용")
     }
