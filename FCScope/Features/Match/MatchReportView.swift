@@ -42,21 +42,9 @@ struct MatchReportView: View {
     private func content(_ m: MatchDetailResponse) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionLabel("\(m.matchTypeName.uppercased()) · \(m.matchDateLabel)")
-            Panel {
-                VStack(spacing: 10) {
-                    HStack(spacing: 12) {
-                        teamName(m.me, me: true)
-                        (Text("\(m.me.goals)").foregroundStyle(FC.ink) + Text(" : ").font(.fcScoreboard(18, typeSize)).foregroundStyle(FC.muted) + Text(m.opponent.map { "\($0.goals)" } ?? "-").foregroundStyle(FC.muted)).font(.fcScoreboard(36, typeSize))
-                        if let o = m.opponent { teamName(o, me: false) } else { Spacer() }
-                    }
-                    if m.me.forfeit { Text("몰수 경기").fcFont(12).foregroundStyle(FC.lose) }
-                    VerdictStamp(verdict: m.verdict, large: true, showLiner: true, liner: m.liner)
-                    VStack(spacing: 3) {
-                        Rectangle().fill(FC.lose.opacity(0.7)).overlay(BarSegment(to: CGFloat(m.me.possession) / 100).fill(FC.tint)).frame(height: 8).clipShape(Capsule())
-                        HStack { Text("\(m.me.possession)%").foregroundStyle(FC.tint); Spacer(); Text("점유율").foregroundStyle(FC.muted); Spacer(); Text("\(100 - m.me.possession)%").foregroundStyle(FC.lose) }.fcScoreboard(12, weight: .semibold)
-                    }
-                }
-            }
+            // 결과 히어로 + 바로 아래 공유 CTA(UX-AUDIT-GENZ #5). 매치 카드(1080×1920)는 원래 있었는데 진입점이 맨 아래라 안 보였다.
+            MatchResultHero(m: m, onTapUser: { router.push(.user($0)) })
+            ShareCardButton(match: m, label: m.me.result == "승" ? "이 경기 스토리로 자랑" : "이 경기 스토리로 공유", style: .hero)
             if let p = m.potm {
                 Panel(padding: 12) {
                     HStack(spacing: 12) {
@@ -118,14 +106,10 @@ struct MatchReportView: View {
                 // 바로 앞 화면이 그 전적이면 뒤로 가고, 딥링크 등으로 들어왔을 때만 새로 연다.
                 Button { if fromRecord { dismiss() } else { router.push(.user(m.me.nickname)) } } label: { Text("← \(m.me.nickname) 전적으로").fcFont(13).foregroundStyle(FC.muted).frame(minHeight: 44).contentShape(Rectangle()) }.buttonStyle(.plain)
                 Spacer()
-                ShareCardButton(match: m, label: "매치 카드")
             }
         }.padding(16)
     }
 
-    private func teamName(_ s: MatchSide, me: Bool) -> some View {
-        Button { router.push(.user(s.nickname)) } label: { Text(s.nickname).fcFont(14, weight: .bold).foregroundStyle(me ? FC.tint : FC.ink).lineLimit(1).frame(maxWidth: .infinity) }.buttonStyle(.plain)
-    }
     private func shotLegend(_ s: MatchSide, tone: Color) -> some View {
         HStack(spacing: 4) {
             Circle().fill(tone).frame(width: 8, height: 8)
