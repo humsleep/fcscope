@@ -1,0 +1,53 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><script src="common.js"></script>
+<style>
+.nav { display: flex; align-items: center; justify-content: space-between; padding: 6px 16px 8px; position: relative; }
+.circle { width: 42px; height: 42px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; }
+.score { position: relative; overflow: hidden; text-align: center; padding: 18px 16px 16px; background: linear-gradient(180deg, rgba(61,220,151,.22), rgba(20,18,46,1) 62%); border-color: rgba(61,220,151,.45); }
+.score .big { font: 700 64px/1 Chakra; letter-spacing: 2px; margin-top: 4px; }
+.score .res { display: inline-block; margin-top: 10px; font-size: 22px; font-weight: 700; color: var(--win); }
+.teams { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 16px; }
+.poss { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 14px; }
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.kpi { background: rgba(11,10,31,.55); border-radius: 12px; padding: 9px 6px; }
+.kpi .v { font: 700 17px/1 Chakra; } .kpi .l { font-size: 11px; color: var(--muted); margin-top: 5px; }
+.potm { display: flex; align-items: center; gap: 12px; }
+.av { width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, #3a2a7a, #1D1A40); display: flex; align-items: center; justify-content: center; font: 700 15px Chakra; color: var(--gold); border: 1px solid #4a3f99; }
+.pitch { height: 170px; border-radius: 14px; background: #121033; border: 1px solid var(--line); position: relative; overflow: hidden; }
+.pitch::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; border-left: 1px solid #2A2656; }
+.pitch::after { content: ""; position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; margin: -30px; border: 1px solid #2A2656; border-radius: 50%; }
+.box { position: absolute; top: 45px; width: 46px; height: 80px; border: 1px solid #2A2656; }
+.dot { position: absolute; width: 11px; height: 11px; border-radius: 50%; }
+</style></head>
+<body><div class="sheet">
+  <div class="col"><div class="tag">BEFORE · 현재</div><div class="phone"><img src="before-match-dark.png"></div></div>
+  <div class="col"><div class="tag after">AFTER · 제안</div>
+  <div class="phone"><div class="app">
+    <div class="nav"><div class="circle"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#F3F1FF" stroke-width="2.2" stroke-linecap="round"><path d="M10 2L4 8l6 6"/></svg></div><div style="font-weight:700;font-size:17px">매치 리포트</div><div class="circle">⤴</div></div>
+    <div class="scroll" style="padding-top:2px">
+      <div class="muted" style="font-size:13px">공식경기 · 9.30 오전 12:38</div>
+      <div class="card score">
+        <div class="teams"><span style="color:var(--win)">보엠</span><span class="muted" style="font-size:12px">FINAL</span><span>쿤내</span></div>
+        <div class="big">6<span class="muted" style="font-size:44px"> : </span><span class="muted">2</span></div>
+        <div class="res">승리 · 완벽한 경기력 🔥</div>
+        <div class="poss"><div style="width:52%;background:var(--win)"></div><div style="flex:1;background:var(--lose)"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:6px"><span class="sb" style="color:var(--win)">52%</span><span class="muted">점유율</span><span class="sb" style="color:var(--lose)">48%</span></div>
+        <div class="kpis"><div class="kpi"><div class="v">7 <span class="muted">/</span> 8</div><div class="l">슛 (나/상대)</div></div><div class="kpi"><div class="v" style="color:var(--win)">7 <span class="muted">/</span> 5</div><div class="l">유효슛</div></div><div class="kpi"><div class="v" style="color:var(--gold)">8.6</div><div class="l">FC 스코어</div></div></div>
+      </div>
+      <div class="btn cta">⤴ 이 경기 스토리로 공유</div>
+      <div class="card potm" style="padding:12px 14px"><div class="av">MVP</div><div style="flex:1"><div class="lbl" style="color:var(--gold)">POTM</div><div style="font-weight:700;font-size:16px;margin-top:4px">이 경기의 주인공</div><div class="muted" style="font-size:12.5px">평점 최고 선수 · 탭해서 성적표</div></div><div class="muted" style="font-size:20px">›</div></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px"><b>슛맵</b><span class="muted">보엠 슛 7 (유효 7) · 쿤내 슛 8 (유효 5)</span></div>
+      <div class="pitch"><div class="box" style="left:-1px"></div><div class="box" style="right:-1px"></div>
+        <div class="dot" style="right:22px;top:70px;background:var(--win)"></div><div class="dot" style="right:34px;top:88px;background:var(--win)"></div><div class="dot" style="right:18px;top:96px;background:var(--win)"></div><div class="dot" style="right:40px;top:104px;background:var(--win)"></div><div class="dot" style="right:28px;top:118px;background:var(--win)"></div><div class="dot" style="right:44px;top:82px;background:var(--win)"></div><div class="dot" style="right:24px;top:132px;background:var(--win)"></div>
+        <div class="dot" style="left:30px;top:80px;border:2px solid var(--lose)"></div><div class="dot" style="left:22px;top:96px;background:var(--lose)"></div><div class="dot" style="left:40px;top:108px;border:2px solid var(--lose)"></div></div>
+    </div>
+    <div class="pin" style="left:6px;top:150px">1</div><div class="pin" style="left:6px;top:340px">2</div><div class="pin" style="left:6px;top:448px">3</div><div class="pin" style="left:6px;top:510px">4</div>
+  </div></div></div>
+  <div class="notes">
+    <h1>경기가 끝난 직후,<br><em>자랑할 수 있는 화면</em></h1>
+    <p class="lead">랭겜 직후 앱을 여는 이유는 “방금 그 판”이다. 지금은 이 순간의 첫 120pt가 광고이고, 6:2 대승도 무승부와 같은 무채색 카드에 담긴다.</p>
+    <div class="note"><span class="num">1</span><div><b>결과색 히어로.</b> 승=민트, 패=레드, 무=회보라 그라디언트를 카드 배경에. 스코어 64pt. 숫자 등장 시 <code>.contentTransition(.numericText())</code> 카운트업 + 승리 시 <code>.sensoryFeedback(.success)</code>.</div></div>
+    <div class="note"><span class="num">2</span><div><b>핵심 3지표를 히어로 안에.</b> 슛·유효슛·FC 스코어. 지금은 스크롤해야 나온다.</div></div>
+    <div class="note"><span class="num">3</span><div><b>공유 CTA를 스코어 바로 아래.</b> 매치 카드(1080×1920)는 이미 만들어져 있는데 진입점이 안 보인다.</div></div>
+    <div class="note"><span class="num">4</span><div><b>POTM을 슛맵 위로.</b> “누가 캐리했나”가 2순위 궁금증. 광고는 슛맵 아래(본문 중간)로 이동.</div></div>
+  </div>
+</div><script>chrome('search')</script></body></html>

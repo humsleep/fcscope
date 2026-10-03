@@ -1,0 +1,74 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><script src="common.js"></script>
+<style>
+.nav { display: flex; align-items: center; justify-content: space-between; padding: 6px 16px 10px; position: relative; }
+.circle { width: 42px; height: 42px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; }
+.hero { position: relative; overflow: hidden; padding: 18px 16px 16px; }
+.hero::after { content: ""; position: absolute; right: -60px; top: -60px; width: 230px; height: 230px; background: radial-gradient(closest-side, rgba(162,75,255,.35), transparent); }
+.idrow { display: flex; gap: 14px; align-items: center; position: relative; z-index: 1; }
+.emblem { width: 74px; height: 74px; border-radius: 20px; background: radial-gradient(circle at 50% 40%, #3a2a7a, #1a1640); display: flex; align-items: center; justify-content: center; border: 1px solid #3b3480; }
+.emblem img { width: 60px; height: 60px; }
+.nick { font-size: 28px; font-weight: 700; letter-spacing: -.5px; }
+.persona { margin-top: 14px; position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(100deg, rgba(255,106,61,.16), rgba(224,33,138,.16)); border: 1px solid rgba(240,40,127,.45); }
+.persona .t { font-size: 18px; font-weight: 700; }
+.stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 14px; position: relative; z-index: 1; }
+.stat { background: var(--surface2); border-radius: 12px; padding: 10px 10px 9px; }
+.stat .v { font: 700 26px/1.1 Chakra; margin-top: 6px; }
+.stat .s { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+.ring { width: 44px; height: 44px; }
+.form { display: flex; gap: 4px; margin-top: 14px; position: relative; z-index: 1; align-items: center; }
+.form i { flex: 1; height: 26px; border-radius: 7px; font: 700 12px/26px Pretendard; font-style: normal; text-align: center; color: #0B0A1F; }
+.W { background: var(--win); } .D { background: #4a4578; color: #ddd8ff !important; } .L { background: var(--lose); }
+.actions { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; margin-top: 14px; position: relative; z-index: 1; }
+.seg { display: flex; gap: 6px; }
+.tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--line); padding: 0 4px; }
+.tabs span { padding: 10px 0 11px; font-size: 15.5px; font-weight: 600; color: var(--muted); }
+.tabs span.on { color: var(--ink); box-shadow: inset 0 -3px 0 #F0287F; }
+.row { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px 12px 0; overflow: hidden; }
+.row .edge { width: 5px; align-self: stretch; }
+.row .sc { font: 700 20px/1 Chakra; width: 58px; }
+</style></head>
+<body><div class="sheet">
+  <div class="col"><div class="tag">BEFORE · 현재 (v1.0.1)</div><div class="phone"><img src="before-record-dark.png"></div></div>
+  <div class="col"><div class="tag after">AFTER · 제안</div>
+  <div class="phone"><div class="app">
+    <div class="nav"><div class="circle"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#F3F1FF" stroke-width="2.2" stroke-linecap="round"><path d="M10 2L4 8l6 6"/></svg></div>
+      <div style="font-weight:700;font-size:17px">보엠</div>
+      <div style="display:flex;gap:8px"><div class="circle" style="color:var(--gold)">★</div></div></div>
+    <div class="scroll" style="padding-top:0">
+      <div class="card hero">
+        <div class="idrow">
+          <div class="emblem"><img src="https://ssl.nexon.com/s2/game/fo4/obt/rank/large/update_2009/ico_rank1.png"></div>
+          <div>
+            <div class="nick">보엠 <span class="sb muted" style="font-size:14px">LV.628</span></div>
+            <div style="font-size:13.5px;margin-top:4px"><span style="color:var(--gold);font-weight:700">챔피언스</span> <span class="muted">· 공식경기 최고</span></div>
+          </div>
+        </div>
+        <div class="persona"><span style="font-size:24px">🔥</span><div><div class="lbl" style="color:#FFB3CF">MY TYPE</div><div class="t">화력 덕후</div></div>
+          <div class="muted" style="font-size:12.5px;margin-left:auto;text-align:right;line-height:1.35">경기당 3.1골<br>일단 한 골 더 넣으면 됨</div></div>
+        <div class="stats">
+          <div class="stat"><div class="lbl">승률</div><div class="v">30<span style="font-size:15px">%</span></div><div class="s">9승 6무 15패</div></div>
+          <div class="stat" style="position:relative"><div class="lbl">스코어</div><div class="v" style="color:var(--lose)">4.5</div><div class="s">폼 나락 직전 😵</div>
+            <svg class="ring" style="position:absolute;right:8px;top:10px;width:30px;height:30px" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="#2A2656" stroke-width="5"/><circle cx="18" cy="18" r="15" fill="none" stroke="#FF5470" stroke-width="5" stroke-dasharray="42 100" transform="rotate(-90 18 18)" stroke-linecap="round"/></svg></div>
+          <div class="stat"><div class="lbl">경기당</div><div class="v">3.1<span class="muted" style="font-size:15px">:2.5</span></div><div class="s">득실 · 몰수 제외</div></div>
+        </div>
+        <div class="form"><span class="lbl" style="margin-right:4px">최근10</span><i class="D">무</i><i class="W">승</i><i class="L">패</i><i class="D">무</i><i class="L">패</i><i class="D">무</i><i class="L">패</i><i class="L">패</i><i class="W">승</i><i class="L">패</i></div>
+        <div class="actions"><div class="btn cta" style="height:46px;font-size:15px">⤴ 스토리로 자랑</div><div class="btn ghost" style="height:46px;font-size:15px">🏆 계급 카드</div></div>
+      </div>
+      <div class="seg"><span class="chip" style="background:#F3F1FF;color:#0B0A1F">공식경기 ▾</span><span class="chip muted">이번 주 22판 · 6승 5무 11패</span></div>
+      <div class="tabs"><span class="on">경기</span><span>스타일</span><span>리포트</span><span>선수</span></div>
+      <div class="row"><div class="edge" style="background:var(--win)"></div><div class="sc">6:2</div><div style="flex:1"><div style="font-weight:600">vs 쿤내</div><div class="muted" style="font-size:12.5px">9.30 00:38 · 점유 52%</div></div><div style="text-align:right"><div class="sb" style="color:var(--win);font-size:20px">8.6</div><div class="muted" style="font-size:11px">스코어</div></div></div>
+      <div class="row"><div class="edge" style="background:var(--lose)"></div><div class="sc">0:3</div><div style="flex:1"><div style="font-weight:600">vs 웅랑쓰 <span class="chip" style="padding:2px 7px;font-size:11px;color:var(--lose)">몰수</span></div><div class="muted" style="font-size:12.5px">9.30 00:26 · 점유 54%</div></div><div style="text-align:right"><div class="sb" style="color:var(--lose);font-size:20px">3.0</div><div class="muted" style="font-size:11px">스코어</div></div></div>
+    </div>
+    <div class="pin" style="left:8px;top:150px">1</div><div class="pin" style="left:8px;top:245px">2</div><div class="pin" style="left:8px;top:318px">3</div><div class="pin" style="left:8px;top:398px">4</div><div class="pin" style="left:8px;top:448px">5</div><div class="pin" style="left:8px;top:566px">6</div>
+  </div></div></div>
+  <div class="notes">
+    <h1>전적 헤더를<br><em>캡처하고 싶은 한 장</em>으로</h1>
+    <p class="lead">현재는 정보가 맞지만 위계가 평평하다. 같은 크기의 숫자 두 개, 작은 계급 아이콘, 탭 두 줄, 그리고 첫 화면 가운데의 광고.</p>
+    <div class="note"><span class="num">1</span><div><b>계급 엠블럼을 74pt로.</b> 10~20대에게 티어는 정체성이다(OP.GG·닥지지 헤더 공식). 지금은 16pt 텍스트 아이콘.</div></div>
+    <div class="note"><span class="num">2</span><div><b>플레이스타일 칭호를 헤더로 승격.</b> “화력 덕후”는 지금 광고 아래 작은 칩. MBTI처럼 쓰이는 정체성 라벨이라 공유 동기의 핵심.</div></div>
+    <div class="note"><span class="num">3</span><div><b>숫자 색 = 의미.</b> 지금은 승률 30%가 라임(강조색)이라 “좋다”로 읽힌다. 중립 숫자는 ink, 좋고 나쁨만 win/lose.</div></div>
+    <div class="note"><span class="num">4</span><div><b>최근 10경기 폼 스트립.</b> 무승패무패…를 한 줄 컬러 블록으로. 3초 안에 “요즘 폼”이 읽힌다.</div></div>
+    <div class="note"><span class="num">5</span><div><b>공유를 1순위 버튼으로.</b> 그라디언트 CTA “스토리로 자랑”. 현재 “계급 인증 카드”만 작게 있음.</div></div>
+    <div class="note"><span class="num">6</span><div><b>탭 두 줄을 한 줄로.</b> 모드(공식/감독/1on1)는 드롭다운 칩, 콘텐츠는 밑줄 탭. 광고는 경기 목록 3번째 행 뒤로.</div></div>
+  </div>
+</div><script>chrome('search')</script></body></html>
