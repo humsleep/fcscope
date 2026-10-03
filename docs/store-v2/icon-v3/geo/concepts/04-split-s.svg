@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><defs>
+<filter id="blur8" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter>
+<filter id="blur20" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="20"/></filter>
+<filter id="blur40" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40"/></filter>
+<filter id="blur70" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="70"/></filter>
+<filter id="blur110" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="110"/></filter></defs>
+  <defs>
+    <linearGradient id="bgg" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0" stop-color="#1E1957"/><stop offset="1" stop-color="#0A0922"/></linearGradient>
+    <radialGradient id="bgl" cx="300" cy="120" r="700" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity="0.14"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bgg)"/>
+  <rect width="1024" height="1024" fill="url(#bgl)"/><defs><linearGradient id="g4" gradientUnits="userSpaceOnUse" x1="300" y1="260" x2="720" y2="780"><stop offset="0" stop-color="#4A1FD6"/><stop offset="0.42" stop-color="#E0218A"/><stop offset="0.75" stop-color="#FF5A26"/><stop offset="1" stop-color="#FFC23A"/></linearGradient></defs>
+    <path d="M216 500 A236 236 0 0 1 688 500 Z" fill="url(#g4)"/><path d="M808 524 A236 236 0 0 1 336 524 Z" fill="url(#g4)"/>
+    
+  <defs>
+    <clipPath id="sh1c"><path d="M216 500 A236 236 0 0 1 688 500 Z"/></clipPath>
+    <linearGradient id="sh1g" gradientUnits="userSpaceOnUse" x1="0" y1="264" x2="0" y2="760">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.32"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="sh1r" gradientUnits="userSpaceOnUse" x1="0" y1="264" x2="0" y2="760">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.5"/><stop offset=".5" stop-color="#fff" stop-opacity="0.04"/><stop offset="1" stop-color="#fff" stop-opacity="0.225"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#sh1c)">
+    <path d="M216 500 A236 236 0 0 1 688 500 Z" fill="url(#sh1g)"/>
+    <path d="M216 500 A236 236 0 0 1 688 500 Z" fill="none" stroke="url(#sh1r)" stroke-width="12"/>
+  </g>
+  <defs>
+    <clipPath id="sh2c"><path d="M808 524 A236 236 0 0 1 336 524 Z"/></clipPath>
+    <linearGradient id="sh2g" gradientUnits="userSpaceOnUse" x1="0" y1="524" x2="0" y2="760">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.18"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="sh2r" gradientUnits="userSpaceOnUse" x1="0" y1="524" x2="0" y2="760">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.5"/><stop offset=".5" stop-color="#fff" stop-opacity="0.04"/><stop offset="1" stop-color="#fff" stop-opacity="0.225"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#sh2c)">
+    <path d="M808 524 A236 236 0 0 1 336 524 Z" fill="url(#sh2g)"/>
+    <path d="M808 524 A236 236 0 0 1 336 524 Z" fill="none" stroke="url(#sh2r)" stroke-width="12"/>
+  </g></svg>

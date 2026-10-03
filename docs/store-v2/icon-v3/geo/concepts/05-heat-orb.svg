@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><defs>
+<filter id="blur8" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter>
+<filter id="blur20" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="20"/></filter>
+<filter id="blur40" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40"/></filter>
+<filter id="blur70" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="70"/></filter>
+<filter id="blur110" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="110"/></filter></defs>
+  <defs>
+    <linearGradient id="bgg" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0" stop-color="#1E1957"/><stop offset="1" stop-color="#0A0922"/></linearGradient>
+    <radialGradient id="bgl" cx="300" cy="120" r="700" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity="0.14"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bgg)"/>
+  <rect width="1024" height="1024" fill="url(#bgl)"/><defs><radialGradient id="g5" cx="590" cy="440" r="440" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFC23A"/><stop offset=".22" stop-color="#FF5A26"/><stop offset=".5" stop-color="#E0218A"/><stop offset=".9" stop-color="#4A1FD6"/></radialGradient></defs>
+    <circle cx="512" cy="512" r="300" fill="#E0218A" opacity=".4" filter="url(#blur70)"/>
+    <circle cx="512" cy="512" r="300" fill="url(#g5)"/><circle cx="590" cy="440" r="46" fill="#fff"/>
+    
+  <defs>
+    <clipPath id="sh3c"><circle cx="512" cy="512" r="300"/></clipPath>
+    <linearGradient id="sh3g" gradientUnits="userSpaceOnUse" x1="0" y1="212" x2="0" y2="812">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.22"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="sh3r" gradientUnits="userSpaceOnUse" x1="0" y1="212" x2="0" y2="812">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.5"/><stop offset=".5" stop-color="#fff" stop-opacity="0.04"/><stop offset="1" stop-color="#fff" stop-opacity="0.225"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#sh3c)">
+    <circle cx="512" cy="512" r="300" fill="url(#sh3g)"/>
+    <circle cx="512" cy="512" r="300" fill="none" stroke="url(#sh3r)" stroke-width="12"/>
+  </g></svg>

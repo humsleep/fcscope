@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><defs>
+<filter id="blur8" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter>
+<filter id="blur20" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="20"/></filter>
+<filter id="blur40" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40"/></filter>
+<filter id="blur70" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="70"/></filter>
+<filter id="blur110" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="110"/></filter></defs>
+  <defs>
+    <linearGradient id="bgg" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0" stop-color="#1E1957"/><stop offset="1" stop-color="#0A0922"/></linearGradient>
+    <radialGradient id="bgl" cx="300" cy="120" r="700" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity="0.14"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bgg)"/>
+  <rect width="1024" height="1024" fill="url(#bgl)"/><defs><radialGradient id="rg" cx="0" cy="0" r="322" gradientUnits="userSpaceOnUse">
+     <stop offset="0" stop-color="#FFE9AE"/><stop offset=".16" stop-color="#FFC23A"/><stop offset=".42" stop-color="#FF5A26"/><stop offset=".72" stop-color="#E0218A"/><stop offset="1" stop-color="#4A1FD6"/></radialGradient></defs>
+    <g transform="translate(512 512) rotate(-30)">
+     <circle cx="0" cy="0" r="252" fill="#E0218A" opacity=".22" filter="url(#blur110)"/>
+     <path d="M-306 -41 A252 252 0 0 1 198 -41 Q198 -19 176 -19 L-284 -19 Q-306 -19 -306 -41 Z" fill="url(#rg)"/><path d="M306 41 A252 252 0 0 1 -198 41 Q-198 19 -176 19 L284 19 Q306 19 306 41 Z" fill="url(#rg)"/>
+     
+  <defs>
+    <clipPath id="sh0c"><path d="M-306 -41 A252 252 0 0 1 198 -41 Q198 -19 176 -19 L-284 -19 Q-306 -19 -306 -41 Z"/></clipPath>
+    <linearGradient id="sh0g" gradientUnits="userSpaceOnUse" x1="0" y1="-272" x2="0" y2="0">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.22"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="sh0r" gradientUnits="userSpaceOnUse" x1="0" y1="-272" x2="0" y2="0">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.45"/><stop offset=".5" stop-color="#fff" stop-opacity="0.04"/><stop offset="1" stop-color="#fff" stop-opacity="0.2025"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#sh0c)">
+    <path d="M-306 -41 A252 252 0 0 1 198 -41 Q198 -19 176 -19 L-284 -19 Q-306 -19 -306 -41 Z" fill="url(#sh0g)"/>
+    <path d="M-306 -41 A252 252 0 0 1 198 -41 Q198 -19 176 -19 L-284 -19 Q-306 -19 -306 -41 Z" fill="none" stroke="url(#sh0r)" stroke-width="8"/>
+  </g>
+  <defs>
+    <clipPath id="sh1c"><path d="M306 41 A252 252 0 0 1 -198 41 Q-198 19 -176 19 L284 19 Q306 19 306 41 Z"/></clipPath>
+    <linearGradient id="sh1g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="272">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.08"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="sh1r" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="272">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.3"/><stop offset=".5" stop-color="#fff" stop-opacity="0.04"/><stop offset="1" stop-color="#fff" stop-opacity="0.135"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#sh1c)">
+    <path d="M306 41 A252 252 0 0 1 -198 41 Q-198 19 -176 19 L284 19 Q306 19 306 41 Z" fill="url(#sh1g)"/>
+    <path d="M306 41 A252 252 0 0 1 -198 41 Q-198 19 -176 19 L284 19 Q306 19 306 41 Z" fill="none" stroke="url(#sh1r)" stroke-width="8"/>
+  </g></g></svg>

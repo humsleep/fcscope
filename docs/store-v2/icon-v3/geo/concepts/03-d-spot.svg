@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><defs>
+<filter id="blur8" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter>
+<filter id="blur20" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="20"/></filter>
+<filter id="blur40" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40"/></filter>
+<filter id="blur70" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="70"/></filter>
+<filter id="blur110" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="110"/></filter></defs>
+  <defs>
+    <linearGradient id="bgg" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0" stop-color="#1E1957"/><stop offset="1" stop-color="#0A0922"/></linearGradient>
+    <radialGradient id="bgl" cx="300" cy="120" r="700" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity="0.14"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bgg)"/>
+  <rect width="1024" height="1024" fill="url(#bgl)"/><defs><linearGradient id="g3" gradientUnits="userSpaceOnUse" x1="230" y1="700" x2="800" y2="700"><stop offset="0" stop-color="#4A1FD6"/><stop offset="0.42" stop-color="#E0218A"/><stop offset="0.75" stop-color="#FF5A26"/><stop offset="1" stop-color="#FFC23A"/></linearGradient></defs>
+    <path d="M795.7 551.6 A360 360 0 0 1 228.3 551.6" fill="none" stroke-width="110" stroke-linecap="round" stroke="url(#g3)"/><circle cx="512" cy="430" r="72" fill="#fff"/></svg>

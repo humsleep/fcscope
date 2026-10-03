@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><defs>
+<filter id="blur8" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter>
+<filter id="blur20" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="20"/></filter>
+<filter id="blur40" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40"/></filter>
+<filter id="blur70" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="70"/></filter>
+<filter id="blur110" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="110"/></filter></defs>
+  <defs>
+    <linearGradient id="bgg" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0" stop-color="#1E1957"/><stop offset="1" stop-color="#0A0922"/></linearGradient>
+    <radialGradient id="bgl" cx="300" cy="120" r="700" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity="0.14"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bgg)"/>
+  <rect width="1024" height="1024" fill="url(#bgl)"/><defs><linearGradient id="og" gradientUnits="userSpaceOnUse" x1="300" y1="800" x2="640" y2="280"><stop offset="0" stop-color="#4A1FD6"/><stop offset="0.45" stop-color="#E0218A"/><stop offset="1" stop-color="#FF5A26"/></linearGradient>
+     <linearGradient id="hl" gradientUnits="userSpaceOnUse" x1="0" y1="198" x2="0" y2="826"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".35" stop-color="#fff" stop-opacity="0"/></linearGradient>
+     <radialGradient id="dg" cx="670.2999167183938" cy="316.0556096230032" r="126" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFF4D0"/><stop offset=".45" stop-color="#FFC23A"/><stop offset="1" stop-color="#FF8A2A"/></radialGradient></defs>
+    <path d="M759.9 505.7 A248 248 0 1 1 544.1 266.1" fill="none" stroke-width="132" stroke-linecap="round" stroke="#E0218A" opacity=".28" filter="url(#blur70)"/><path d="M759.9 505.7 A248 248 0 1 1 544.1 266.1" fill="none" stroke-width="132" stroke-linecap="round" stroke="url(#og)"/>
+    <path d="M759.9 505.7 A248 248 0 1 1 544.1 266.1" fill="none" stroke="url(#hl)" stroke-width="132" stroke-linecap="round"/>
+    <circle cx="696.3" cy="346.1" r="84" fill="#FFC23A" opacity=".55" filter="url(#blur40)"/><circle cx="696.3" cy="346.1" r="84" fill="url(#dg)"/></svg>
