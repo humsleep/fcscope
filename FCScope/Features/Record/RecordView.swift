@@ -235,7 +235,7 @@ struct RecordView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(p.nickname).fcFont(26, weight: .bold).foregroundStyle(FC.ink)
-                    (Text("LV.").foregroundStyle(FC.muted) + Text("\(p.level)").foregroundStyle(FC.accent)).font(.fcScoreboard(14, typeSize, weight: .semibold)).lineLimit(1).fixedSize()
+                    (Text("LV.").foregroundStyle(FC.muted) + Text("\(p.level)").foregroundStyle(FC.ink)).font(.fcScoreboard(14, typeSize, weight: .semibold)).lineLimit(1).fixedSize()
                 }
                 ForEach(p.divisions) { d in divisionRow(d) }
             }
@@ -262,9 +262,6 @@ struct RecordView: View {
                 // "탭이 있는 줄 모르는" 상태가 된다. 배지는 보조 정보라 아래로 내린다.
                 typeTabs(o)
                 sectionPicker
-                // 카카오톡 채팅 목록처럼 상단 탭 바로 아래·목록 맨 위에 카드 하나(2026-09-21 운영자 결정). 화면당 1개.
-                // 기록이 없는 모드(빈 상태 한 줄)에는 두지 않는다 — 콘텐츠 없는 화면의 광고(AdMob 정책)
-                if o.summary.played > 0 { AdSlot() }
                 if let mt = o.diagnosis.type { badge("⚽", mt) { vm.section = .report; Task { await vm.loadSection() } } }
                 switch vm.section {
                 case .matches: MatchesSection(o: o, nickname: o.profile.nickname)
@@ -272,6 +269,10 @@ struct RecordView: View {
                 case .players: PlayersSection(state: vm.players, nickname: o.profile.nickname, overview: o, retry: retrySection)
                 case .style: PlaystyleSection(state: vm.playstyle, retry: retrySection)
                 }
+                // 광고는 히어로(승률·스코어)·탭 위가 아니라 콘텐츠 뒤 — 화면당 1개(UX-AUDIT-GENZ #1).
+                // "경기" 탭은 목록 3번째 행 뒤에 MatchesSection 이 직접 넣는다(카톡 목록 광고처럼 첫 행이 아니게).
+                // 기록이 없는 모드(빈 상태 한 줄)에는 두지 않는다 — 콘텐츠 없는 화면의 광고(AdMob 정책)
+                if vm.section != .matches, o.summary.played > 0 { AdSlot() }
                 HStack { Spacer(); ShareCardButton(story: .user(o), label: "전적 카드 저장 · 공유"); Spacer() }.padding(.top, 8)
             }
             .padding(16)
@@ -283,7 +284,7 @@ struct RecordView: View {
     /// 소프트 푸시 요청 — 온보딩에서 가치를 보기 전에 시스템 팝업을 띄우던 것을, 내 전적을 처음 본 뒤로 옮겼다.
     /// "받기"를 눌렀을 때만 시스템 팝업이 뜬다. "괜찮아요"는 영구히 닫는다(설정에서 언제든 켤 수 있다).
     private var pushPrompt: some View {
-        Panel(padding: 12, highlight: FC.accent.opacity(0.4)) {
+        Panel(padding: 12, highlight: FC.tint.opacity(0.4)) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Text("🔔").fcFont(22)
@@ -296,8 +297,8 @@ struct RecordView: View {
                     Button {
                         Haptic.light()
                         Task { await PushManager.shared.requestPermission(); await refreshPushStatus() }
-                    } label: { Text("받기").fcFont(14, weight: .bold).frame(maxWidth: .infinity, minHeight: 36) }
-                    .buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk)
+                    } label: { Text("받기") }
+                    .buttonStyle(BrandButtonStyle(fullWidth: true, compact: true))
                     Button { prefs.pushPromptDismissed = true } label: {
                         Text("괜찮아요").fcFont(14, weight: .semibold).foregroundStyle(FC.muted).frame(maxWidth: .infinity, minHeight: 36).contentShape(Rectangle())
                     }.buttonStyle(.plain)
@@ -315,16 +316,16 @@ struct RecordView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(o.profile.nickname).fcFont(26, weight: .bold).foregroundStyle(FC.ink).lineLimit(2).minimumScaleFactor(0.7)
-                    (Text("LV.").foregroundStyle(FC.muted) + Text("\(o.profile.level)").foregroundStyle(FC.accent)).font(.fcScoreboard(14, typeSize, weight: .semibold)).lineLimit(1).fixedSize()
+                    (Text("LV.").foregroundStyle(FC.muted) + Text("\(o.profile.level)").foregroundStyle(FC.ink)).font(.fcScoreboard(14, typeSize, weight: .semibold)).lineLimit(1).fixedSize()
                     Spacer()
                     if prefs.myNickname?.caseInsensitiveCompare(o.profile.nickname) != .orderedSame {
                         // 12pt 글자만 한 탭 영역이라 잘 안 눌렸다 — 레이아웃은 그대로, 탭 영역만 44pt.
                         Button { prefs.myNickname = o.profile.nickname; Haptic.success() } label: {
-                            Text("내 구단으로").fcFont(12, weight: .semibold).foregroundStyle(FC.accent).lineLimit(1).fixedSize()
+                            Text("내 구단으로").fcFont(12, weight: .semibold).foregroundStyle(FC.tint).lineLimit(1).fixedSize()
                                 .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
                         }
                         .buttonStyle(.plain).padding(.vertical, -12)
-                    } else { Chip(text: "내 구단", color: FC.accentInk, bg: FC.accent) }
+                    } else { Chip(text: "내 구단", color: FC.tintInk, bg: FC.tint) }
                 }
                 if o.summary.played > 0 { headline(o) }
                 ForEach(o.profile.divisions) { d in divisionRow(d) }
@@ -350,13 +351,19 @@ struct RecordView: View {
         HStack(alignment: .top, spacing: 24) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("최근 \(o.summary.played)경기 승률").fcFont(12).foregroundStyle(FC.muted)
-                Text("\(o.summary.winRate)%").fcScoreboard(30).foregroundStyle(FC.accent)
+                // 승률은 중립 숫자 — 강조색을 쓰면 30%도 "좋다"로 읽혔다(UX-AUDIT-GENZ #2). 좋고 나쁨은 옆 스코어 색이 말한다.
+                Text("\(o.summary.winRate)%").fcScoreboard(30).foregroundStyle(FC.ink)
                 Text("\(o.summary.win)승 \(o.summary.draw)무 \(o.summary.lose)패").fcScoreboard(11).foregroundStyle(FC.muted)
+                // 기준 라벨 — 승률은 앱 전체가 몰수 포함(넥슨 공식 전적과 같은 기준). 몰수가 있으면 뺀 값도 같이 밝혀
+                // 공유 카드·웹과 숫자가 달라 보이는 일을 막는다.
+                if let f = o.perf.forfeits, f > 0, let np = o.perf.normalPlayed, np > 0, let nw = o.perf.normalWin {
+                    Text("몰수 \(f)경기 포함 · 빼면 \(Int((Double(nw) / Double(np) * 100).rounded()))%").fcFont(11).foregroundStyle(FC.muted)
+                }
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text("FC Scope 스코어").fcFont(12).foregroundStyle(FC.muted)
                 (Text(String(format: "%.1f", o.score)) + Text("/10").font(.fcScoreboard(13, typeSize)).foregroundStyle(FC.muted)).font(.fcScoreboard(30, typeSize)).foregroundStyle(FC.tone(o.tier.tone))
-                Text(o.tier.label).fcScoreboard(11).foregroundStyle(FC.tone(o.tier.tone))
+                Text(FCCopy.tier(o.tier.label)).fcFont(11, weight: .semibold).foregroundStyle(FC.tone(o.tier.tone))
             }
         }
         .padding(.vertical, 2)
@@ -398,8 +405,8 @@ struct RecordView: View {
                         Text(sec.short).fcFont(13, weight: .semibold)
                     }
                     .padding(.horizontal, 12).padding(.vertical, 9)
-                    .background(vm.section == sec ? FC.accent : FC.surface2, in: Capsule())
-                    .foregroundStyle(vm.section == sec ? FC.accentInk : FC.ink)
+                    .background(vm.section == sec ? FC.tint : FC.surface2, in: Capsule())
+                    .foregroundStyle(vm.section == sec ? FC.tintInk : FC.ink)
                     .tapTarget()
                 }
                 .buttonStyle(.plain)
@@ -480,17 +487,19 @@ struct MatchesSection: View {
         return VStack(alignment: .leading, spacing: 6) {
             if !rest.isEmpty { SectionLabel("이전 경기") }
             LazyVStack(spacing: 6) {
-                ForEach(shown) { m in
+                ForEach(Array(shown.enumerated()), id: \.element.id) { i, m in
                     Button { router.push(.match(id: m.matchId, me: o.profile.ouid, fromRecord: true)) } label: { MatchRow(m: m) }.buttonStyle(.plain)
                         .contextMenu {
                             Button { router.push(.match(id: m.matchId, me: o.profile.ouid, fromRecord: true)) } label: { Label("슛맵 · 매치 리포트", systemImage: "soccerball") }
                             if let opp = m.opponent { Button { router.push(.user(opp.nickname)) } label: { Label("\(opp.nickname) 전적 보기", systemImage: "person") } }
                         }
+                    // 화면당 광고 1개 — 목록 3번째 행 뒤(마지막 경기 카드 + 3행을 먼저 본 다음). 3행이 안 되면 목록 끝.
+                    if i == min(2, shown.count - 1) { AdSlot() }
                 }
             }
             if rest.count > Self.listPreview {
                 Button { withAnimation(.snappy) { allMatches.toggle() } } label: {
-                    Text(allMatches ? "접기" : "나머지 \(rest.count - Self.listPreview)경기 더 보기").fcFont(13, weight: .semibold).foregroundStyle(FC.accent)
+                    Text(allMatches ? "접기" : "나머지 \(rest.count - Self.listPreview)경기 더 보기").fcFont(13, weight: .semibold).foregroundStyle(FC.tint)
                         .frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
                 }.buttonStyle(.plain)
             }
@@ -517,7 +526,7 @@ struct MatchesSection: View {
     private func weekly(_ w: WeeklyRecap) -> some View {
         // 접근성 크기에서는 오른쪽 카드 버튼이 폭을 먹어 기록이 잘렸다 — 버튼을 아래 줄로 내린다.
         let stacked = typeSize.isAccessibilitySize
-        return Panel(padding: 12, highlight: FC.accent.opacity(0.3)) {
+        return Panel(padding: 12, highlight: FC.tint.opacity(0.3)) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Text("📅").fcFont(24)
@@ -613,7 +622,7 @@ struct RatingSparkline: View {
                         if i == 0 { p.move(to: CGPoint(x: x, y: y)) } else { p.addLine(to: CGPoint(x: x, y: y)) }
                     }
                 }
-                .stroke(FC.accent, style: StrokeStyle(lineWidth: 2, lineJoin: .round))
+                .stroke(FC.tint, style: StrokeStyle(lineWidth: 2, lineJoin: .round))
             }
             .frame(height: 36)
         }
@@ -637,7 +646,7 @@ struct LastMatchCard: View {
             Panel(padding: 12, highlight: FC.resultColor(m.result).opacity(0.5)) {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
-                        SectionLabel("마지막 경기", color: FC.accent)
+                        SectionLabel("마지막 경기", color: FC.tint)
                         Spacer()
                         Text(DateFmt.relative(m.matchDate)).fcFont(12).foregroundStyle(FC.muted)
                     }
@@ -662,7 +671,7 @@ struct LastMatchCard: View {
                                 HStack {
                                     Text("\(d.opponent?.nickname ?? "상대") 슛 \(d.opponent?.stats.shots ?? 0)").foregroundStyle(FC.lose)
                                     Spacer()
-                                    Text("내 슛 \(d.me.stats.shots) (유효 \(d.me.stats.effectiveShots))").foregroundStyle(FC.accent)
+                                    Text("내 슛 \(d.me.stats.shots) (유효 \(d.me.stats.effectiveShots))").foregroundStyle(FC.tint)
                                 }
                                 .fcFont(11, weight: .medium).lineLimit(1)
                             }

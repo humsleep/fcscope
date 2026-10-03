@@ -33,16 +33,17 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 hero
-                // 카카오톡 채팅 목록처럼 상단 탭 바로 아래·목록 맨 위에 카드 하나(2026-09-21 운영자 결정). 화면당 1개.
-                AdSlot()
                 if let mine = prefs.myNickname { myFormCard(mine) }
                 else if let demo = vm.state.value?.demoNickname { demoCard(demo) }
                 if !prefs.favorites.isEmpty { favoritesSection }
                 if let home = vm.state.value {
                     if let mover = home.mover { MoverCard(m: mover) }
                     if !home.liveSearches.isEmpty { liveChips(home.liveSearches) }
-                    if !home.posts.isEmpty { latestPosts(home.posts) }
                 } else if vm.state.isLoading { Skeleton(height: 60) }
+                // 광고는 "첫 3초" 영역 밖 — 내 폼·급상승·검색 칩을 먼저 보여 준 뒤 한 장(화면당 1개 유지).
+                // 예전엔 슬로건 바로 아래라 첫 화면 두 번째 블록이 광고였다(UX-AUDIT-GENZ #1).
+                AdSlot()
+                if let home = vm.state.value, !home.posts.isEmpty { latestPosts(home.posts) }
                 if !prefs.recentSearches.isEmpty { recentSection }
                 featureGrid
             }
@@ -91,8 +92,8 @@ struct HomeView: View {
 
     private var hero: some View {
         VStack(alignment: .leading, spacing: 6) {
-            SectionLabel("FC온라인 비공식 데이터 랩", color: FC.accent)
-            (Text("감이 아니라, ") + Text("데이터").foregroundStyle(FC.accent) + Text("로."))
+            SectionLabel("FC온라인 비공식 데이터 랩", color: FC.tint)
+            (Text("감이 아니라, ") + Text("데이터").foregroundStyle(FC.brand) + Text("로."))
                 .fcFont(28, weight: .bold).foregroundStyle(FC.ink)
             Text("전적·슛맵·선수 성적표·플레이스타일을 구단주명 하나로.").fcFont(14).foregroundStyle(FC.muted)
         }
@@ -102,12 +103,12 @@ struct HomeView: View {
     /// (웹의 "예시 리포트" 버튼과 동일 목적. Vercel `NEXT_PUBLIC_DEMO_NICKNAME` 미설정 시 자동 숨김)
     private func demoCard(_ nick: String) -> some View {
         Button { router.push(.user(nick)) } label: {
-            Panel(highlight: FC.gold.opacity(0.4)) {
+            Panel(highlight: FC.tint.opacity(0.4)) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        SectionLabel("처음이신가요?", color: FC.gold)
+                        SectionLabel("일단 구경부터 👀", color: FC.tint)
                         Text("예시 리포트 먼저 보기").fcFont(17, weight: .bold).foregroundStyle(FC.ink)
-                        Text("실제 구단주 \(nick)의 전적·슛맵·진단을 그대로 볼 수 있어요.").fcFont(13).foregroundStyle(FC.muted)
+                        Text("구단주 \(nick)의 실제 전적·슛맵·진단이에요. 로그인 없이 바로 봐요.").fcFont(13).foregroundStyle(FC.muted)
                     }
                     Spacer()
                     Image(systemName: "chevron.right").fcFont(12).foregroundStyle(FC.muted)
@@ -119,14 +120,14 @@ struct HomeView: View {
 
     private func myFormCard(_ nick: String) -> some View {
         Button { router.push(.user(nick)) } label: {
-            Panel(highlight: FC.accent.opacity(0.5)) {
+            Panel(highlight: FC.tint.opacity(0.5)) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         SectionLabel("내 구단")
                         Text(nick).fcFont(18, weight: .bold).foregroundStyle(FC.ink)
                         if let s = prefs.snapshot(for: nick) {
                             HStack(spacing: 8) {
-                                Text("승률 \(s.winRate)%").fcScoreboard(14).foregroundStyle(FC.accent)
+                                Text("승률 \(s.winRate)%").fcScoreboard(14).foregroundStyle(FC.ink)
                                 if let p = s.prevWinRate, p != s.winRate {
                                     Text(s.winRate > p ? "▲\(s.winRate - p)%p" : "▼\(p - s.winRate)%p").fcScoreboard(12).foregroundStyle(s.winRate > p ? FC.win : FC.lose)
                                 }
@@ -162,7 +163,7 @@ struct HomeView: View {
                                 Text(n).fcFont(14, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1)
                                 if let s = prefs.snapshot(for: n) {
                                     HStack(spacing: 4) {
-                                        Text("\(s.winRate)%").fcScoreboard(13).foregroundStyle(FC.accent)
+                                        Text("\(s.winRate)%").fcScoreboard(13).foregroundStyle(FC.ink)
                                         if let p = s.prevWinRate, p != s.winRate {
                                             Text(s.winRate > p ? "▲" : "▼").fcScoreboard(11).foregroundStyle(s.winRate > p ? FC.win : FC.lose)
                                         }
@@ -220,7 +221,7 @@ struct HomeView: View {
 
     private var featureGrid: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionLabel("여기서 할 수 있는 것")
+            SectionLabel("이런 것도 돼요")
             feature("전적 · 분석 리포트", "슛맵부터 스쿼드 진단까지", "경기별 슛맵, 선수 성적표, 플레이스타일을 한 번에.") { openReportFeature() }
             feature("스쿼드 빌더", "스쿼드 만들고 공유", "포메이션에 선수 배치, 팀 프리셋, 최근 경기 선발 그대로 불러오기.") { router.tab = .squad }
             feature("픽 랭킹 · 선수 도감", "지금 가장 많이 쓰는 카드", "포지션별 인기 카드와 랭커 성적을 매일 갱신.") { router.tab = .meta }
@@ -268,7 +269,7 @@ struct OnboardingView: View {
             TabView(selection: $page) {
                 onboardPage(icon: "chart.xyaxis.line", title: "감이 아니라, 데이터로.", desc: "구단주명 하나로 최근 30경기 승률·슛맵·선수 성적표·플레이스타일을 진단해요. 로그인 없이 바로.").tag(0)
                 VStack(spacing: 16) {
-                    Image(systemName: "person.text.rectangle").fcFont(56).foregroundStyle(FC.accent)
+                    Image(systemName: "person.text.rectangle").fcFont(56).foregroundStyle(FC.tint)
                     Text("내 구단주명을 알려주세요").fcFont(22, weight: .bold).foregroundStyle(FC.ink)
                     // 다른 페이지와 같은 좌우 여백 — 없으면 이 페이지만 설명이 화면 끝까지 붙는다.
                     Text("홈에 내 폼 카드가 고정되고, 위젯·주간 성적표에 쓰여요. 나중에 바꿀 수 있어요.").fcFont(14).foregroundStyle(FC.muted).multilineTextAlignment(.center).padding(.horizontal, 32)
@@ -283,8 +284,8 @@ struct OnboardingView: View {
             .indexViewStyle(.page(backgroundDisplayMode: .always))
             Button {
                 if page < 2 { withAnimation { page += 1 } } else { finish() }
-            } label: { Text(primaryLabel).fcFont(16, weight: .bold).frame(maxWidth: .infinity) }
-            .buttonStyle(.borderedProminent).controlSize(.large).tint(FC.accent).foregroundStyle(FC.accentInk)
+            } label: { Text(primaryLabel) }
+            .buttonStyle(BrandButtonStyle(fullWidth: true))
             .padding(.horizontal, 24).padding(.bottom, 24)
         }
         .background(FC.bg.ignoresSafeArea())
@@ -329,7 +330,7 @@ struct OnboardingView: View {
 
     private func onboardPage(icon: String, title: String, desc: String) -> some View {
         VStack(spacing: 16) {
-            Image(systemName: icon).fcFont(56).foregroundStyle(FC.accent)
+            Image(systemName: icon).fcFont(56).foregroundStyle(FC.tint)
             Text(title).fcFont(22, weight: .bold).foregroundStyle(FC.ink)
             Text(desc).fcFont(14).foregroundStyle(FC.muted).multilineTextAlignment(.center).padding(.horizontal, 32)
         }

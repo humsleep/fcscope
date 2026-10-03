@@ -72,6 +72,7 @@ targets:
       - path: FCScope/Core/API/Models.swift
       - path: FCScope/Core/API/NexonCDN.swift
       - path: FCScope/Core/UI/Theme.swift
+      - path: FCScope/Core/UI/Copy.swift
       - path: FCScope/Resources/Fonts
     info:
       path: FCScopeWidgets/Info.plist

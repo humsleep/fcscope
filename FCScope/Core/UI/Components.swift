@@ -73,7 +73,7 @@ struct BarSegment: Shape {
 /// 트랙 + 앞에서부터 채운 캡슐 막대 (진행률·사용률 등).
 struct RatioBar: View {
     let ratio: CGFloat
-    var color: Color = FC.accent
+    var color: Color = FC.tint
     var track: Color = FC.surface2
     var height: CGFloat = 8
     var body: some View {
@@ -181,6 +181,8 @@ struct VerdictStamp: View {
     let verdict: Verdict
     var large = false
     var showLiner = false
+    /// 한 줄 코멘트 대체 문구 — 매치 리포트는 `MatchDetailResponse.liner`(결과·스코어 반영)를 넘긴다
+    var liner: String? = nil
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
@@ -195,7 +197,7 @@ struct VerdictStamp: View {
             .padding(.horizontal, 10).padding(.vertical, 5)
             .overlay(RoundedRectangle(cornerRadius: Radius.chip).stroke(FC.tone(verdict.color), lineWidth: 2))
             .rotationEffect(.degrees(-3))
-            if showLiner { Text(verdict.oneLiner).fcFont(13).foregroundStyle(FC.muted) }
+            if showLiner { Text(liner ?? verdict.oneLiner).fcFont(13).foregroundStyle(FC.muted) }
         }
     }
 }
@@ -268,9 +270,17 @@ struct ShareCardButton: View {
                 if busy { ProgressView().controlSize(.small) } else { Image(systemName: "square.and.arrow.up") }
                 Text(busy ? "만드는 중…" : label).fcFont(compact ? 12 : 14, weight: .bold)
             }
-            .padding(.horizontal, compact ? 10 : 14).padding(.vertical, compact ? 7 : 10)
-            .background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control))
-            .foregroundStyle(FC.ink)
+            .padding(.horizontal, compact ? 10 : 16).padding(.vertical, compact ? 7 : 11)
+            // 공유는 브랜드 순간 — 큰 버튼은 그라디언트 캡슐, 작은 버튼(카드 안 보조)은 그라디언트 테두리만.
+            // 작은 버튼까지 채우면 한 화면에 그라디언트가 대여섯 개 깔려 데이터보다 시끄러워진다.
+            .background {
+                if compact {
+                    Capsule().fill(FC.surface2).overlay(Capsule().strokeBorder(FC.brand, lineWidth: 1.5))
+                } else {
+                    Capsule().fill(FC.brand)
+                }
+            }
+            .foregroundStyle(compact ? FC.ink : FC.brandInk)
             // 작은 버튼도 탭 영역은 44pt — 보이는 알약 크기는 그대로
             .frame(minHeight: compact ? 44 : nil)
             .contentShape(Rectangle())
@@ -338,7 +348,7 @@ struct ShareCardSheet: View {
                 } label: {
                     Label("인스타그램 스토리에 올리기", systemImage: "camera.circle.fill").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk)
+                .buttonStyle(BrandButtonStyle(fullWidth: true))
             }
             ShareLink(item: Image(uiImage: image), preview: SharePreview("FC Scope 카드", image: Image(uiImage: image))) {
                 Label("공유 · 저장", systemImage: "square.and.arrow.up").frame(maxWidth: .infinity)
@@ -427,7 +437,7 @@ struct MatchRow: View {
                 // 큰 숫자에 이름이 없어 바로 아래 "평점"과 같은 값으로 오해했다 — FC Scope 스코어임을 밝힌다.
                 HStack(alignment: .firstTextBaseline, spacing: 3) {
                     Text("스코어").fcFont(10).foregroundStyle(FC.muted)
-                    Text(String(format: "%.1f", m.score)).fcScoreboard(16).foregroundStyle(m.score >= 6.5 ? FC.accent : m.score < 5 ? FC.lose : FC.ink)
+                    Text(String(format: "%.1f", m.score)).fcScoreboard(16).foregroundStyle(m.score >= 6.5 ? FC.win : m.score < 5 ? FC.lose : FC.ink)
                 }
                 Text("경기 평점 \(String(format: "%.1f", m.me.rating))").fcFont(11).foregroundStyle(FC.muted)
             }

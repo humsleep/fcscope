@@ -42,7 +42,7 @@ struct FormProvider: TimelineProvider {
     private func cached() -> (entry: FormEntry, updatedAt: Date)? {
         guard let nick = nickname, let data = Self.suite?.data(forKey: "formSnapshots"),
               let map = try? JSONDecoder().decode([String: CachedForm].self, from: data), let s = map[nick.lowercased()] else { return nil }
-        return (FormEntry(date: .now, nickname: nick, winRate: s.winRate, score: s.score, streak: s.streak, form: s.form ?? [], tier: tierOf(s.score)), s.updatedAt)
+        return (FormEntry(date: .now, nickname: nick, winRate: s.winRate, score: s.score, streak: s.streak, form: s.form ?? [], tier: FCCopy.tier(tierOf(s.score))), s.updatedAt)
     }
     private func fresh() async -> FormEntry? {
         guard let nick = nickname else { return nil }
@@ -57,7 +57,7 @@ struct FormProvider: TimelineProvider {
                                                 prevWinRate: prev.flatMap { p -> Int? in p.winRate == o.summary.winRate ? p.prevWinRate : p.winRate }, form: form)
             if let d = try? JSONEncoder().encode(map) { Self.suite?.set(d, forKey: "formSnapshots") }
         }
-        return FormEntry(date: .now, nickname: o.profile.nickname, winRate: o.summary.winRate, score: o.score, streak: o.perf.currentStreak, form: form, tier: o.tier.label)
+        return FormEntry(date: .now, nickname: o.profile.nickname, winRate: o.summary.winRate, score: o.score, streak: o.perf.currentStreak, form: form, tier: FCCopy.tier(o.tier.label))
     }
     private func tierOf(_ s: Double) -> String { s >= 8 ? "월드클래스" : s >= 6.5 ? "수준급" : s >= 5 ? "평범" : "분발 필요" }
     struct CachedForm: Codable { var winRate: Int; var score: Double; var streak: Int; var updatedAt: Date; var prevWinRate: Int?; var form: [String]? }
@@ -71,7 +71,7 @@ struct MyFormWidgetView: View {
             if let nick = entry.nickname {
                 if family == .accessoryRectangular { lockScreen(nick) } else { home(nick) }
             } else {
-                VStack(spacing: 4) { Text("FC SCOPE").font(.scoreboard(12)).foregroundStyle(FC.accent); Text("앱에서 내 구단주명을 설정하면 폼이 여기 떠요").font(.system(size: 11)).foregroundStyle(FC.muted).multilineTextAlignment(.center) }
+                VStack(spacing: 4) { Text("FC SCOPE").font(.scoreboard(12)).foregroundStyle(FC.brandSolid); Text("앱에서 내 구단주명을 설정하면 폼이 여기 떠요").font(.system(size: 11)).foregroundStyle(FC.muted).multilineTextAlignment(.center) }
                     .widgetURL(AppConfig.absolute("/me"))
             }
         }
@@ -81,12 +81,12 @@ struct MyFormWidgetView: View {
     /// 텍스트는 전부 11pt 이상 — 그보다 작으면 홈 화면에서 읽히지 않는다.
     private func home(_ nick: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack { Text("FC").font(.scoreboard(11)).foregroundStyle(FC.accent) + Text(" SCOPE").font(.scoreboard(11)).foregroundStyle(FC.ink); Spacer(); if entry.streak >= 2 { Text("🔥\(entry.streak)").font(.system(size: 11, weight: .bold)).foregroundStyle(FC.gold) } else if entry.streak <= -2 { Text("🥶\(-entry.streak)").font(.system(size: 11, weight: .bold)).foregroundStyle(FC.lose) } }
+            HStack { Text("FC").font(.scoreboard(11)).foregroundStyle(FC.brandSolid) + Text(" SCOPE").font(.scoreboard(11)).foregroundStyle(FC.ink); Spacer(); if entry.streak >= 2 { Text("🔥\(entry.streak)").font(.system(size: 11, weight: .bold)).foregroundStyle(FC.gold) } else if entry.streak <= -2 { Text("🥶\(-entry.streak)").font(.system(size: 11, weight: .bold)).foregroundStyle(FC.lose) } }
             Text(nick).font(.system(size: 13, weight: .bold)).foregroundStyle(FC.ink).lineLimit(1)
             HStack(alignment: .lastTextBaseline, spacing: 6) {
-                Text("\(entry.winRate)%").font(.scoreboard(family == .systemSmall ? 26 : 30)).foregroundStyle(FC.accent)
+                Text("\(entry.winRate)%").font(.scoreboard(family == .systemSmall ? 26 : 30)).foregroundStyle(FC.ink)
                 Text("승률").font(.system(size: 11)).foregroundStyle(FC.muted)
-                if family != .systemSmall { Text(String(format: "%.1f", entry.score)).font(.scoreboard(22)).foregroundStyle(FC.gold); Text(entry.tier).font(.system(size: 11)).foregroundStyle(FC.muted).lineLimit(1) }
+                if family != .systemSmall { Text(String(format: "%.1f", entry.score)).font(.scoreboard(22)).foregroundStyle(entry.score >= 8 ? FC.gold : entry.score >= 6.5 ? FC.win : entry.score < 5 ? FC.lose : FC.ink); Text(entry.tier).font(.system(size: 11)).foregroundStyle(FC.muted).lineLimit(1) }
             }
             HStack(spacing: 3) { ForEach(Array(entry.form.enumerated()), id: \.offset) { _, r in Text(r).font(.system(size: 11, weight: .bold)).foregroundStyle(FC.resultColor(r)).frame(width: 20, height: 20).background(FC.resultColor(r).opacity(0.18), in: RoundedRectangle(cornerRadius: 4)) } }
             if family != .systemSmall { Spacer(minLength: 0); Text("최근 30경기 · \(entry.date.formatted(date: .omitted, time: .shortened)) 갱신").font(.system(size: 11)).foregroundStyle(FC.muted).lineLimit(1) }
@@ -189,7 +189,7 @@ struct MoverWidgetView: View {
                 }
                 .widgetURL(AppConfig.absolute("/player/\(m.spId)"))
             } else {
-                VStack(spacing: 4) { Text("RANKER PICKS").font(.scoreboard(11)).foregroundStyle(FC.accent); Text("랭커 픽 랭킹 준비 중").font(.system(size: 11)).foregroundStyle(FC.muted) }.widgetURL(AppConfig.absolute("/meta"))
+                VStack(spacing: 4) { Text("RANKER PICKS").font(.scoreboard(11)).foregroundStyle(FC.tint); Text("랭커 픽 랭킹 준비 중").font(.system(size: 11)).foregroundStyle(FC.muted) }.widgetURL(AppConfig.absolute("/meta"))
             }
         }
         .containerBackground(for: .widget) { FC.bg }

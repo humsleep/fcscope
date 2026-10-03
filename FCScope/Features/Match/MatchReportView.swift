@@ -42,8 +42,6 @@ struct MatchReportView: View {
     private func content(_ m: MatchDetailResponse) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionLabel("\(m.matchTypeName.uppercased()) · \(m.matchDateLabel)")
-            // 카카오톡 채팅 목록처럼 상단 탭 바로 아래·목록 맨 위에 카드 하나(2026-09-21 운영자 결정). 화면당 1개.
-            AdSlot()
             Panel {
                 VStack(spacing: 10) {
                     HStack(spacing: 12) {
@@ -52,23 +50,12 @@ struct MatchReportView: View {
                         if let o = m.opponent { teamName(o, me: false) } else { Spacer() }
                     }
                     if m.me.forfeit { Text("몰수 경기").fcFont(12).foregroundStyle(FC.lose) }
-                    VerdictStamp(verdict: m.verdict, large: true, showLiner: true)
+                    VerdictStamp(verdict: m.verdict, large: true, showLiner: true, liner: m.liner)
                     VStack(spacing: 3) {
-                        Rectangle().fill(FC.lose.opacity(0.7)).overlay(BarSegment(to: CGFloat(m.me.possession) / 100).fill(FC.accent)).frame(height: 8).clipShape(Capsule())
-                        HStack { Text("\(m.me.possession)%").foregroundStyle(FC.accent); Spacer(); Text("점유율").foregroundStyle(FC.muted); Spacer(); Text("\(100 - m.me.possession)%").foregroundStyle(FC.lose) }.fcScoreboard(12, weight: .semibold)
+                        Rectangle().fill(FC.lose.opacity(0.7)).overlay(BarSegment(to: CGFloat(m.me.possession) / 100).fill(FC.tint)).frame(height: 8).clipShape(Capsule())
+                        HStack { Text("\(m.me.possession)%").foregroundStyle(FC.tint); Spacer(); Text("점유율").foregroundStyle(FC.muted); Spacer(); Text("\(100 - m.me.possession)%").foregroundStyle(FC.lose) }.fcScoreboard(12, weight: .semibold)
                     }
                 }
-            }
-            VStack(alignment: .leading, spacing: 8) {
-                SectionLabel("슛맵")
-                // 범례: 왼쪽 = 상대(왼쪽 골대 공격), 오른쪽 = 나(오른쪽 골대 공격)
-                HStack(spacing: 6) {
-                    if let o = m.opponent { shotLegend(o, tone: FC.lose) }
-                    Spacer(minLength: 8)
-                    shotLegend(m.me, tone: FC.accent)
-                }
-                ShotMapView(mine: m.me.shots, theirs: m.opponent?.shots ?? [], myTone: FC.accent, theirTone: FC.lose)
-                Text("● 골 · ○ 노골 · 금색 골대 · 점을 누르면 시간·선수").fcFont(11).foregroundStyle(FC.muted)
             }
             if let p = m.potm {
                 Panel(padding: 12) {
@@ -85,11 +72,32 @@ struct MatchReportView: View {
                     }
                 }
             }
+            VStack(alignment: .leading, spacing: 8) {
+                SectionLabel("슛맵")
+                // 범례: 왼쪽 = 상대(왼쪽 골대 공격), 오른쪽 = 나(오른쪽 골대 공격)
+                HStack(spacing: 6) {
+                    if let o = m.opponent { shotLegend(o, tone: FC.lose) }
+                    Spacer(minLength: 8)
+                    shotLegend(m.me, tone: FC.tint)
+                }
+                ShotMapView(mine: m.me.shots, theirs: m.opponent?.shots ?? [], myTone: FC.tint, theirTone: FC.lose)
+                Text("● 골 · ○ 노골 · 금색 골대 · 점을 누르면 시간·선수").fcFont(11).foregroundStyle(FC.muted)
+            }
+            // 광고는 스코어·판정·POTM·슛맵을 본 다음 — 경기 직후 화면 맨 위가 광고이던 것을 내렸다(UX-AUDIT-GENZ #1). 화면당 1개.
+            AdSlot()
             if let o = m.opponent {
                 VStack(alignment: .leading, spacing: 8) {
                     SectionLabel("팀 스탯")
                     Panel(padding: 12) {
                         VStack(spacing: 8) {
+                            // 숫자는 중립(ink) — 내 값을 강조색, 상대 값을 패배색으로 칠하면 "상대 = 나쁨"으로 읽혔다.
+                            // 어느 쪽이 누구인지는 머리 줄로 밝힌다.
+                            HStack {
+                                Text(m.me.nickname).foregroundStyle(FC.tint).frame(width: 110, alignment: .leading)
+                                Spacer()
+                                Text(o.nickname).foregroundStyle(FC.muted).frame(width: 110, alignment: .trailing)
+                            }
+                            .fcFont(11, weight: .semibold).lineLimit(1)
                             stat("슛 (유효)", "\(m.me.stats.shots) (\(m.me.stats.effectiveShots))", "\(o.stats.shots) (\(o.stats.effectiveShots))")
                             stat("패스 성공률", m.me.stats.passRate.map { "\($0)%" } ?? "-", o.stats.passRate.map { "\($0)%" } ?? "-")
                             stat("드리블", "\(m.me.stats.dribble)", "\(o.stats.dribble)")
@@ -116,7 +124,7 @@ struct MatchReportView: View {
     }
 
     private func teamName(_ s: MatchSide, me: Bool) -> some View {
-        Button { router.push(.user(s.nickname)) } label: { Text(s.nickname).fcFont(14, weight: .bold).foregroundStyle(me ? FC.accent : FC.ink).lineLimit(1).frame(maxWidth: .infinity) }.buttonStyle(.plain)
+        Button { router.push(.user(s.nickname)) } label: { Text(s.nickname).fcFont(14, weight: .bold).foregroundStyle(me ? FC.tint : FC.ink).lineLimit(1).frame(maxWidth: .infinity) }.buttonStyle(.plain)
     }
     private func shotLegend(_ s: MatchSide, tone: Color) -> some View {
         HStack(spacing: 4) {
@@ -126,7 +134,7 @@ struct MatchReportView: View {
         }
     }
     private func stat(_ label: String, _ a: String, _ b: String) -> some View {
-        HStack { Text(a).fcScoreboard(13, weight: .semibold).foregroundStyle(FC.accent).frame(width: 80, alignment: .leading); Spacer(); Text(label).fcFont(12).foregroundStyle(FC.muted); Spacer(); Text(b).fcScoreboard(13, weight: .semibold).foregroundStyle(FC.lose).frame(width: 80, alignment: .trailing) }
+        HStack { Text(a).fcScoreboard(13, weight: .semibold).foregroundStyle(FC.ink).frame(width: 80, alignment: .leading); Spacer(); Text(label).fcFont(12).foregroundStyle(FC.muted); Spacer(); Text(b).fcScoreboard(13, weight: .semibold).foregroundStyle(FC.ink).frame(width: 80, alignment: .trailing) }
     }
     private func ratings(_ s: MatchSide) -> some View {
         Panel(padding: 10) {
@@ -138,7 +146,7 @@ struct MatchReportView: View {
                         HStack(spacing: 8) {
                             PlayerImage(spid: p.spId, size: 30, radius: 8)
                             Text(p.positionLabel).fcScoreboard(12, weight: .semibold).foregroundStyle(FC.muted).frame(width: 36, alignment: .leading)
-                            (Text(p.name) + Text(p.goals > 0 ? " ⚽\(p.goals)" : "").foregroundStyle(FC.accent) + Text(p.assists > 0 ? " A\(p.assists)" : "").foregroundStyle(FC.muted)).font(.fcFont(13, typeSize)).foregroundStyle(FC.ink).lineLimit(1)
+                            (Text(p.name) + Text(p.goals > 0 ? " ⚽\(p.goals)" : "").foregroundStyle(FC.ink) + Text(p.assists > 0 ? " A\(p.assists)" : "").foregroundStyle(FC.muted)).font(.fcFont(13, typeSize)).foregroundStyle(FC.ink).lineLimit(1)
                             Spacer()
                             Text(String(format: "%.1f", p.rating)).fcScoreboard(13).foregroundStyle(p.rating >= 7.5 ? FC.gold : p.rating < 6 ? FC.lose : FC.ink)
                         }
@@ -282,7 +290,7 @@ struct MiniShotMap: View {
         let sx = ShotMapView.scale(mine + theirs, \.x), sy = ShotMapView.scale(mine + theirs, \.y)
         Canvas { ctx, size in
             ShotMapView.drawPitch(ctx, size, ground: FC.surface2, line: FC.line)
-            for (shots, isMine, tone) in [(theirs, false, FC.lose), (mine, true, FC.accent)] {
+            for (shots, isMine, tone) in [(theirs, false, FC.lose), (mine, true, FC.tint)] {
                 for s in shots {
                     let pt = ShotMapView.point(s, sx: sx, sy: sy, mine: isMine, in: size)
                     let r: CGFloat = s.isGoal ? 5 : 3.5

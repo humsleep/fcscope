@@ -16,14 +16,12 @@ struct MyPageView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 accountCard
-                // 카카오톡식 상단 카드 광고(화면당 1개) — 로그인 버튼과 붙지 않게 계정 카드 다음에 둔다
-                AdSlot()
                 if let s = profile?.snapshot { snapshotCard(s) }
                 if let n = notif, n.total > 0 {
                     Panel(padding: 12) {
                         VStack(alignment: .leading, spacing: 6) {
                             SectionLabel("💬 새 댓글 \(n.total)")
-                            ForEach(n.items) { i in Button { router.push(.post(i.postId)) } label: { HStack { Text(i.title).fcFont(14).foregroundStyle(FC.ink).lineLimit(1); Spacer(); Text("+\(i.count)").fcScoreboard(13).foregroundStyle(FC.accent) } }.buttonStyle(.plain) }
+                            ForEach(n.items) { i in Button { router.push(.post(i.postId)) } label: { HStack { Text(i.title).fcFont(14).foregroundStyle(FC.ink).lineLimit(1); Spacer(); Text("+\(i.count)").fcScoreboard(13).foregroundStyle(FC.tint) } }.buttonStyle(.plain) }
                         }
                     }
                 }
@@ -35,6 +33,8 @@ struct MyPageView: View {
                 if let posts = profile?.posts, !posts.isEmpty {
                     Panel(padding: 12) { VStack(alignment: .leading, spacing: 6) { SectionLabel("내가 쓴 글"); ForEach(posts) { p in Button { router.push(.post(p.id)) } label: { HStack { Text(p.title).fcFont(14, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.chip)) }.buttonStyle(.plain) } } }
                 }
+                // 광고는 내 정보 카드들 뒤·설정 앞(화면당 1개). 맨 위 계정 카드 바로 아래이던 것을 내렸다(UX-AUDIT-GENZ #1).
+                AdSlot()
                 if prefs.streak.current >= 2 { Text("🔥 \(prefs.streak.current)일 연속 방문 (최고 \(prefs.streak.best)일)").fcFont(13, weight: .semibold).foregroundStyle(FC.gold) }
                 // 시스템 기본 폰트는 AX5 까지 3배로 커져 이 한 줄이 화면 절반을 차지했다 — 앱 공통 배율(1.6배 상한)을 쓴다.
                 NavigationLink { SettingsView() } label: { Panel(padding: 12) { HStack { Label("설정 · 약관 · 계정", systemImage: "gearshape").fcFont(15).lineLimit(1).minimumScaleFactor(0.8).foregroundStyle(FC.ink); Spacer(); Image(systemName: "chevron.right").font(.system(size: 13 * TypeScale.factor(typeSize), weight: .semibold)).foregroundStyle(FC.muted) } } }.buttonStyle(.plain)
@@ -63,14 +63,14 @@ struct MyPageView: View {
                 layout {
                     Text("로그인하면 연동 구단주·내 글·댓글 알림을 한 곳에서 볼 수 있어요.").fcFont(13).foregroundStyle(FC.muted)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    Button { showLogin = true } label: { Text("로그인").fcFont(15, weight: .semibold).lineLimit(1).fixedSize() }
-                        .buttonStyle(.borderedProminent).buttonBorderShape(.capsule).tint(FC.accent).foregroundStyle(FC.accentInk)
+                    Button { showLogin = true } label: { Text("로그인").lineLimit(1).fixedSize() }
+                        .buttonStyle(BrandButtonStyle(compact: true))
                 }
             } else {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(profile?.profile?.nickname ?? "닉네임 미등록").fcFont(18, weight: .bold).foregroundStyle(FC.ink)
-                        if let v = profile?.profile?.verifiedNickname { Text("✓ 구단주 \(v)").fcFont(13).foregroundStyle(FC.accent) } else { Text("구단주명 미연동").fcFont(13).foregroundStyle(FC.muted) }
+                        if let v = profile?.profile?.verifiedNickname { Text("✓ 구단주 \(v)").fcFont(13).foregroundStyle(FC.tint) } else { Text("구단주명 미연동").fcFont(13).foregroundStyle(FC.muted) }
                     }
                     Spacer()
                     Button(profile?.profile?.nickname == nil ? "닉네임 등록" : "프로필 설정") { showSetup = true }.buttonStyle(.bordered)
@@ -84,8 +84,8 @@ struct MyPageView: View {
             VStack(alignment: .leading, spacing: 4) {
                 SectionLabel("지난 방문 대비")
                 HStack(spacing: 20) {
-                    VStack(alignment: .leading) { Text("최근 \(s.played)경기 승률").font(.fcFont(12, typeSize)).foregroundStyle(FC.muted); (Text("\(s.winRate)%").foregroundStyle(FC.accent) + Text(s.deltaWinRate.map { $0 > 0 ? " ▲\($0)%p" : $0 < 0 ? " ▼\(-$0)%p" : " ±0" } ?? "").font(.fcScoreboard(13, typeSize)).foregroundStyle((s.deltaWinRate ?? 0) >= 0 ? FC.win : FC.lose)).font(.fcScoreboard(24, typeSize)) }
-                    VStack(alignment: .leading) { Text("평균 경기 평점").fcFont(12).foregroundStyle(FC.muted); Text(String(format: "%.2f", s.avgRating)).fcScoreboard(24).foregroundStyle(FC.gold) }
+                    VStack(alignment: .leading) { Text("최근 \(s.played)경기 승률").font(.fcFont(12, typeSize)).foregroundStyle(FC.muted); (Text("\(s.winRate)%").foregroundStyle(FC.ink) + Text(s.deltaWinRate.map { $0 > 0 ? " ▲\($0)%p" : $0 < 0 ? " ▼\(-$0)%p" : " ±0" } ?? "").font(.fcScoreboard(13, typeSize)).foregroundStyle((s.deltaWinRate ?? 0) >= 0 ? FC.win : FC.lose)).font(.fcScoreboard(24, typeSize)) }
+                    VStack(alignment: .leading) { Text("평균 경기 평점").fcFont(12).foregroundStyle(FC.muted); Text(String(format: "%.2f", s.avgRating)).fcScoreboard(24).foregroundStyle(FC.ink) }
                 }
                 Text(s.prevDate.map { "\($0) 방문 대비" } ?? "내일 다시 방문하면 변화를 보여드려요.").fcFont(11).foregroundStyle(FC.muted)
             }
@@ -100,7 +100,7 @@ struct MyPageView: View {
                     if let n = prefs.myNickname { Text(n).fcFont(16, weight: .bold).foregroundStyle(FC.ink) } else { Text("전적 페이지에서 '내 구단으로'를 누르면 홈·위젯에 고정돼요.").fcFont(13).foregroundStyle(FC.muted) }
                 }
                 Spacer()
-                if let n = prefs.myNickname { Button("전적") { router.push(.user(n)) }.buttonStyle(.borderedProminent).tint(FC.accent).foregroundStyle(FC.accentInk) }
+                if let n = prefs.myNickname { Button("전적") { router.push(.user(n)) }.buttonStyle(.bordered).tint(FC.tint) }
             }
         }
     }
@@ -113,7 +113,7 @@ struct MyPageView: View {
                     HStack {
                         Button { router.push(.user(n)) } label: { Text(n).fcFont(14, weight: .semibold).foregroundStyle(FC.ink) }.buttonStyle(.plain)
                         Spacer()
-                        if let s = prefs.snapshot(for: n) { Text("\(s.winRate)%").fcScoreboard(12).foregroundStyle(FC.accent) }
+                        if let s = prefs.snapshot(for: n) { Text("\(s.winRate)%").fcScoreboard(12).foregroundStyle(FC.ink) }
                         // 11pt 아이콘 크기 그대로가 탭 영역이라 거의 안 눌렸다 — 44pt 영역(행 높이도 44로 맞춘다).
                         Button { prefs.toggleFavorite(n) } label: { Image(systemName: "xmark").fcFont(11).foregroundStyle(FC.muted).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle()) }.buttonStyle(.plain).accessibilityLabel("\(n) 즐겨찾기 해제")
                     }.padding(.leading, 8).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.chip))
@@ -134,8 +134,8 @@ struct LoginView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
-                (Text("FC ").foregroundStyle(FC.accent) + Text("SCOPE").foregroundStyle(FC.ink)).font(.fcScoreboard(26, typeSize))
-                if let r = reason { Text(r).fcFont(14, weight: .semibold).foregroundStyle(FC.accent) }
+                (Text("FC ").foregroundStyle(FC.brand) + Text("SCOPE").foregroundStyle(FC.ink)).font(.fcScoreboard(26, typeSize))
+                if let r = reason { Text(r).fcFont(14, weight: .semibold).foregroundStyle(FC.tint) }
                 Text("클럽 모집·커뮤니티 참여에는 로그인이 필요해요. 전적 검색·진단·스쿼드는 로그인 없이 쓸 수 있어요.").fcFont(13).foregroundStyle(FC.muted).multilineTextAlignment(.center)
                 if !auth.isConfigured {
                     Text("로그인 준비 중이에요.").fcFont(13).foregroundStyle(FC.muted)
@@ -149,7 +149,7 @@ struct LoginView: View {
                         HStack(alignment: .top, spacing: 10) {
                             Image(systemName: agreed ? "checkmark.circle.fill" : "circle")
                                 .font(.system(size: 22 * TypeScale.factor(typeSize)))   // 옆 문구와 같은 배율로 커지게
-                                .foregroundStyle(agreed ? FC.accent : FC.muted)
+                                .foregroundStyle(agreed ? FC.tint : FC.muted)
                             (Text("이용약관").underline() + Text("과 ") + Text("개인정보처리방침").underline() + Text("에 동의하며, 만 14세 이상입니다."))
                                 .font(.fcFont(13, typeSize)).foregroundStyle(FC.muted)
                                 .multilineTextAlignment(.leading)
@@ -206,7 +206,7 @@ struct ProfileSetupView: View {
                     Button("연동") { Task { await verify() } }.disabled(busy || fc.trimmingCharacters(in: .whitespaces).isEmpty)
                     Text("연동은 구단주명이 게임에 존재함을 확인하는 기능이며, 계정 소유를 증명하지 않아요.").fcFont(12).foregroundStyle(FC.muted)
                 }
-                if let m = msg { Text(m).fcFont(13).foregroundStyle(FC.accent) }
+                if let m = msg { Text(m).fcFont(13).foregroundStyle(FC.tint) }
             }
             .navigationTitle("프로필 설정").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("완료") { onDone(); dismiss() } } }
@@ -292,7 +292,7 @@ struct SettingsView: View {
                     kicker: "전적 카드",
                     title: "62%",
                     subtitle: "샘플구단주 · Lv.120 · 챔피언스",
-                    stamp: CardStamp(text: "18승 4무 8패", color: CardPalette.lime),
+                    stamp: CardStamp(text: "18승 4무 8패", color: CardPalette.ink),
                     badges: [
                         CardBadge(label: "FC 스코어", value: "6.8", color: CardPalette.gold),
                         CardBadge(label: "최근 경기", value: "30"),

@@ -12,7 +12,7 @@ struct MetaView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                SectionLabel("픽 랭킹", color: FC.accent)
+                SectionLabel("픽 랭킹", color: FC.tint)
                 Text("최근 \(modeName)에서 선발로 가장 많이 쓰인 카드와, 그 카드의 넥슨 상위 랭커 성적.\(state.value?.date.map { " (\($0) 스냅샷)" } ?? "")").fcFont(13).foregroundStyle(FC.muted)
                 // 빈 라벨이면 VoiceOver 가 이름 없는 컨트롤로 읽는다 — 라벨은 주고 화면에서만 숨긴다.
                 Picker("매치 유형", selection: $matchType) { Text("공식경기").tag(50); Text("감독모드").tag(52) }.pickerStyle(.segmented).labelsHidden()
@@ -28,9 +28,6 @@ struct MetaView: View {
                         }
                     }
                 }
-                // 카카오톡 채팅 목록처럼 상단 탭 바로 아래·목록 맨 위에 카드 하나(2026-09-21 운영자 결정). 화면당 1개.
-                // 빈 화면에 광고만 덩그러니 있으면 광고가 본문처럼 보인다 — 데이터가 있을 때만.
-                if let v = state.value, !v.lines.isEmpty { AdSlot() }
                 switch state {
                 case .idle, .loading: Skeleton(height: 300)
                 case .failed(let e): ErrorState(title: "픽 랭킹을 불러오지 못했어요", message: e.localizedDescription, error: e, retry: { Task { await load() } })
@@ -45,7 +42,12 @@ struct MetaView: View {
                         .padding(.top, 24)
                     } else {
                         if let mv = m.mover { MoverCard(m: mv, showUsage: true) }
-                        ForEach(m.lines) { line in lineBlock(line) }
+                        // 광고는 첫 라인 순위표 뒤 — 랭킹을 먼저 보여 준다(UX-AUDIT-GENZ #1). 화면당 1개,
+                        // 데이터가 있을 때만(빈 화면에 광고만 있으면 광고가 본문처럼 보인다).
+                        ForEach(Array(m.lines.enumerated()), id: \.element.id) { i, line in
+                            lineBlock(line)
+                            if i == 0 { AdSlot() }
+                        }
                         Text("순위: FC Scope에 조회된 최근 \(modeName)에서 선발로 뛴 횟수. 골·패스는 넥슨 상위 랭커 기록(카드당 최근 20경기).").fcFont(11).foregroundStyle(FC.muted)
                     }
                 }
@@ -95,7 +97,7 @@ struct MetaView: View {
                             PlayerImage(spid: r.spId, size: 34, radius: 8)
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 4) { Text(r.name).fcFont(13, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1); if !r.season.isEmpty { SeasonBadge(spid: r.spId, season: r.season, height: 14) } }
-                                RatioBar(ratio: CGFloat(r.count) / CGFloat(maxCount), color: FC.accent, height: 4)
+                                RatioBar(ratio: CGFloat(r.count) / CGFloat(maxCount), color: FC.tint, height: 4)
                             }
                             Spacer()
                             VStack(alignment: .trailing, spacing: 2) {
@@ -143,7 +145,7 @@ struct PlayerDetailView: View {
                     ForEach(p.ranker.positions) { ps in
                         Panel(padding: 12) {
                             VStack(alignment: .leading, spacing: 6) {
-                                HStack { Text(ps.positionLabel).fcScoreboard(16).foregroundStyle(FC.accent); Text("n=\(ps.matchCount)").fcScoreboard(11).foregroundStyle(FC.muted); Spacer(); if let st = ps.playstyle { Chip(text: "\(st.emoji) \(st.label)", color: FC.tone(st.tone), bg: FC.tone(st.tone).opacity(0.15)) } }
+                                HStack { Text(ps.positionLabel).fcScoreboard(16).foregroundStyle(FC.tint); Text("n=\(ps.matchCount)").fcScoreboard(11).foregroundStyle(FC.muted); Spacer(); if let st = ps.playstyle { Chip(text: "\(st.emoji) \(st.label)", color: FC.tone(st.tone), bg: FC.tone(st.tone).opacity(0.15)) } }
                                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
                                     mini("경기당 골", String(format: "%.2f", ps.goal)); mini("경기당 어시", String(format: "%.2f", ps.assist)); mini("슛/유효", String(format: "%.1f/%.1f", ps.shoot, ps.effectiveShoot))
                                     mini("패스 성공", ps.passRate.map { "\($0)%" } ?? "–"); mini("드리블 성공", ps.dribbleRate.map { "\($0)%" } ?? "–"); mini("태클+블록", String(format: "%.1f", ps.tackle + ps.block))
@@ -155,7 +157,7 @@ struct PlayerDetailView: View {
                         Panel(padding: 12) {
                             VStack(alignment: .leading, spacing: 6) {
                                 SectionLabel("다른 시즌 카드")
-                                FlowLayout(spacing: 6) { ForEach(p.seasons) { s in Button { if s.spid != p.spid { router.push(.player(s.spid)) } } label: { SeasonBadge(spid: s.spid, season: s.season, height: 18).padding(.horizontal, 6).padding(.vertical, 4).background(s.spid == p.spid ? FC.accent : FC.surface2, in: RoundedRectangle(cornerRadius: Radius.chip)) }.buttonStyle(.plain) } }
+                                FlowLayout(spacing: 6) { ForEach(p.seasons) { s in Button { if s.spid != p.spid { router.push(.player(s.spid)) } } label: { SeasonBadge(spid: s.spid, season: s.season, height: 18).padding(.horizontal, 6).padding(.vertical, 4).background(s.spid == p.spid ? FC.tint : FC.surface2, in: RoundedRectangle(cornerRadius: Radius.chip)) }.buttonStyle(.plain) } }
                             }
                         }
                     }
