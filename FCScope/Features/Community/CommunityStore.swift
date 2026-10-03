@@ -40,17 +40,16 @@ final class CommunityPrefs {
         groupFilterSupported = ud.bool(forKey: "cm.groupFilter")
     }
 
-    /// 글 id → (서버 comment_count − 상세에서 받은 댓글 수). 서버 카운터는 신고로 숨겨진 댓글까지 센다
-    /// (0009 트리거는 insert/delete 만 보고, 상세는 hidden 을 걸러 낸다). 이번 실행 동안만 기억한다.
-    private(set) var commentGaps: [String: Int] = [:]
-    func noteCommentGap(_ id: String, gap: Int) {
-        let g = max(0, gap)
-        if commentGaps[id] != g { commentGaps[id] = g }
+    /// 서버 comment_count − 상세에서 받은 댓글 수. 서버 카운터는 신고로 숨겨진 댓글까지 센다
+    /// (0009 트리거는 insert/delete 만 보고, 상세는 hidden 을 걸러 낸다 — 웹 0024 가 고치지만 배포 전).
+    /// 실행을 넘어 기억한다(LocalPrefs LRU) — 서버 값이 맞춰지면 다음 상세 열람이나 서버 재계산 감지 때 사라진다.
+    func noteCommentGap(_ id: String, listed: Int, gap: Int) {
+        LocalPrefs.shared.noteCommentGap(id, listed: listed, gap: max(0, gap))
     }
     /// 목록에 그릴 댓글 수 — 상세에서 확인한 차이만큼 뺀다(모르면 서버 값 그대로).
     func displayCommentCount(_ p: Post) -> Int? {
         guard let n = p.commentCount else { return nil }
-        return max(0, n - (commentGaps[p.id] ?? 0))
+        return max(0, n - LocalPrefs.shared.commentGap(p.id, serverCount: n))
     }
 
     func isRead(_ id: String) -> Bool { readSet.contains(id) }

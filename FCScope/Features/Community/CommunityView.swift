@@ -564,14 +564,15 @@ struct PressScaleStyle: ButtonStyle {
 /// 상단 토스트(신고 접수·차단 등)
 struct CMToast: View {
     let text: String?
+    var edge: Edge = .top
     var body: some View {
         if let text {
             Text(text).cmText(14, .semibold).foregroundStyle(FC.ink)
                 .padding(.horizontal, 16).padding(.vertical, 10)
                 .background(FC.surface2, in: Capsule())
                 .overlay(Capsule().stroke(FC.line, lineWidth: 1))
-                .padding(.top, 8)
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .padding(edge == .top ? .top : .bottom, 8)
+                .transition(.move(edge: edge).combined(with: .opacity))
                 .accessibilityAddTraits(.updatesFrequently)
         }
     }

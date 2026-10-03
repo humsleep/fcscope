@@ -111,9 +111,10 @@ struct BattleCard: View {
                         Rectangle().fill(aLeads ? CM.coral.opacity(0.14) : CM.coral)
                     }
                     HStack {
-                        Text("\(pa)%").cmScore(16, .bold).foregroundStyle(aLeads ? CM.voteInk : FC.tint)
+                        // 채움 위 글자: 다크는 남흑, 라이트는 흰색 — 라이트 #6D3FE0 위 남흑은 3.1:1 이었다(디자인 2R N-2, 흰색 ≈ 6:1)
+                        Text("\(pa)%").cmScore(16, .bold).foregroundStyle(aLeads ? FC.tintInk : FC.tint)
                         Spacer()
-                        Text("\(pb)%").cmScore(16, .bold).foregroundStyle(aLeads ? CM.coral : CM.voteInk)
+                        Text("\(pb)%").cmScore(16, .bold).foregroundStyle(aLeads ? CM.coral : FC.tintInk)
                     }
                     .padding(.horizontal, 12)
                     .opacity(revealed)

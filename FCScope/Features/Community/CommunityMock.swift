@@ -189,6 +189,8 @@ final class CommunityMock {
         if mode == .full, page == 1, q["types"] == nil, q["type"] == nil, sort == "new" {
             res["hot"] = ["p2", "p9", "p6"].compactMap { id in posts.first { ($0["id"] as! String) == id } }
         }
+        // 실서버(0023 적용)는 글이 없어도 1페이지에 `hot: []` 를 준다 — 빼면 1차 탭에서 "인기"가 사라졌다(디자인 2R N-5)
+        if mode == .empty, page == 1 { res["hot"] = [Any]() }
         return try decode(res)
     }
 

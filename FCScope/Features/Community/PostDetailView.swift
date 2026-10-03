@@ -40,7 +40,7 @@ final class PostDetailModel {
             // 목록으로 돌아갔을 때 같은 숫자를 보이게 한다(유저 패널 C "12 vs 11").
             // 차단한 작성자의 댓글도 상세에선 안 보이므로 같이 뺀다 — 상세 "댓글 N" 과 목록 [N] 이 같은 기준.
             let visible = d.comments.filter { !LocalPrefs.shared.isBlocked($0.authorId) }.count
-            if let listed = d.post.commentCount { CommunityPrefs.shared.noteCommentGap(postId, gap: listed - visible) }
+            if let listed = d.post.commentCount { CommunityPrefs.shared.noteCommentGap(postId, listed: listed, gap: listed - visible) }
         } catch {
             await cap
             if state.value == nil { state = .failed(error) }
@@ -99,6 +99,7 @@ struct PostDetailView: View {
     @State private var showLogin = false
     @State private var confirmDeletePost = false
     @State private var confirmDeleteComment: String?
+    @State private var confirmBlockAuthor = false
     @State private var toast: String?
     @State private var commentSort = "asc"
     @State private var expanded: Set<String> = []
@@ -171,7 +172,8 @@ struct PostDetailView: View {
         .toolbarBackground(FC.bg, for: .navigationBar)
         // 상세에선 탭 바를 숨긴다 — 바닥 입력창 자리(SPEC 6절)
         .toolbar(.hidden, for: .tabBar)
-        .overlay(alignment: .top) { CMToast(text: toast) }
+        // 토스트는 아래쪽 — 위에 두면 차단 직후 "차단한 사용자의 글이에요" 배너와 겹쳤다(QA 2R P2-9)
+        .overlay(alignment: .bottom) { CMToast(text: toast, edge: .bottom).padding(.bottom, model.detail != nil && !blocked ? 72 : 16) }
         .task { if model.state.value == nil { await model.load(); cprefs.markRead(postId) } }
         .sheet(isPresented: $showLogin) { LoginView(reason: "로그인이 필요해요") }
         .sheet(isPresented: $showSquadPicker) { SquadPickerSheet { id, name in attach = (id, name) } }
@@ -425,16 +427,23 @@ struct PostDetailView: View {
                 Button(role: .destructive) { confirmDeletePost = true } label: { Label("삭제", systemImage: "trash") }
             } else {
                 Button { reportTarget = ReportTarget(type: "post", id: d.post.id) } label: { Label("신고", systemImage: "exclamationmark.bubble") }
-                Button(role: .destructive) {
-                    prefs.block(d.post.authorId); Haptic.warning()
-                    showToast("\(d.post.author.nickname)님을 차단했어요")
-                } label: { Label("작성자 차단", systemImage: "hand.raised") }
+                // 차단은 확인 후 실행 — 메뉴 한 번 탭에 바로 글이 가려졌다(QA 2R P2-9)
+                Button(role: .destructive) { confirmBlockAuthor = true } label: { Label("작성자 차단", systemImage: "hand.raised") }
             }
         } label: {
             Image(systemName: "ellipsis").font(.system(size: 17, weight: .bold)).foregroundStyle(FC.ink)
                 .frame(width: 44, height: 44).contentShape(Rectangle())
         }
         .accessibilityLabel("더보기")
+        // 다이얼로그는 메뉴 자신에 건다 — 본문 뷰에는 alert 2개·신고 다이얼로그가 이미 걸려 있어 함께 두면 뜨지 않았다
+        .confirmationDialog(post.map { "\($0.author.nickname)님을 차단할까요?" } ?? "작성자를 차단할까요?", isPresented: $confirmBlockAuthor, titleVisibility: .visible) {
+            Button("차단", role: .destructive) {
+                guard let p = post else { return }
+                prefs.block(p.authorId); Haptic.warning()
+                showToast("\(p.author.nickname)님을 차단했어요")
+            }
+            Button("취소", role: .cancel) {}
+        } message: { Text("이 사람의 글과 댓글이 보이지 않아요. 설정에서 해제할 수 있어요.") }
     }
 
     // MARK: 댓글
@@ -485,7 +494,7 @@ struct PostDetailView: View {
                 let showAll = t.replies.count <= 3 || expanded.contains(t.id)
                 ForEach(showAll ? t.replies : Array(t.replies.prefix(2))) { r in
                     if bestIds.contains(r.id) && !expandedBest.contains(r.id) {
-                        bestPlaceholder(r.id, reply: true)
+                        bestPlaceholder(r, reply: true)
                     } else {
                         commentRow(r, d: d, reply: true, parentNick: t.root.author.nickname).id(r.id)
                     }
@@ -516,29 +525,34 @@ struct PostDetailView: View {
     /// 원래 자리 — BEST 로 올라간 댓글은 한 줄로 접는다(같은 글이 한 화면에 두 번 보이면 버그처럼 읽혔다 · 디자인 M4).
     @ViewBuilder private func rootOrCollapsed(_ c: Comment, d: PostDetailResponse, isBest: Bool) -> some View {
         if isBest && !expandedBest.contains(c.id) {
-            bestPlaceholder(c.id, reply: false)
+            bestPlaceholder(c, reply: false)
         } else {
             commentRow(c, d: d).id(c.id)
         }
     }
 
-    private func bestPlaceholder(_ id: String, reply: Bool) -> some View {
+    /// 접힌 줄에도 **주인**(22pt 아바타 + 닉)을 밝힌다. 주인이 없으면 아래 답글들이 바로 위 다른 사람 댓글의 답글처럼
+    /// 읽혔다(디자인 2R R2-1). 아바타는 원래 댓글 아바타 열(루트 30pt · 답글 24pt)의 가운데에 맞춰 답글 들여쓰기와 이어진다.
+    private func bestPlaceholder(_ c: Comment, reply: Bool) -> some View {
         Button {
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { _ = expandedBest.insert(id) }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { _ = expandedBest.insert(c.id) }
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "arrow.up").font(.system(size: 11, weight: .bold))
-                Text("BEST로 올라간 댓글").cmText(13, .medium)
-                Text("· 펼치기").cmText(13)
+            HStack(spacing: reply ? 10 : 12) {
+                NickAvatar(nickname: c.author.nickname, size: 22).frame(width: reply ? 24 : 30)
+                HStack(spacing: 4) {
+                    Text(c.author.nickname).cmText(13, .semibold).foregroundStyle(FC.ink.opacity(0.75)).lineLimit(1)
+                    Image(systemName: "arrow.up").font(.system(size: 10, weight: .bold))
+                    Text("BEST로 올라간 댓글 · 펼치기").cmText(13).lineLimit(1).minimumScaleFactor(0.85)
+                }
+                .foregroundStyle(CM.faint)
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(CM.faint)
             .padding(.leading, reply ? 54 : 16).padding(.trailing, 16)
             .frame(minHeight: 40).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .id(id)
-        .accessibilityLabel("베스트 댓글로 올라간 댓글. 펼치기")
+        .id(c.id)
+        .accessibilityLabel("\(c.author.nickname)님의 댓글, 베스트 댓글로 올라감. 펼치기")
     }
 
     private func sortButton(_ key: String, _ label: String) -> some View {

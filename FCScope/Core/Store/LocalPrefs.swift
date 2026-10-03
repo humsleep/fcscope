@@ -30,6 +30,12 @@ final class LocalPrefs {
     /// 구단주별(소문자) 마지막으로 본 최신 경기 시각(서버 matchDate 원문) — 홈 "지난 방문 이후 새 경기" 재료.
     var lastSeenMatch: [String: String] { didSet { saveCodable("lastSeenMatch", lastSeenMatch) } }
 
+    /// 커뮤니티 댓글 수 보정 — 글 id → (그때 목록이 준 서버 값, 서버 값 − 실제로 보이는 댓글 수). 최근 200개 LRU.
+    /// 서버 comment_count 가 숨김 댓글까지 세는 동안(웹 마이그레이션 0024 배포 전) 목록 [12] vs 상세 11 을 맞춘다.
+    /// 예전엔 실행 중에만 기억해 재실행하면 다시 어긋났다(유저 패널 2R C-1).
+    var commentGaps: [CommentGap] { didSet { saveCodable("commentGaps", commentGaps) } }
+    struct CommentGap: Codable, Equatable { var id: String; var listed: Int; var gap: Int }
+
     struct FormSnapshot: Codable { var winRate: Int; var score: Double; var streak: Int; var updatedAt: Date; var prevWinRate: Int?; var form: [String]? }
     struct VisitStreak: Codable { var current: Int; var best: Int; var lastDay: String }
 
@@ -44,6 +50,20 @@ final class LocalPrefs {
         streak = Self.load("streak") ?? VisitStreak(current: 0, best: 0, lastDay: "")
         pushPromptDismissed = Self.suite.bool(forKey: "pushPromptDismissed")
         lastSeenMatch = Self.load("lastSeenMatch") ?? [:]
+        commentGaps = Self.load("commentGaps") ?? []
+    }
+
+    /// 상세에서 본 차이를 기록한다. 차이가 0이면(서버가 맞춰졌으면) 지운다. 가장 최근 것이 맨 뒤.
+    func noteCommentGap(_ id: String, listed: Int, gap: Int) {
+        var list = commentGaps.filter { $0.id != id }
+        if gap > 0 { list.append(CommentGap(id: id, listed: listed, gap: gap)) }
+        if list.count > 200 { list.removeFirst(list.count - 200) }
+        if list != commentGaps { commentGaps = list }
+    }
+    /// 목록 서버 값에 적용할 차이. 서버 값이 기록 때보다 **작아졌으면** 서버가 다시 셌다(0024 재계산)는 뜻이라 적용하지 않는다.
+    func commentGap(_ id: String, serverCount: Int) -> Int {
+        guard let g = commentGaps.last(where: { $0.id == id }), serverCount >= g.listed else { return 0 }
+        return g.gap
     }
 
     private func save(_ key: String, _ v: [String]) { Self.suite.set(v, forKey: key) }

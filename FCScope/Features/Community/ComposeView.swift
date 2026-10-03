@@ -154,8 +154,9 @@ struct ComposeView: View {
     // MARK: 제목·본문
 
     private var titleField: some View {
-        // 카운터는 제목 첫 줄 기준선에 — lastTextBaseline 이면 6pt 내려가 보였다(디자인 N4)
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        // 카운터는 제목 첫 줄 기준선에. 세로 축 TextField(axis: .vertical)는 firstTextBaseline 을 내놓지 않아
+        // 카운터가 약 12pt 위에 떴다(디자인 2R N-4) — 위 정렬 + 두 서체 어센더 차이(20pt·12pt ≈ 7pt)만큼 내린다.
+        HStack(alignment: .top, spacing: 8) {
             TextField("제목", text: Binding(get: { draft.title }, set: { v in
                 let clean = v.replacingOccurrences(of: "\n", with: " ")
                 if clean.count > titleMax { draft.title = String(clean.prefix(titleMax)); titleLimitHit += 1 } else { draft.title = clean }
@@ -169,6 +170,7 @@ struct ComposeView: View {
             Text("\(draft.title.count)/\(titleMax)").cmScore(12, .medium)
                 .foregroundStyle(draft.title.count >= titleMax ? CM.coral : CM.faint)
                 .accessibilityLabel("제목 \(draft.title.count)자, 최대 \(titleMax)자")
+                .padding(.top, 7)
         }
         .padding(.top, 18)
     }
