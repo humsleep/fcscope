@@ -262,12 +262,13 @@ extension Font {
         let name = PretendardName.for(weight)
         let key = "\(name)-\(size)" as NSString
         if let f = PretendardName.cache.object(forKey: key) { return Font(f as CTFont) }
-        // 문맥 대체(calt)를 끈다 — Pretendard 는 숫자 사이의 x 를 ×(곱셈 기호)로 바꿔
-        // 구단주명 "9x7" 이 "9×7" 로 보였다(QA 1라운드 P2-4). 이름·검색어가 화면에서 바뀌면 안 된다.
+        // 문맥 대체(calt)와 **문맥 합자(clig)** 를 함께 끈다 — Pretendard 는 숫자 사이의 x 를 ×(곱셈 기호)로 바꿔
+        // 구단주명 "9x7" 이 "9×7" 로 보였다(QA 1·2라운드). 원인 실측(fontTools + CoreText 셰이핑, 2026-10-04):
+        // x→× 치환 룩업(GSUB 16~20 → 77)이 calt **와 clig 양쪽**에 등록돼 있어 calt 만 끄면 clig 가 같은 치환을 한다.
+        // "zq9x7" 글리프: 기본 [.., 13869(×), ..] · calt 만 끔 [.., 13869, ..] · calt+clig 끔 [.., 823(x), ..].
+        // 이름·검색어가 화면에서 바뀌면 안 된다. AAT 셀렉터와 OpenType 태그를 둘 다 준다(어느 경로든 꺼지게).
         guard let base = UIFont(name: name, size: size) else { return .custom(name, fixedSize: size) }
-        let desc = base.fontDescriptor.addingAttributes([
-            .featureSettings: [[UIFontDescriptor.FeatureKey.type: 36, UIFontDescriptor.FeatureKey.selector: 1]],
-        ])
+        let desc = base.fontDescriptor.addingAttributes([.featureSettings: PretendardName.noSubstitution])
         let f = UIFont(descriptor: desc, size: size)
         PretendardName.cache.setObject(f, forKey: key)
         return Font(f as CTFont)
@@ -277,6 +278,13 @@ extension Font {
 enum PretendardName {
     /// 이름·크기별 UIFont 캐시(calt 끈 디스크립터) — 매 body 마다 디스크립터를 다시 만들지 않게. NSCache 는 스레드 안전.
     static let cache = NSCache<NSString, UIFont>()
+    /// calt(36/1)·clig(1/19) 끄기 — `Font.pretendard` 주석 참고
+    static let noSubstitution: [[UIFontDescriptor.FeatureKey: Any]] = [
+        [.type: 36, .selector: 1],
+        [.type: 1, .selector: 19],
+        [UIFontDescriptor.FeatureKey(rawValue: kCTFontOpenTypeFeatureTag as String): "calt", UIFontDescriptor.FeatureKey(rawValue: kCTFontOpenTypeFeatureValue as String): 0],
+        [UIFontDescriptor.FeatureKey(rawValue: kCTFontOpenTypeFeatureTag as String): "clig", UIFontDescriptor.FeatureKey(rawValue: kCTFontOpenTypeFeatureValue as String): 0],
+    ]
     static func `for`(_ weight: Font.Weight) -> String {
         switch weight {
         case .medium: return "Pretendard-Medium"
@@ -431,16 +439,18 @@ enum Haptic {
 struct BrandButtonStyle: ButtonStyle {
     var fullWidth = false
     var compact = false
+    /// 보조 강등 — 같은 화면에 주 CTA(그라디언트)가 따로 있을 때. surface2 채움 + tint 글자(디자인 2R R2-3: 그라디언트는 화면당 1개)
+    var secondary = false
     @Environment(\.isEnabled) private var isEnabled
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .fcFont(compact ? 14 : 16, weight: .bold)
-            .foregroundStyle(isEnabled ? FC.brandInk : FC.muted)
+            .fcFont(compact ? (secondary ? 15 : 14) : 16, weight: secondary ? .semibold : .bold)
+            .foregroundStyle(isEnabled ? (secondary ? FC.tint : FC.brandInk) : FC.muted)
             .padding(.horizontal, compact ? 14 : 22)
             .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: compact ? 36 : 50)
             // 비활성은 그라디언트를 반투명으로 두지 않는다 — 인디고 위에서 탁한 적갈색이 됐다(디자인 M11).
             .background {
-                if isEnabled { Capsule().fill(FC.brand) } else { Capsule().fill(FC.surface2) }
+                if isEnabled && !secondary { Capsule().fill(FC.brand) } else { Capsule().fill(FC.surface2) }
             }
             .opacity(isEnabled && configuration.isPressed ? 0.8 : 1)
             .scaleEffect(configuration.isPressed ? 0.98 : 1)

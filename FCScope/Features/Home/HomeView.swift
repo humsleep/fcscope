@@ -100,7 +100,7 @@ struct HomeView: View {
                 .fcFont(26, weight: .bold).foregroundStyle(FC.ink)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass").foregroundStyle(FC.muted)
+                Image(systemName: "magnifyingglass").font(.system(size: 17, weight: .medium)).foregroundStyle(FC.muted)  // AX5 에서 약 50pt 로 커져 입력칸을 밀어냈다(디자인 2R N-6) — 아이콘은 고정
                 TextField("구단주명 입력", text: $heroQuery)
                     .fcFont(16).foregroundStyle(FC.ink)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
@@ -194,8 +194,9 @@ struct HomeView: View {
                                 if s.streak >= 2 { Text("🔥\(s.streak)연승").fcFont(12, weight: .bold).foregroundStyle(FC.gold) }
                                 if s.streak <= -2 { Text("🥶\(-s.streak)연패").fcFont(12, weight: .bold).foregroundStyle(FC.lose) }
                             }
+                            .transition(.identity)
                         } else {
-                            Text("탭해서 최근 폼 확인").fcFont(13).foregroundStyle(FC.muted)
+                            Text("탭해서 최근 폼 확인").fcFont(13).foregroundStyle(FC.muted).transition(.identity)
                         }
                         if let new = sinceLastSeen, !new.isEmpty {
                             // 30경기 창 안에서만 셀 수 있다 — 창을 넘으면 "30+"로 정직하게.
@@ -211,6 +212,10 @@ struct HomeView: View {
             }
         }
         .buttonStyle(.plain)
+        // 스냅샷은 전적 화면(다른 탭·푸시된 화면)에서 저장된다. 그 변경이 애니메이션 트랜잭션에 실려 오면
+        // 홈이 화면 밖일 때 시작한 opacity 전환이 끝나지 않고 남아, "탭해서 / 최근 폼 / 확인" 잔상이
+        // 아래 "커뮤니티 최신" 위에 겹쳐 보였다(QA 2R P2-3). 이 카드의 내용 교체는 애니메이션 없이 즉시.
+        .transaction { $0.animation = nil; $0.disablesAnimations = true }
     }
 
     private var favoritesSection: some View {

@@ -139,7 +139,7 @@ struct VersusView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 8) {
                     HStack(spacing: 6) {
-                        Image(systemName: "magnifyingglass").foregroundStyle(FC.muted)
+                        Image(systemName: "magnifyingglass").font(.system(size: 17, weight: .medium)).foregroundStyle(FC.muted)  // AX5 에서 약 50pt 로 커져 입력칸을 밀어냈다(디자인 2R N-6) — 아이콘은 고정
                         TextField("친구 구단주명", text: $input)
                             .fcFont(16).foregroundStyle(FC.ink)
                             .textInputAutocapitalization(.never).autocorrectionDisabled()
@@ -151,7 +151,9 @@ struct VersusView: View {
                     Button(action: go) {
                         if busy { ProgressView().controlSize(.small).tint(FC.brandInk) } else { Text("비교") }
                     }
-                    .buttonStyle(BrandButtonStyle(compact: true))
+                    // 결과가 이미 있고 입력이 그 상대 그대로면 보조 스타일 — 아래 "VS 카드 스토리로 공유"가 이 화면의 주 CTA(R2-3).
+                    // 다른 이름을 넣으면 다시 그라디언트로 올라온다.
+                    .buttonStyle(BrandButtonStyle(compact: true, secondary: compareIsSecondary))
                     .frame(minHeight: 44)
                     .disabled(busy || VersusViewModel.validate(input) == nil)
                 }
@@ -177,6 +179,11 @@ struct VersusView: View {
                 }
             }
         }
+    }
+
+    private var compareIsSecondary: Bool {
+        guard let shown = vm.other.value?.profile.nickname else { return false }
+        return VersusViewModel.validate(input).map { $0.caseInsensitiveCompare(shown) == .orderedSame || $0.caseInsensitiveCompare(vm.otherName) == .orderedSame } ?? true
     }
 
     private func go() {
@@ -249,35 +256,21 @@ struct VersusCompareCard<Action: View>: View {
     var body: some View {
         let (x, y) = c.tally
         VStack(spacing: 14) {
-            HStack(alignment: .top, spacing: 8) {
-                side(c.a, tier: c.tierA, align: .leading)
-                // "1 : 3"이 경기 스코어로 읽혔다(유저 패널 A) — "이긴 항목"을 위에 밝히고 콜론 대신 가운뎃점
-                VStack(spacing: 2) {
-                    Text("이긴 항목").fcText(.caption, weight: .semibold).foregroundStyle(FC.muted)
-                    HStack(spacing: 8) {
-                        CountUp(target: Double(x)) { v in Text("\(Int(v.rounded()))").font(.fcScoreboard(36, typeSize)).foregroundStyle(x >= y ? FC.ink : FC.muted) }
-                        Text("·").fcScoreboard(22).foregroundStyle(FC.muted)
-                        CountUp(target: Double(y)) { v in Text("\(Int(v.rounded()))").font(.fcScoreboard(36, typeSize)).foregroundStyle(y >= x ? FC.ink : FC.muted) }
-                    }
-                    if c.ties > 0 { Text("동점 \(c.ties) 제외").fcText(.caption).foregroundStyle(FC.muted) }
+            // AX5 에서는 알약 2개 + 36pt 점수가 375pt 를 넘어 스크롤 콘텐츠 전체가 가로로 넘쳤다(디자인 2R R2-2) — 세로로 쌓는다.
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 12) {
+                    side(c.a, tier: c.tierA, align: .leading)
+                    tallyView(x, y).frame(maxWidth: .infinity)
+                    side(c.b, tier: c.tierB, align: .leading)
                 }
-                .fixedSize()
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("이긴 항목 \(c.a.profile.nickname) \(x)개, \(c.b.profile.nickname) \(y)개" + (c.ties > 0 ? ", 동점 \(c.ties)개" : ""))
-                side(c.b, tier: c.tierB, align: .trailing)
-            }
-            Text(c.verdict).fcText(.callout, weight: .bold).foregroundStyle(x == y ? FC.tint : FC.gold)
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .overlay(Capsule().strokeBorder(x == y ? FC.tint : FC.gold, lineWidth: 1.5))
-            action()
-            VStack(spacing: 6) {
-                ForEach(Array(c.rows.enumerated()), id: \.element.id) { i, r in
-                    row(r)
-                        .opacity(appeared || reduceMotion ? 1 : 0)
-                        .offset(y: appeared || reduceMotion ? 0 : 8)
-                        .animation(reduceMotion ? nil : .snappy(duration: 0.3).delay(0.15 + Double(i) * 0.05), value: appeared)
+            } else {
+                HStack(alignment: .top, spacing: 8) {
+                    side(c.a, tier: c.tierA, align: .leading)
+                    tallyView(x, y)
+                    side(c.b, tier: c.tierB, align: .trailing)
                 }
             }
+            verdictAndRest(x, y)
         }
         .padding(16)
         .frame(maxWidth: .infinity)
@@ -293,10 +286,41 @@ struct VersusCompareCard<Action: View>: View {
         .sensoryFeedback(.success, trigger: appeared) { _, new in new && x > y }
     }
 
+    private func tallyView(_ x: Int, _ y: Int) -> some View {
+        // "1 : 3"이 경기 스코어로 읽혔다(유저 패널 A) — "이긴 항목"을 위에 밝히고 콜론 대신 가운뎃점
+        VStack(spacing: 2) {
+            Text("이긴 항목").fcText(.caption, weight: .semibold).foregroundStyle(FC.muted)
+            HStack(spacing: 8) {
+                CountUp(target: Double(x)) { v in Text("\(Int(v.rounded()))").font(.fcScoreboard(36, typeSize)).foregroundStyle(x >= y ? FC.ink : FC.muted) }
+                Text("·").fcScoreboard(22).foregroundStyle(FC.muted)
+                CountUp(target: Double(y)) { v in Text("\(Int(v.rounded()))").font(.fcScoreboard(36, typeSize)).foregroundStyle(y >= x ? FC.ink : FC.muted) }
+            }
+            if c.ties > 0 { Text("동점 \(c.ties) 제외").fcText(.caption).foregroundStyle(FC.muted) }
+        }
+        .fixedSize()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("이긴 항목 \(c.a.profile.nickname) \(x)개, \(c.b.profile.nickname) \(y)개" + (c.ties > 0 ? ", 동점 \(c.ties)개" : ""))
+    }
+
+    @ViewBuilder private func verdictAndRest(_ x: Int, _ y: Int) -> some View {
+        Text(c.verdict).fcText(.callout, weight: .bold).foregroundStyle(x == y ? FC.tint : FC.gold)
+            .padding(.horizontal, 12).padding(.vertical, 6)
+            .overlay(Capsule().strokeBorder(x == y ? FC.tint : FC.gold, lineWidth: 1.5))
+        action()
+        VStack(spacing: 6) {
+            ForEach(Array(c.rows.enumerated()), id: \.element.id) { i, r in
+                row(r)
+                    .opacity(appeared || reduceMotion ? 1 : 0)
+                    .offset(y: appeared || reduceMotion ? 0 : 8)
+                    .animation(reduceMotion ? nil : .snappy(duration: 0.3).delay(0.15 + Double(i) * 0.05), value: appeared)
+            }
+        }
+    }
+
     private func side(_ o: UserOverview, tier: FormTier, align: HorizontalAlignment) -> some View {
         VStack(alignment: align, spacing: 6) {
             Text(o.profile.nickname).fcFont(17, weight: .bold).foregroundStyle(FC.ink).lineLimit(1).minimumScaleFactor(0.6)
-            FormTierButton(tier: tier, size: .compact)
+            FormTierButton(tier: tier, size: .compact).lineLimit(1).minimumScaleFactor(0.8)
             if let d = o.profile.divisions.first(where: { $0.matchType == o.matchType }) ?? o.profile.divisions.first {
                 HStack(spacing: 3) {
                     if let icon = d.iconUrl { RemoteImage(url: icon, size: 14) }
@@ -308,10 +332,23 @@ struct VersusCompareCard<Action: View>: View {
     }
 
     private func row(_ r: VersusComparison.Row) -> some View {
-        HStack(spacing: 6) {
-            value(r.left, win: r.winner == .a, lose: r.winner == .b, align: .leading)
-            Text(r.label).fcText(.meta, weight: .semibold).foregroundStyle(FC.muted).lineLimit(1).fixedSize()
-            value(r.right, win: r.winner == .b, lose: r.winner == .a, align: .trailing)
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(spacing: 2) {
+                    Text(r.label).fcText(.meta, weight: .semibold).foregroundStyle(FC.muted).lineLimit(1).minimumScaleFactor(0.7)
+                    HStack(spacing: 6) {
+                        value(r.left, win: r.winner == .a, lose: r.winner == .b, align: .leading)
+                        value(r.right, win: r.winner == .b, lose: r.winner == .a, align: .trailing)
+                    }
+                }
+                .padding(.vertical, 6)
+            } else {
+                HStack(spacing: 6) {
+                    value(r.left, win: r.winner == .a, lose: r.winner == .b, align: .leading)
+                    Text(r.label).fcText(.meta, weight: .semibold).foregroundStyle(FC.muted).lineLimit(1).fixedSize()
+                    value(r.right, win: r.winner == .b, lose: r.winner == .a, align: .trailing)
+                }
+            }
         }
         .padding(.horizontal, 12).frame(minHeight: 44)
         .background(FC.bg.opacity(0.55), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
