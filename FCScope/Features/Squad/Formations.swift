@@ -40,6 +40,34 @@ struct Formation: Identifiable, Hashable {
     ].map { Formation(id: $0.0, name: $0.1, line: $0.2, slots: build($0.3)) }
     static func get(_ id: String) -> Formation { all.first { $0.id == id } ?? all[0] }
 
+    /// 포지션 → 같은 역할로 볼 수 있는 자리(가까운 순). 포메이션 슬롯은 ST·CM·CB 같은 대표 라벨만 쓰는데
+    /// 넥슨 포지션은 LS·RS·LCM·RCB 처럼 좌우가 붙는다. 정확히 같은 라벨만 찾으면 LS 기라시가 빈 ST 를 두고
+    /// 같은 라인의 첫 칸(LW)에 들어갔다(QA 2R P2-2). 정확 일치 → 이 순서 → 같은 라인 첫 칸.
+    static func nearby(_ pos: String) -> [String] {
+        switch pos {
+        case "ST": return ["ST", "CF", "LS", "RS"]
+        case "LS", "RS": return [pos, "ST", "CF", pos == "LS" ? "RS" : "LS"]
+        case "CF": return ["CF", "ST", "LS", "RS", "CAM"]
+        case "LF": return ["LF", "LW", "CF", "ST"]
+        case "RF": return ["RF", "RW", "CF", "ST"]
+        case "LW": return ["LW", "LF", "LM"]
+        case "RW": return ["RW", "RF", "RM"]
+        case "CAM": return ["CAM", "LAM", "RAM", "CF", "CM"]
+        case "LAM": return ["LAM", "CAM", "LM", "LW"]
+        case "RAM": return ["RAM", "CAM", "RM", "RW"]
+        case "LM": return ["LM", "LW", "LAM", "LWB"]
+        case "RM": return ["RM", "RW", "RAM", "RWB"]
+        case "CM", "LCM", "RCM": return [pos, "CM", "LCM", "RCM", "CAM", "CDM"]
+        case "CDM", "LDM", "RDM": return [pos, "CDM", "LDM", "RDM", "CM"]
+        case "CB", "LCB", "RCB", "SW": return [pos, "CB", "LCB", "RCB", "SW"]
+        case "LB": return ["LB", "LWB"]
+        case "RB": return ["RB", "RWB"]
+        case "LWB": return ["LWB", "LB", "LM"]
+        case "RWB": return ["RWB", "RB", "RM"]
+        default: return [pos]
+        }
+    }
+
     /// 포지션 라벨 → 라인 (임포트 배치용)
     static func lineOf(_ pos: String) -> String {
         if pos == "GK" { return "GK" }

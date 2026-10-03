@@ -129,6 +129,12 @@ final class SquadBuilderModel {
                 let p = rest.remove(at: i); slots[s.id] = SquadSlotModel(slotId: s.id, spid: p.spid, name: p.name, season: p.season, x: nil, y: nil); used.insert(s.id)
             }
         }
+        // 1.5) 같은 역할(LS·RS → ST, LCB → CB …) — 라인만 보면 LS 가 LW 칸에 먼저 들어갔다
+        for s in formation.slots where !used.contains(s.id) {
+            if let i = rest.firstIndex(where: { Formation.nearby($0.pos).contains(s.pos) }) {
+                let p = rest.remove(at: i); slots[s.id] = SquadSlotModel(slotId: s.id, spid: p.spid, name: p.name, season: p.season, x: nil, y: nil); used.insert(s.id)
+            }
+        }
         // 2) 같은 라인
         for s in formation.slots where !used.contains(s.id) {
             if let i = rest.firstIndex(where: { Formation.lineOf($0.pos) == Formation.lineOf(s.pos) }) {
@@ -289,8 +295,9 @@ struct SquadBuilderView: View {
             model.message = "빈 자리가 없어요. 바꿀 선수를 탭해서 교체해 주세요."
             return
         }
-        // 1) 주 포지션과 같은 빈칸(ST → ST) 2) 같은 라인의 빈칸 — ST 가 같은 라인의 첫 빈칸 LW 에 들어가던 문제(QA P2-9)
-        let exact = pos.flatMap { p in empty.first { model.pos(of: $0) == p } }
+        // 1) 주 포지션과 같은 빈칸(ST → ST) 2) 같은 역할의 빈칸(LS·RS·CF → ST, LCM → CM — QA 2R P2-2)
+        // 3) 같은 라인의 빈칸 — ST 가 같은 라인의 첫 빈칸 LW 에 들어가던 문제(QA P2-9)
+        let exact = pos.flatMap { p in Formation.nearby(p).lazy.compactMap { q in empty.first { model.pos(of: $0) == q } }.first }
         guard let line, let slot = exact ?? empty.first(where: { Formation.lineOf(model.pos(of: $0)) == line }) else {
             placing = hit
             return
