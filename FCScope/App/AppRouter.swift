@@ -8,6 +8,8 @@ enum Route: Hashable {
     case player(Int)
     case post(String)
     case squad(String)
+    /// 친구랑 VS — me 의 전적(type 모드)과 다른 구단주를 나란히. with 가 있으면 바로 비교한다(딥링크 fcscope://vs/<me>?with=<친구>).
+    case versus(me: String, type: Int = 50, with: String? = nil)
 }
 
 enum Tab: Int { case home, squad, meta, community, me }
@@ -92,6 +94,12 @@ final class AppRouter {
             if parts.count > 1 { squadPath.append(Route.squad(parts[1])) }
             else if let owner = query("owner") { pendingSquadImport = .owner(owner) }
             else if let load = query("load"), load.range(of: "^[A-Za-z0-9_-]{1,64}$", options: .regularExpression) != nil { pendingSquadImport = .load(load) }
+        case "vs":
+            if parts.count > 1 {
+                tab = .home
+                let t = query("type").flatMap(Int.init).flatMap { [50, 52, 40].contains($0) ? $0 : nil } ?? 50
+                homePath.append(Route.versus(me: parts[1].removingPercentEncoding ?? parts[1], type: t, with: query("with")))
+            }
         case "me": tab = .me
         default: tab = .home
         }
@@ -108,6 +116,7 @@ struct RouteView: View {
         case .player(let spid): PlayerDetailView(spid: spid)
         case .post(let id): PostDetailView(postId: id)
         case .squad(let id): SquadDetailView(squadId: id)
+        case .versus(let me, let type, let with): VersusView(me: me, matchType: type, initialOther: with)
         }
     }
 }

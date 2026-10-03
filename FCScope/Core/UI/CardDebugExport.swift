@@ -16,6 +16,13 @@ enum CardDebugExport {
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             var cards: [StoryCard] = [.user(o), .rank(o), .streak(o), .weekly(o)]
             if let r = o.rivals.first { cards.append(.rival(o, r)) }
+            // 친구랑 VS 카드 — 자주 만난 상대(없으면 최근 상대)를 친구 자리에(개발용 검수)
+            if let friend = o.rivals.first?.nickname ?? o.matches.first(where: { !$0.forfeit })?.opponent?.nickname {
+                let fenc = friend.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? friend
+                if let fo: UserOverview = try? await APIClient.shared.getAndCache("/api/v1/user/\(fenc)", query: ["type": "50"], auth: false) {
+                    cards.append(.versus(o, fo))
+                }
+            }
             if let pl: PlayersResponse = try? await APIClient.shared.getAndCache("/api/v1/user/\(enc)/players", query: ["type": "50"], auth: false),
                let picks = pl.picks { cards.append(.pickMatch(o, picks)) }
             for c in cards {

@@ -14,6 +14,8 @@ enum StoryCard {
     case weekly(UserOverview)
     case rival(UserOverview, Rival)
     case pickMatch(UserOverview, PicksInfo)
+    /// 친구랑 VS — (나, 친구). 두 overview 만으로 그린다(VersusCard.swift).
+    case versus(UserOverview, UserOverview)
 
     var filename: String {
         switch self {
@@ -23,12 +25,13 @@ enum StoryCard {
         case .weekly(let o): return "fcscope-weekly-\(o.profile.nickname)"
         case .rival(let o, _): return "fcscope-rival-\(o.profile.nickname)"
         case .pickMatch(let o, _): return "fcscope-pick-\(o.profile.nickname)"
+        case .versus(let a, let b): return "fcscope-vs-\(a.profile.nickname)-\(b.profile.nickname)"
         }
     }
 
     private var overview: UserOverview {
         switch self {
-        case .user(let o), .rank(let o), .streak(let o), .weekly(let o), .rival(let o, _), .pickMatch(let o, _): return o
+        case .user(let o), .rank(let o), .streak(let o), .weekly(let o), .rival(let o, _), .pickMatch(let o, _), .versus(let o, _): return o
         }
     }
 
@@ -65,6 +68,9 @@ enum StoryCard {
         case .rival(_, let r):
             let images = await CardImages.load(players: [], urls: icons)
             return ShareCardRenderer.render(view: RivalCardView(o: o, r: r, images: images), size: size)
+        case .versus(let a, let b):
+            let images = await CardImages.load(players: [], urls: (a.profile.divisions + b.profile.divisions).compactMap(\.iconUrl))
+            return ShareCardRenderer.render(view: VersusCardView(c: VersusComparison(a: a, b: b), images: images), size: size)
         case .pickMatch(_, let picks):
             let pl: PlayersResponse? = await withTimeout(8) { try? await APIClient.shared.getAndCache("/api/v1/user/\(enc)/players", query: q, auth: false) }
             let tops = (pl?.players ?? []).filter(\.topPick)
