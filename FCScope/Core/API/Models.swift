@@ -381,6 +381,8 @@ struct HomePost: Decodable, Identifiable {
 struct PostTypeInfo: Decodable, Identifiable, Hashable {
     let type: String; let label: String; let emoji: String; let blurb: String; let accent: String
     let fields: [String]; let template: String; let bodyLabel: String; let bodyPlaceholder: String
+    /// 커뮤니티 v2(옵셔널) — 말머리 태그용 짧은 이름. 구 서버면 nil → 앱 내 매핑.
+    var shortLabel: String? = nil
     var id: String { type }
 }
 struct PostAuthor: Decodable, Hashable { let id: String; let nickname: String; let verifiedNickname: String?; let isOperator: Bool? }
@@ -404,18 +406,38 @@ struct Post: Decodable, Identifiable, Hashable {
     let preview: String?
     let metaRows: [MetaRow]?
     let squadB: String?
+    /// 커뮤니티 v2(옵셔널) — 0023 마이그레이션 전 서버에는 키가 없다. nil 이면 조회·추천 UI 를 숨긴다.
+    var viewCount: Int? = nil
+    var likeCount: Int? = nil
+    /// 로그인 + 0023 후에만 온다
+    var viewerLiked: Bool? = nil
     enum CodingKeys: String, CodingKey {
-        case id, type, title, body, region, positions, contact, meta, status, author, typeLabel, typeEmoji, preview, metaRows, squadB
+        case id, type, title, body, region, positions, contact, meta, status, author, typeLabel, typeEmoji, preview, metaRows, squadB, viewerLiked
         case authorId = "author_id", squadId = "squad_id", createdAt = "created_at", commentCount = "comment_count"
+        case viewCount = "view_count", likeCount = "like_count"
     }
     struct MetaRow: Decodable, Hashable, Identifiable { let key: String; let label: String; let value: String; var id: String { key } }
 }
-struct PostListResponse: Decodable { let page: Int; let totalPages: Int; let types: [PostTypeInfo]; let posts: [Post] }
+struct PostListResponse: Decodable {
+    let page: Int; let totalPages: Int; let types: [PostTypeInfo]; let posts: [Post]
+    /// 커뮤니티 v2(옵셔널) — 서버가 실제 적용한 정렬(new|hot|comments). 키가 없으면 구 서버(sort·types 쿼리 미지원).
+    var sort: String? = nil
+    /// 커뮤니티 v2(옵셔널) — 1페이지 "지금 뜨는 글" TOP 3. 0023 미적용이면 키가 없다.
+    var hot: [Post]? = nil
+}
 struct Comment: Decodable, Identifiable {
     let id: String; let postId: String; let authorId: String; let body: String; let squadId: String?; let createdAt: String
     let author: CommentAuthor; let isOwn: Bool
-    enum CodingKeys: String, CodingKey { case id, body, author, isOwn; case postId = "post_id", authorId = "author_id", squadId = "squad_id", createdAt = "created_at" }
-    struct CommentAuthor: Decodable { let id: String; let nickname: String; let isOperator: Bool? }
+    /// 커뮤니티 v2(옵셔널) — 1단 답글의 원 댓글 id · 좋아요. 0023 전 서버엔 키가 없다.
+    var parentId: String? = nil
+    var likeCount: Int? = nil
+    var viewerLiked: Bool? = nil
+    enum CodingKeys: String, CodingKey {
+        case id, body, author, isOwn, viewerLiked
+        case postId = "post_id", authorId = "author_id", squadId = "squad_id", createdAt = "created_at"
+        case parentId = "parent_id", likeCount = "like_count"
+    }
+    struct CommentAuthor: Decodable { let id: String; let nickname: String; let isOperator: Bool?; var verifiedNickname: String? = nil }
 }
 struct PostDetailResponse: Decodable {
     let post: Post
@@ -425,8 +447,18 @@ struct PostDetailResponse: Decodable {
 }
 /// 서버(`/api/community/battle`)는 소문자 `{"a":0,"b":0}` 로 내려준다 — 웹 BattleVote 도 같은 키를 읽는다.
 /// 대문자 "A"/"B" 로 매핑하면 옵셔널이라 디코딩은 성공하지만 값이 항상 nil 이 된다(표 수가 늘 0).
-/// 내가 어디에 투표했는지는 서버가 알려주지 않으므로 화면에서 로컬로 들고 있는다.
-struct BattleVotes: Decodable { let a: Int?; let b: Int? }
+/// v2 서버는 `mine` 으로 내 표를 돌려준다. 구 서버(키 없음)에선 앱이 로컬(CommunityPrefs)에 기억한다.
+struct BattleVotes: Decodable {
+    let a: Int?; let b: Int?
+    /// 커뮤니티 v2(옵셔널) — 로그인 또는 ?voter= 일 때 내가 고른 쪽 "A"/"B", 아니면 null.
+    var mine: String? = nil
+}
+/// 좋아요 토글 응답 — `POST/DELETE /api/community/{posts|comments}/:id/like`
+struct LikeResponse: Decodable {
+    let ok: Bool?; let liked: Bool
+    var likeCount: Int? = nil
+    enum CodingKeys: String, CodingKey { case ok, liked; case likeCount = "like_count" }
+}
 
 // MARK: - squad
 
