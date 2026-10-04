@@ -3,6 +3,7 @@ import GoogleMobileAds
 import UserMessagingPlatform
 import AppTrackingTransparency
 import Observation
+import WebKit
 
 /// AdMob 초기화 + UMP 동의 + ATT. ATT 는 온보딩을 마치고 메인 탭이 처음 뜰 때 요청. 배너는 설치 직후부터(2026-09-20 운영자 결정 — 3일 유예 폐지).
 /// ⚠️ 2026-09-30 심사 거절(2.1, iPad Air): ATT 를 "첫 전적 결과 이후"로 미뤘더니 검색을 하지 않은 심사자가 팝업을 끝내 못 봤다.
@@ -175,18 +176,18 @@ final class InterstitialDelegate: NSObject, FullScreenContentDelegate {
     func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) { finish() }
 }
 
-/// 구단주명 검색 전면광고 — 하루 첫 검색만 무료, 두 번째 검색부터 매번(2026-09-20 운영자 결정).
+/// 구단주명 검색 전면광고 — 하루 첫 검색은 무료, 두 번째 검색부터는 **직전 전면광고 후 90초가 지났을 때만**.
+/// 하루 상한은 없다(2026-10-04 운영자 결정 — 0초 쿨다운은 상대 닉을 연달아 칠 때마다 광고가 떠
+/// 유저 패널 5라운드 1순위 불만이었다).
 ///
 /// - 날짜는 KST 기준으로 매일 초기화한다.
-/// - ⚠️ 쿨다운 0: 연속 검색마다 광고가 뜬다. AdMob 은 과도한 빈도를 게재 제한 사유로 볼 수 있어,
-///   노출 대비 이탈·수익을 보고 `cooldown` 을 다시 늘릴지 판단할 것(예전 값 90초).
 /// - 대상은 **검색창에 직접 입력한 검색**뿐이다. 즐겨찾기·최근 검색·칩을 누르는 건 탐색이라 제외.
 @MainActor
 enum SearchGate {
-    /// 하루 첫 검색만 무료, 두 번째 검색부터는 매번 전면광고(2026-09-20 운영자 결정).
-    /// 광고가 아직 로드되지 않았으면 그 검색은 광고 없이 지나간다(검색을 막지 않음).
+    /// 하루 무료 검색 수. 광고가 아직 로드되지 않았으면 그 검색은 광고 없이 지나간다(검색을 막지 않음).
     static let freePerDay = 1
-    static let cooldown: TimeInterval = 0
+    /// 전면광고 사이 최소 간격(초)
+    static let cooldown: TimeInterval = 90
 
     private static let dayKey = "fcscope.search.day"
     private static let countKey = "fcscope.search.count"
@@ -236,7 +237,10 @@ enum BannerFormat: Equatable {
     func adSize(width: CGFloat) -> AdSize {
         switch self {
         case .anchored: return largeAnchoredAdaptiveBanner(width: width)
-        case .inline(let h): return inlineAdaptiveBanner(width: width, maxHeight: h)
+        // 인라인은 폭 300pt 로 요청한다 — 컨테이너 전체 폭(약 360~390pt)으로 요청하면 300×250 소재가 웹뷰 안에서
+        // 가운데 놓이고 양옆이 검은 기둥으로 칠해졌다(SDK 뷰 배경은 투명 — 검정은 소재 HTML 의 레터박스, 디자인 5R M1).
+        // 300 폭이면 소재와 컨테이너가 같아 띠가 없다. 뷰는 카드 가운데 둔다.
+        case .inline(let h): return inlineAdaptiveBanner(width: min(width, 300), maxHeight: h)
         case .banner320x50: return AdSizeBanner
         }
     }
@@ -284,9 +288,14 @@ struct BannerAdView: UIViewRepresentable {
     let placement: String
     /// 받은 광고의 실제 높이. 실패하면 0.
     @Binding var height: CGFloat?
-    func makeCoordinator() -> Coordinator { Coordinator(height: $height, placement: placement) }
+    /// 받은 소재의 실제 폭 — 300×250 소재가 컨테이너 폭(약 360pt)에 들어오면 양옆에 검은 기둥이 생겼다.
+    /// 뷰를 이 폭으로 줄여 가운데 둔다(디자인 5R M1).
+    var receivedWidth: Binding<CGFloat?> = .constant(nil)
+    func makeCoordinator() -> Coordinator { Coordinator(height: $height, width: receivedWidth, placement: placement) }
     func makeUIView(context: Context) -> BannerView {
         let v = BannerView(adSize: format.adSize(width: width))
+        v.backgroundColor = .clear
+        v.isOpaque = false
         v.adUnitID = AppConfig.bannerAdUnit ?? ""
         v.rootViewController = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController }.first
         v.delegate = context.coordinator
@@ -298,13 +307,33 @@ struct BannerAdView: UIViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, BannerViewDelegate {
         private let height: Binding<CGFloat?>
+        private let width: Binding<CGFloat?>
         private let placement: String
-        init(height: Binding<CGFloat?>, placement: String) { self.height = height; self.placement = placement }
+        init(height: Binding<CGFloat?>, width: Binding<CGFloat?>, placement: String) { self.height = height; self.width = width; self.placement = placement }
         func bannerViewDidReceiveAd(_ bannerView: BannerView) {
-            let h = max(bannerView.adSize.size.height, bannerView.frame.height)
+            // 받은 소재 크기(adSize 는 요청 크기 — 인라인·적응형은 응답 소재가 더 작을 수 있다)
+            let creative = bannerView.subviews.first { !$0.isHidden && $0.bounds.width > 0 }?.bounds.size
+            let h = max(1, creative?.height ?? 0) > 1 ? creative!.height : max(bannerView.adSize.size.height, bannerView.frame.height)
+            let w = (creative?.width ?? 0) > 1 ? creative!.width : bannerView.adSize.size.width
+            // 소재 HTML 이 투명한 부분은 웹뷰의 불투명 검은 배경이 비쳐 위아래·양옆 검은 띠로 보였다(디자인 5R M1).
+            // 소재 자체는 건드리지 않고, 소재 뒤 웹뷰 바탕만 투명으로 — 카드 배경(surface2)이 비친다.
+            Self.clearWebBackgrounds(bannerView)
+            width.wrappedValue = w > 0 ? w : nil
             height.wrappedValue = h > 0 ? h : nil
             BannerSession.shared.noteFill()
             AdEvents.log(placement, "fill", extra: ["height": Int(h)])
+        }
+        static func clearWebBackgrounds(_ root: UIView) {
+            var stack: [UIView] = [root]
+            while let v = stack.popLast() {
+                if let web = v as? WKWebView {
+                    web.isOpaque = false
+                    web.backgroundColor = .clear
+                    web.scrollView.backgroundColor = .clear
+                    web.underPageBackgroundColor = .clear
+                }
+                stack.append(contentsOf: v.subviews)
+            }
         }
         func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
             height.wrappedValue = 0
@@ -343,6 +372,7 @@ struct AdSlot: View {
     @State private var session = BannerSession.shared
     /// nil = 로딩 중, 0 = 광고 없음(접힘)
     @State private var height: CGFloat?
+    @State private var adWidth: CGFloat?
     @State private var timedOut = false
     @State private var visible = false
     @State private var passed = false
@@ -372,12 +402,20 @@ struct AdSlot: View {
                 if shown { Text("AD · 광고").fcText(.caption, weight: .semibold).foregroundStyle(FC.muted) }
                 GeometryReader { geo in
                     // 폭이 0 으로 오면 잘못된 크기로 요청해 실패한다 — 폭이 잡힌 뒤에만 만든다.
-                    if ads.ready, geo.size.width > 100 {
+                    // 전환 애니메이션 중 잠깐 좁게(예: 102pt) 잡힌 폭으로 만들면 "Invalid ad width or height" 로 실패해
+                    // 그 슬롯이 영구히 접혔다(홈, SE 실측) — 배너 최소 폭(280pt) 이상일 때만 만든다.
+                    if ads.ready, geo.size.width >= 280 {
                         // 배너 뷰 자체에는 요청 크기만큼의 프레임을 준다 — 높이 0 프레임의 인라인 배너는
                         // "Invalid ad width or height" 로 실패했다. 받기 전에는 투명·터치 불가로 두고(겉 프레임이 0이라 자리는 안 차지한다),
                         // 받은 뒤 겉 프레임이 실제 높이로 펴진다.
-                        BannerAdView(width: geo.size.width, format: format, placement: placement, height: $height)
-                            .frame(width: geo.size.width, height: height.flatMap { $0 > 0 ? $0 : nil } ?? format.adSize(width: geo.size.width).size.height, alignment: .top)
+                        let reqH = format.adSize(width: geo.size.width).size.height
+                        BannerAdView(width: geo.size.width, format: format, placement: placement, height: $height, receivedWidth: $adWidth)
+                            // 받은 소재 크기로 줄이고 카드 가운데에 — 남는 폭이 검은 띠로 보이지 않게(디자인 5R M1)
+                            // 받기 전에는 요청 크기 그대로(인라인은 300pt) — 뷰 폭을 컨테이너 전체로 주면 SDK 가 그 폭으로
+                            // 소재를 받아 300×250 양옆이 검은 기둥이 됐다.
+                            .frame(width: loaded ? min(geo.size.width, adWidth ?? geo.size.width) : min(geo.size.width, format.adSize(width: geo.size.width).size.width),
+                                   height: loaded ? (height ?? reqH) : reqH, alignment: .top)
+                            .frame(maxWidth: .infinity, alignment: .center)
                             .opacity(loaded ? 1 : 0)
                             .allowsHitTesting(loaded)
                     }
@@ -452,8 +490,9 @@ struct CompactAdRow: View {
                     .frame(width: 22, height: 16)
                     .overlay(RoundedRectangle(cornerRadius: 4).stroke(CM.faint.opacity(0.6), lineWidth: 1))
                 if ads.ready {
+                    // 320×50 고정 — 프레임을 받은 높이(보통 50)에 맞춰 위아래 검은 줄이 생기지 않게(디자인 5R M1)
                     BannerAdView(width: 320, format: .banner320x50, placement: placement, height: $height)
-                        .frame(width: 320, height: 50)
+                        .frame(width: 320, height: min(50, max(1, height ?? 50)))
                 }
             }
             .frame(maxWidth: .infinity)

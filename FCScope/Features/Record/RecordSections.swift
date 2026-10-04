@@ -69,8 +69,6 @@ struct ReportSection: View {
                             }
                         }
                     }
-                    // 광고 — 첫 요약 패널 뒤 · 시간대별 득실 앞(AD-PLACEMENT 1-2). 위는 탭 불가 인사이트 문장.
-                    AdSlot(placement: "record_report", reserve: true)
                     Panel {
                         VStack(alignment: .leading, spacing: 8) {
                             SectionLabel("시간대별 득실")
@@ -91,6 +89,8 @@ struct ReportSection: View {
                             }
                         }
                     }
+                    // 광고 — "시간대별 득실" 뒤(디자인 5R: 요약과 그 차트를 광고가 가르지 않게). 위는 차트 범례(탭 불가).
+                    AdSlot(placement: "record_report", reserve: true)
                     if let total = Self.shotTypeGoals(r.report.shotTypes), total <= goals(r.report).gf {
                         Panel {
                             VStack(alignment: .leading, spacing: 8) {

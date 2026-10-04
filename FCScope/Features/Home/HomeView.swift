@@ -60,13 +60,13 @@ struct HomeView: View {
                 if !prefs.favorites.isEmpty { favoritesSection }
                 if let home = vm.state.value {
                     if let mover = home.mover { MoverCard(m: mover) }
+                    // 광고 — "오늘의 급상승" 카드 뒤 · "지금 검색되는 구단주" 앞(디자인 5R). 최근 검색 뒤였을 때는 Max 첫 화면에서
+                    // 떠 있는 탭 바 2pt 위에 걸쳤다. 위는 카드(탭) → +8pt, 아래는 탭 불가 섹션 라벨.
+                    AdSlot(placement: "home", reserve: true).padding(.top, 8)
                     if !home.liveSearches.isEmpty { liveChips(home.liveSearches) }
                 } else if vm.state.isLoading { Skeleton(height: 60) }
                 // "커뮤니티 최신"은 그리지 않는다(운영자 요청 2026-10-04). /api/v1/home 의 posts 는 v1 계약이라 서버는 계속 준다.
                 if !prefs.recentSearches.isEmpty { recentSection }
-                // 광고 — 개인화·실시간 블록이 끝나고 기능 소개가 시작되는 경계(AD-PLACEMENT 1-1). 위는 칩(탭) → +8pt,
-                // 아래는 탭 불가 섹션 라벨. 첫 화면(Max) 안이라 높이를 미리 잡는다(R1).
-                AdSlot(placement: "home", reserve: true).padding(.top, 8)
                 featureGrid
         }
         .transaction { $0.animation = nil; $0.disablesAnimations = true }
