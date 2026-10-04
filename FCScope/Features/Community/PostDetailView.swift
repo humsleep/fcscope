@@ -490,7 +490,7 @@ struct PostDetailView: View {
             }
             ForEach(Array(threads.enumerated()), id: \.element.id) { ti, t in
                 // 루트 댓글 15개마다 1개(깊은 자리 — 받은 뒤 편다)
-                if ti > 0, ti % 15 == 0 { adBlock("community_detail_more").padding(.vertical, 8) }
+                if ti > 0, ti % 15 == 0 { CompactAdRow(placement: "community_detail_more", instance: "\(ti)").padding(.vertical, 8) }
                 rootOrCollapsed(t.root, d: d, isBest: bestIds.contains(t.root.id))
                 let showAll = t.replies.count <= 3 || expanded.contains(t.id)
                 let shown = showAll ? t.replies : Array(t.replies.prefix(2))

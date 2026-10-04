@@ -387,7 +387,7 @@ struct CommunityView: View {
                     if i == min(2, visible.count - 1) {
                         CompactAdRow(placement: "community_list", reserve: true)
                     } else if i > 2, (i - 2) % 15 == 0 {
-                        CompactAdRow(placement: "community_list_more", reserve: true)
+                        CompactAdRow(placement: "community_list_more", reserve: true, instance: "\(i)")
                     }
                 }
             }
