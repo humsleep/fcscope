@@ -458,8 +458,7 @@ struct PostDetailView: View {
         let best = model.likesEnabled ? CommentThread.best(list) { model.commentLikes[$0.id]?.count } : []
         let bestIds = Set(best.map(\.id))
         let byId = Dictionary(uniqueKeysWithValues: list.map { ($0.id, $0) })
-        // 광고 자리: BEST 묶음 뒤. BEST 가 없으면 세 번째 댓글 스레드 뒤(댓글이 적으면 마지막 뒤).
-        let adAfterThread: String? = best.isEmpty ? threads.prefix(3).last?.id : nil
+        // 광고 자리(하나): BEST 묶음 뒤. BEST 가 없으면 댓글 머리 바로 아래.
         return VStack(alignment: .leading, spacing: 0) {
             HStack {
                 (Text("댓글 ").font(.cm(16, typeSize, .bold)).foregroundColor(FC.ink)
@@ -474,6 +473,7 @@ struct PostDetailView: View {
             }
             .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 4)
 
+            if best.isEmpty { adBlock }
             if list.isEmpty {
                 VStack(spacing: 4) {
                     Text("아직 댓글이 없어요").cmText(15, .semibold).foregroundStyle(FC.ink)
@@ -511,15 +511,14 @@ struct PostDetailView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                if t.id == adAfterThread { adBlock }
             }
         }
         .padding(.bottom, 24)
     }
 
-    /// 댓글 흐름 속 광고 — 로드되기 전에는 자리를 잡지 않는다(AdSlot 기본값). 위아래 여백만 둔다.
+    /// 댓글 흐름 속 광고 — 목록과 같은 작은 배너 행(320×50). 받기 전·실패 시 접힌다.
     private var adBlock: some View {
-        AdSlot().padding(.horizontal, 16).padding(.vertical, 6)
+        CompactAdRow()
     }
 
     /// 원래 자리 — BEST 로 올라간 댓글은 한 줄로 접는다(같은 글이 한 화면에 두 번 보이면 버그처럼 읽혔다 · 디자인 M4).

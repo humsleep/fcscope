@@ -222,11 +222,13 @@ enum SearchGate {
 /// 적응형 배너 — 홈·전적·매치 리포트·픽 랭킹·커뮤니티 목록 맨 위(카카오톡식, 2026-09-21 운영자 결정)
 struct BannerAdView: UIViewRepresentable {
     let width: CGFloat
+    /// 고정 크기(예: `AdSizeBanner` 320×50). nil 이면 폭에 맞춘 큰 적응형 배너.
+    var size: AdSize? = nil
     /// 받은 광고의 실제 높이. 실패하면 0 — 고정 60pt 는 큰 적응형 배너를 잘랐고, 광고가 없을 때 빈 칸을 남겼다.
     @Binding var height: CGFloat?
     func makeCoordinator() -> Coordinator { Coordinator(height: $height) }
     func makeUIView(context: Context) -> BannerView {
-        let v = BannerView(adSize: largeAnchoredAdaptiveBanner(width: width))
+        let v = BannerView(adSize: size ?? largeAnchoredAdaptiveBanner(width: width))
         v.adUnitID = AppConfig.bannerAdUnit ?? ""
         v.rootViewController = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController }.first
         v.delegate = context.coordinator
@@ -288,6 +290,41 @@ struct AdSlot: View {
             .accessibilityElement(children: .contain)
             .accessibilityLabel("광고")
             .accessibilityHidden(!shown)
+        }
+    }
+}
+
+
+/// 커뮤니티 목록·상세용 **작은 배너(320×50)** — 목록 행과 같은 문법: 행 높이(약 60pt), 왼쪽 "AD" 표기, 아래 1pt 헤어라인.
+/// 320×100·적응형 큰 배너는 제목만 있는 목록에서 행 5~6개 높이를 차지해 흐름을 끊었다(운영자 결정 2026-10-04).
+/// 광고 단위·설정은 `AdSlot` 과 같다(`AppConfig.bannerAdUnit`). 받기 전·실패 시에는 높이 0으로 접혀 자리를 남기지 않는다.
+/// "AD" 표기는 배너 옆에 둔다 — 소재 위에 겹치지 않는다(AdMob 정책).
+struct CompactAdRow: View {
+    @State private var ads = AdsManager.shared
+    /// nil = 로딩 중, 0 = 광고 없음(접힘)
+    @State private var height: CGFloat?
+
+    var body: some View {
+        if ads.starting, ads.canShowAds, height != 0 {
+            let loaded = height != nil
+            HStack(spacing: 6) {
+                Text("AD").font(.system(size: 9, weight: .heavy)).tracking(0.5).foregroundStyle(CM.faint)
+                    .frame(width: 22, height: 16)
+                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(CM.faint.opacity(0.6), lineWidth: 1))
+                if ads.ready {
+                    BannerAdView(width: 320, size: AdSizeBanner, height: $height)
+                        .frame(width: 320, height: 50)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, loaded ? 5 : 0)
+            .frame(height: loaded ? nil : 0)
+            .opacity(loaded ? 1 : 0)
+            .overlay(alignment: .bottom) { if loaded { Rectangle().fill(CM.hair).frame(height: 1) } }
+            .animation(.easeOut(duration: 0.2), value: loaded)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("광고")
+            .accessibilityHidden(!loaded)
         }
     }
 }

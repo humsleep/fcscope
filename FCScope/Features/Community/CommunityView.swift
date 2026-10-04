@@ -373,9 +373,9 @@ struct CommunityView: View {
                 ForEach(Array(visible.enumerated()), id: \.element.id) { i, p in
                     row(p)
                         .onAppear { if p.id == visible.last?.id { Task { await model.loadMore() } } }
-                    // 광고 — 3번째 행 뒤(행이 3개 미만이면 마지막 행 뒤). 크기는 기존 AdSlot 그대로(운영자 결정).
-                    if i == min(2, visible.count - 1) {
-                        AdSlot().padding(.horizontal, 16).padding(.vertical, 8)
+                    // 광고 — 3번째 행 뒤(행이 3개 미만이면 마지막 행 뒤), 이후 15행마다. 목록 행 모양의 작은 배너(320×50 · 운영자 결정 2026-10-04)
+                    if i == min(2, visible.count - 1) || (i > 2 && (i - 2) % 15 == 0) {
+                        CompactAdRow()
                     }
                 }
             }
