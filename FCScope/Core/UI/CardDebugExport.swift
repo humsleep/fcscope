@@ -44,6 +44,12 @@ enum CardDebugExport {
                 if let img = ShareCardRenderer.render(view: SquadCardView(data: data), size: CGSize(width: CardLayout.width, height: CardLayout.height)),
                    let png = img.pngData() { try? png.write(to: dir.appendingPathComponent("squad.png")) }
             }
+            // 3·4·5백 간격 검수용 — 빈 스쿼드(포지션 라벨)로 포메이션별 카드
+            for f in ["343", "352", "532", "41212"] {
+                let data = SquadCardData(name: "포메이션 \(Formation.get(f).name)", formationId: f, slots: [:], shareCode: "sample")
+                if let img = ShareCardRenderer.render(view: SquadCardView(data: data), size: CGSize(width: CardLayout.width, height: CardLayout.height)),
+                   let png = img.pngData() { try? png.write(to: dir.appendingPathComponent("squad-\(f).png")) }
+            }
             print("[cards] done → \(dir.path)")
         }
     }
