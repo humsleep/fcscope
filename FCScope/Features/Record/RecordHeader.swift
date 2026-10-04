@@ -123,7 +123,9 @@ struct RecordHeader: View {
                         .font(.fcScoreboard(28, typeSize)).foregroundStyle(FC.ink)
                 }
             }
-            tile("스코어", sub: FCCopy.tier(o.tier.label), subColor: FC.tone(o.tier.tone)) {
+            // "4.5 반등 준비 중"이 좋은지 나쁜지 몰랐다(유저 패널 5R B) — 보통 구간을 라벨에 붙인다.
+            // 서버 scoreTier: 5.0 이상 6.5 미만 = 평범(앱 표기 "딱 평균"), 6.5 이상 수준급.
+            tile("스코어", hint: "보통 5~6.4", sub: FCCopy.tier(o.tier.label), subColor: FC.tone(o.tier.tone)) {
                 HStack(alignment: .center, spacing: 6) {
                     CountUp(target: o.score, delay: 0.05) { v in
                         Text(String(format: "%.1f", v)).font(.fcScoreboard(28, typeSize)).foregroundStyle(FC.tone(o.tier.tone))
@@ -155,10 +157,11 @@ struct RecordHeader: View {
         .frame(width: 280, alignment: .leading)
     }
 
-    private func tile<V: View>(_ label: String, info: Bool = false, sub: String, subColor: Color = FC.muted, @ViewBuilder value: () -> V) -> some View {
+    private func tile<V: View>(_ label: String, hint: String? = nil, info: Bool = false, sub: String, subColor: Color = FC.muted, @ViewBuilder value: () -> V) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 3) {
                 Text(label).fcText(.meta, weight: .semibold).foregroundStyle(FC.muted).lineLimit(1)
+                if let hint { Text(hint).fcText(.caption).foregroundStyle(FC.muted.opacity(0.8)).lineLimit(1).minimumScaleFactor(0.75) }
                 if info {
                     Button { showBasis = true } label: {
                         Image(systemName: "info.circle").font(.system(size: 11, weight: .semibold)).foregroundStyle(FC.muted)
@@ -308,7 +311,13 @@ struct RecordIdentityRow: View {
                         .font(.fcText(.meta, typeSize)).lineLimit(1).minimumScaleFactor(0.8)
                         .accessibilityLabel("\(d.matchTypeName) 역대 최고 등급 \(d.divisionName), \(d.date) 달성")
                 }
-                if let tier { FormTierButton(tier: tier) }
+                if let tier {
+                    // 폼 티어 기준 — 승률 50% · 득실 0 · 평균 스코어면 51점 = 플래티넘(FormTier.points 로 계산한 값)
+                    HStack(spacing: 6) {
+                        FormTierButton(tier: tier)
+                        Text("보통 = 플래티넘").fcText(.caption).foregroundStyle(FC.muted).lineLimit(1).minimumScaleFactor(0.8)
+                    }
+                }
             }
             Spacer(minLength: 0)
         }

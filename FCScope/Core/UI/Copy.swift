@@ -88,48 +88,75 @@ extension MatchDetailResponse {
     /// - 결승골 문장은 골 기록으로 스코어 흐름을 다시 세워, **동점에서 들어가 끝까지 유지된 골**일 때만 낸다.
     ///   (같은 분에 양 팀 골이 있으면 순서를 알 수 없어 내지 않는다.)
     /// - 몰수·상대 없음·이기거나 비긴 경기는 빈 배열 — 화면은 블록을 숨긴다.
-    var lossReasons: [String] {
+    var lossReasons: [String] { lossFindings.map(\.text) }
+
+    /// (근거 종류, 문장) — 처방 한 줄은 첫 근거의 종류로 고른다
+    var lossFindings: [(kind: LossKind, text: String)] {
         guard me.result == "패", !me.forfeit, let o = opponent, me.goals < o.goals else { return [] }
         let ms = me.stats, os = o.stats
         let myLogGoals = me.shots.filter(\.isGoal).count, oppLogGoals = o.shots.filter(\.isGoal).count
         let myLogOK = me.shots.count == ms.shots && myLogGoals == me.goals
         let oppLogOK = o.shots.count == os.shots && oppLogGoals == o.goals
-        var out: [String] = []
+        var out: [(kind: LossKind, text: String)] = []
         // 1) 슛 자체가 적다(집계)
         if ms.shots <= 4, ms.shots < os.shots {
-            out.append("슛 \(ms.shots)개로는 어려웠어요 — 상대는 \(os.shots)개")
+            out.append((.fewShots, "슛 \(ms.shots)개로는 어려웠어요 — 상대는 \(os.shots)개"))
         }
         // 2) 쐈지만 골문으로 안 갔다(집계)
         if ms.shots >= 6, ms.effectiveShots <= ms.shots, ms.effectiveShots * 3 <= ms.shots {
-            out.append("슛 \(ms.shots)개 중 유효슛 \(ms.effectiveShots)개 — 골문으로 간 슛이 적었어요")
+            out.append((.offTarget, "슛 \(ms.shots)개 중 유효슛 \(ms.effectiveShots)개 — 골문으로 간 슛이 적었어요"))
         }
         // 3) 박스 밖에서 많이 쐈다(슛 기록 — 기록이 집계와 맞고 모든 슛에 위치가 있을 때)
         if myLogOK, ms.shots >= 5, me.shots.allSatisfy({ $0.inPenalty != nil }) {
             let box = me.shots.filter { $0.inPenalty == true }.count
-            if box * 2 < me.shots.count { out.append("슛 \(me.shots.count)개 중 박스 안 \(box)개 — 먼 거리 슛이 많았어요") }
+            if box * 2 < me.shots.count { out.append((.longShots, "슛 \(me.shots.count)개 중 박스 안 \(box)개 — 먼 거리 슛이 많았어요")) }
         }
         // 4) 골문으로 갔는데 안 들어갔다 — 내 골이 전부 내 슛에서 나왔을 때만(상대 자책골이 섞이면 "유효슛 N개에 G골"이 틀린다)
         if myLogOK, ms.effectiveShots >= 5, me.goals <= ms.effectiveShots, me.goals * 4 <= ms.effectiveShots {
-            out.append("유효슛 \(ms.effectiveShots)개에 \(me.goals)골 — 마무리가 아쉬웠어요")
+            out.append((.finishing, "유효슛 \(ms.effectiveShots)개에 \(me.goals)골 — 마무리가 아쉬웠어요"))
         }
         // 5) 상대 마무리 — 상대 골이 전부 상대 슛에서 나왔을 때만
         if oppLogOK, o.goals >= 2, o.goals <= os.effectiveShots, o.goals * 2 >= os.effectiveShots {
-            out.append("상대는 유효슛 \(os.effectiveShots)개로 \(o.goals)골 — 상대 마무리가 날카로웠어요")
+            out.append((.oppFinishing, "상대는 유효슛 \(os.effectiveShots)개로 \(o.goals)골 — 상대 마무리가 날카로웠어요"))
         }
         // 5b) 상대 슛 기록에 없는 실점(자책골 등) — 기록 슛 수는 집계와 맞는데 골만 모자랄 때
         if o.shots.count == os.shots, oppLogGoals < o.goals {
             let n = o.goals - oppLogGoals
-            out.append("\(o.goals)실점 중 \(n)골은 상대 슛이 아닌 골(자책골 등)이었어요")
+            out.append((.ownGoal, "\(o.goals)실점 중 \(n)골은 상대 슛이 아닌 골(자책골 등)이었어요"))
         }
         // 6) 공을 못 잡았다(집계)
         if me.possession <= 40 {
-            out.append("점유 \(me.possession)% — 공을 오래 못 잡았어요")
+            out.append((.possession, "점유 \(me.possession)% — 공을 오래 못 잡았어요"))
         }
         // 7) 동점에서 내준 늦은 결승골
         if let w = decidingGoal, w.minute >= 80 {
-            out.append("\(w.tie):\(w.tie) 동점이던 \(w.minute)분, 결승골을 내줬어요")
+            out.append((.lateDecider, "\(w.tie):\(w.tie) 동점이던 \(w.minute)분, 결승골을 내줬어요"))
         }
         return Array(out.prefix(2))
+    }
+
+    enum LossKind { case fewShots, offTarget, longShots, finishing, oppFinishing, ownGoal, possession, lateDecider }
+
+    /// "왜 졌을까" 아래 처방 한 줄 — 첫 근거(데이터로 확인된 사실)에 맞춘 조언. 근거가 없으면 nil.
+    /// 데이터와 어긋나지 않게: 박스 안 슛이 이미 절반 이상이면 "박스 안으로 들어가라"고 하지 않는다.
+    var lossAdvice: String? {
+        guard let first = lossFindings.first else { return nil }
+        let boxShare: Double? = {
+            guard me.shots.count == me.stats.shots, !me.shots.isEmpty, me.shots.allSatisfy({ $0.inPenalty != nil }) else { return nil }
+            return Double(me.shots.filter { $0.inPenalty == true }.count) / Double(me.shots.count)
+        }()
+        switch first.kind {
+        case .fewShots: return "슛까지 가는 장면을 늘려 봐요 — 박스 근처에선 한 번 더 시도"
+        case .offTarget:
+            if let b = boxShare, b < 0.5 { return "박스 안까지 끌고 들어가서 마무리해 봐요" }
+            return "서두르지 말고 각을 만든 뒤 골문 안으로 차 봐요"
+        case .longShots: return "먼 거리 슛 대신 박스 안으로 한 번 더 패스해 봐요"
+        case .finishing: return "찬스는 났어요 — 골키퍼 위치를 보고 침착하게 마무리해 봐요"
+        case .oppFinishing: return "상대 유효슛을 줄이는 게 먼저 — 박스 앞 간격을 좁혀 봐요"
+        case .ownGoal: return "우리 박스 안 걷어내기를 확실하게 해 봐요"
+        case .possession: return "짧은 패스로 공을 더 오래 지켜 봐요"
+        case .lateDecider: return "동점 막판엔 무리한 공격보다 수비 라인부터 정비해 봐요"
+        }
     }
 
     /// 한 골 차 패배에서 **동점을 깬 마지막 상대 골**(= 결승골)과 그 직전 동점 스코어.
