@@ -417,6 +417,42 @@ struct Post: Decodable, Identifiable, Hashable {
         case viewCount = "view_count", likeCount = "like_count"
     }
     struct MetaRow: Decodable, Hashable, Identifiable { let key: String; let label: String; let value: String; var id: String { key } }
+
+    /// 첨부(내 전적 카드 · VS 카드) — 서버가 meta 에 평평한 문자열 키로 저장한다(웹 lib/community/attach.ts).
+    /// 구버전 앱은 이 키들을 모르고 지나가며, 서버는 metaRows 에서 이 키들을 뺀다.
+    var attach: PostAttach? { PostAttach(meta: meta) }
+}
+
+/// 글 첨부 — 구단주명만 저장하고, 카드는 화면이 열 때마다 최신 전적으로 그린다(라이브).
+struct PostAttach: Codable, Hashable {
+    enum Kind: String, Codable { case record, versus }
+    var kind: Kind
+    var me: String
+    var with: String?
+    var mode: Int = 50
+
+    init(kind: Kind, me: String, with: String? = nil, mode: Int = 50) {
+        self.kind = kind; self.me = me; self.with = with; self.mode = mode
+    }
+    init?(meta: [String: String]) {
+        guard let k = meta["attach_kind"].flatMap(Kind.init(rawValue:)),
+              let me = meta["attach_me"], !me.isEmpty else { return nil }
+        let w = meta["attach_with"].flatMap { $0.isEmpty ? nil : $0 }
+        if k == .versus && w == nil { return nil }
+        self.init(kind: k, me: me, with: k == .versus ? w : nil, mode: meta["attach_mode"].flatMap(Int.init) ?? 50)
+    }
+    /// 작성 요청 본문(`attach`)
+    var json: [String: Any] {
+        var j: [String: Any] = ["kind": kind.rawValue, "me": me, "mode": mode]
+        if let with { j["with"] = with }
+        return j
+    }
+    /// meta 저장 형식(목 서버용)
+    var metaEntries: [String: String] {
+        var m = ["attach_kind": kind.rawValue, "attach_me": me, "attach_mode": String(mode)]
+        if let with { m["attach_with"] = with }
+        return m
+    }
 }
 struct PostListResponse: Decodable {
     let page: Int; let totalPages: Int; let types: [PostTypeInfo]; let posts: [Post]

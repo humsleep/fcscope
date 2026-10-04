@@ -31,6 +31,7 @@ struct PostListRow: View {
                     Image(systemName: "shield.fill").font(.system(size: 13 * TypeScale.factor(typeSize)))
                         .foregroundStyle(CM.faint).accessibilityHidden(true)
                 }
+                if let a = post.attach { PostAttachGlyph(attach: a) }
                 if let n = commentCount, n > 0 {
                     Text("[\(n)]").cmScore(13).foregroundStyle(FC.tint).fixedSize()
                 }
@@ -57,6 +58,7 @@ struct PostListRow: View {
         var parts = ["\(post.typeLabel). \(post.title)"]
         if post.status == "closed" { parts.append("마감") }
         if post.squadId != nil { parts.append("스쿼드 첨부") }
+        if let a = post.attach { parts.append(a.kind == .versus ? "VS 카드 첨부" : "전적 카드 첨부") }
         if let n = commentCount, n > 0 { parts.append("댓글 \(n)개") }
         parts.append("\(post.author.nickname), \(DateFmt.relative(post.createdAt))")
         if cprefs.serverV2, let l = post.likeCount, l > 0 { parts.append("추천 \(l)") }

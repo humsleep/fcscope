@@ -66,7 +66,7 @@ final class CommunityMock {
         let label = Self.typeInfo.first { $0.0 == type }?.1 ?? type
         var metaRows: [[String: String]] = []
         let names = ["budget": "예산", "schedule": "가능 시간", "date": "일정", "format": "형식", "entry": "참가 방법", "formation": "포메이션"]
-        for (k, v) in meta.sorted(by: { $0.key < $1.key }) where k != "squad_b" { metaRows.append(["key": k, "label": names[k] ?? k, "value": v]) }
+        for (k, v) in meta.sorted(by: { $0.key < $1.key }) where k != "squad_b" && !k.hasPrefix("attach_") { metaRows.append(["key": k, "label": names[k] ?? k, "value": v]) }
         var p: [String: Any] = [
             "id": id, "author_id": author ?? "u-\(nick)", "type": type, "title": title,
             "body": body.isEmpty ? "\(title)\n\n본문 예시입니다. 실제 서버 데이터가 아닌 개발용 목 데이터예요." : body,
@@ -91,13 +91,15 @@ final class CommunityMock {
                  meta: ["budget": "센터백 1명분", "formation": "4-2-3-1"]),
             post("p2", "squad_battle", "EPL 올스타 vs 라리가 올스타, 어디가 더 셈?", nick: "피파탐색이", verified: true, min: 12, comments: 47, views: 12_400, likes: 61, squad: "epl", squadB: "laliga",
                  body: "둘 다 예산 비슷하게 맞췄어요. 어느 쪽이 랭겜에서 더 잘 먹힐까요?"),
-            post("p3", "squad_make", "3천억으로 EPL 4-3-3 짜줘요 (월클 목표)", nick: "몽키스패누", min: 25, comments: 5, views: 310, likes: 2, meta: ["budget": "3천억"]),
+            post("p3", "squad_make", "3천억으로 EPL 4-3-3 짜줘요 (월클 목표)", nick: "몽키스패누", min: 25, comments: 5, views: 310, likes: 2,
+                 meta: ["budget": "3천억"].merging(PostAttach(kind: .record, me: "SEPTEMBERSKY").metaEntries) { a, _ in a }),
             post("p4", "squad_show", "드디어 맞춘 리버풀 풀금카 ㅋㅋㅋ 인증", nick: "신카레49", verified: true, min: 41, comments: 31, views: 2104, likes: 38, squad: "bvb1"),
             post("p5", "club_recruit", "경기권 월클 이상 클럽원 2명 구해요 (주 3회)", nick: "낭만축구동호회", min: 62, comments: 3, views: 187, likes: 0, region: "경기",
                  positions: ["CB", "CDM"], contact: "디스코드 nangman#1234"),
             post("p6", "tournament", "10월 3주차 FC Scope 컵 — 32강 토너먼트 모집", nick: "보엠", op: true, min: 125, comments: 88, views: 5812, likes: 104,
                  meta: ["date": "10/18(토) 21시", "format": "32강 싱글 엘리미네이션", "entry": "댓글로 구단주명"]),
-            post("p7", "squad_rate", "이 스쿼드 몇 점인가요 솔직하게", nick: "R카를로스UFO슛팅", min: 130, comments: 3, views: 96, likes: 0, squad: "bvb1"),
+            post("p7", "squad_rate", "보엠 vs 팔디 — 누가 요즘 더 잘하나요", nick: "R카를로스UFO슛팅", min: 130, comments: 3, views: 96, likes: 0,
+                 meta: PostAttach(kind: .versus, me: "보엠", with: "팔디").metaEntries),
             post("p8", "squad_make", "손흥민·이강인·김민재 넣은 국대 스쿼드, 나머지 자리 추천해 주세요 예산은 넉넉합니다", nick: "SEPTEMBERSKY", verified: true, min: 190, comments: 0, views: 74, likes: 0),
             post("p9", "squad_show", "화폐개혁 후 첫 1조 스쿼드 완성했습니다", nick: "데용인데용", min: 1500, comments: 64, views: 8930, likes: 212, squad: "bvb1"),
             post("p10", "club_match", "토요일 밤 클럽전 상대 구해요 (5:5)", nick: "새벽FC", min: 1700, comments: 2, views: 120, likes: 1, region: "서울", meta: ["schedule": "토 22시"]),
@@ -270,10 +272,17 @@ final class CommunityMock {
         seq += 1
         let id = "new\(seq)"
         var p = post(id, json["type"] as? String ?? "squad_show", json["title"] as? String ?? "", nick: "개발자", min: 0, comments: 0, views: 0, likes: 0,
-                     squad: json["squad_id"] as? String, body: json["body"] as? String ?? "", author: me)
+                     squad: json["squad_id"] as? String, body: json["body"] as? String ?? "",
+                     meta: (json["attach"] as? [String: Any]).flatMap(Self.attachMeta) ?? [:], author: me)
         p["author_id"] = me
         posts.insert(p, at: 0)
         return id
+    }
+
+    /// 작성 요청의 attach → meta(서버 lib/community/attach.ts 와 같은 평평한 키)
+    static func attachMeta(_ j: [String: Any]) -> [String: String]? {
+        guard let k = (j["kind"] as? String).flatMap(PostAttach.Kind.init(rawValue:)), let me = j["me"] as? String else { return nil }
+        return PostAttach(kind: k, me: me, with: j["with"] as? String, mode: j["mode"] as? Int ?? 50).metaEntries
     }
 
     func profile() throws -> ProfileResponse {

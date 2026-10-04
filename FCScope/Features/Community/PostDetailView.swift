@@ -246,6 +246,7 @@ struct PostDetailView: View {
                     } else if let s = p.squadId {
                         AttachedSquadCard(squadId: s)
                     }
+                    if let a = p.attach { PostAttachCard(attach: a) }
                     if let c = p.contact { contactRow(c) }
                     actionRow(d, proxy: proxy)
                     // 광고는 본문 바로 아래가 아니라 댓글 첫 묶음(BEST) 뒤로 내렸다 — 상세 첫 화면에서 댓글이 하나도

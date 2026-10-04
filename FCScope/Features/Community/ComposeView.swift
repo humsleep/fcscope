@@ -15,6 +15,7 @@ struct ComposeView: View {
     @State private var savedAt: Date?
     @State private var saveTask: Task<Void, Never>?
     @State private var squadPickerFor: SquadSlot?
+    @State private var showAttachPicker = false
     @State private var showPositions = false
     @State private var confirmLeave = false
     @State private var titleLimitHit = 0
@@ -50,6 +51,7 @@ struct ComposeView: View {
                     bodyField
                     if let t = type, !t.template.isEmpty { templateButton(t) }
                     if let t = type { extraCard(t) }
+                    if let a = draft.attach { attachRow(a) }
                     Text("욕설·비하·도배·거래 유도 글은 신고가 쌓이면 숨겨져요.")
                         .cmText(12.5).foregroundStyle(CM.faint)
                         .padding(.top, 12).padding(.bottom, 30)
@@ -75,9 +77,19 @@ struct ComposeView: View {
             }
         }
         .sheet(isPresented: $showPositions) { positionsSheet }
+        .sheet(isPresented: $showAttachPicker) {
+            AttachPickerSheet(initial: draft.attach) { draft.attach = $0 }
+        }
         .onAppear {
             draft.type = (types.first { $0.type == initialType } ?? types.first)?.type
             if let d = cprefs.loadDraft() { restorable = d }
+            #if DEBUG
+            // 캡처 검수용 — `-communityAttach record:닉` / `versus:닉:친구` 로 첨부를 채운 채 연다
+            if let raw = UserDefaults.standard.string(forKey: "communityAttach") {
+                let p = raw.split(separator: ":").map(String.init)
+                if p.count >= 2, let k = PostAttach.Kind(rawValue: p[0]) { draft.attach = PostAttach(kind: k, me: p[1], with: p.count > 2 ? p[2] : nil) }
+            }
+            #endif
             focus = .title
         }
         .onChange(of: draft) { _, _ in scheduleSave() }
@@ -338,6 +350,27 @@ struct ComposeView: View {
         .presentationDetents([.medium])
     }
 
+    /// 첨부한 전적·VS 카드 한 줄 — 탭하면 다시 고르고, 길게 눌러 빼기(스쿼드 첨부와 같은 문법)
+    private func attachRow(_ a: PostAttach) -> some View {
+        Button { showAttachPicker = true } label: {
+            rowLabel(icon: a.kind == .versus ? "person.2.fill" : "chart.bar.fill", iconColor: FC.tint, a.kind == .versus ? "VS 카드" : "전적 카드") {
+                HStack(spacing: 6) {
+                    Text(a.kind == .versus ? "\(a.me) vs \(a.with ?? "")" : a.me).cmText(15, .semibold).foregroundStyle(FC.tint).lineLimit(1)
+                    Button { draft.attach = nil } label: {
+                        Image(systemName: "xmark.circle.fill").font(.system(size: 16)).foregroundStyle(CM.faint)
+                            .frame(width: 32, height: 32).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("첨부 빼기")
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .background(FC.surface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(FC.line, lineWidth: 1))
+        .padding(.top, 14)
+    }
+
     // MARK: 키보드 위 액세서리 바
 
     private var accessoryBar: some View {
@@ -349,6 +382,14 @@ struct ComposeView: View {
                         Label { Text("스쿼드").cmText(14, .semibold) } icon: { Image(systemName: "shield.fill").font(.system(size: 16)) }
                             .foregroundStyle(FC.muted).frame(minHeight: 44)
                     }
+                }
+                // 내 전적 카드 · VS 카드 첨부(2라운드 연속 요청 · 유저 패널) — 배틀은 A·B 스쿼드가 본문이라 뺀다
+                if let t = type, t.type != "squad_battle" {
+                    Button { showAttachPicker = true } label: {
+                        Label { Text("전적·VS").cmText(14, .semibold) } icon: { Image(systemName: "chart.bar.fill").font(.system(size: 15)) }
+                            .foregroundStyle(draft.attach == nil ? FC.muted : FC.tint).frame(minHeight: 44)
+                    }
+                    .accessibilityLabel("내 전적 카드나 VS 카드 첨부")
                 }
                 if let t = type, !t.template.isEmpty {
                     Button { draft.body = draft.body.isEmpty ? t.template : draft.body + "\n" + t.template; focus = .body } label: {
@@ -401,6 +442,8 @@ struct ComposeView: View {
         if t.fields.contains("positions"), !draft.positions.isEmpty { json["positions"] = draft.positions }
         if t.fields.contains("contact"), !draft.contact.isEmpty { json["contact"] = draft.contact }
         for (k, v) in draft.extras where t.fields.contains(k) && !v.isEmpty { json[k] = v }
+        // 첨부 — 서버가 meta.attach_* 로 저장한다. 첨부를 모르는 옛 서버는 이 키를 무시한다(글은 그대로 등록).
+        if let a = draft.attach, t.type != "squad_battle" { json["attach"] = a.json }
         do {
             let id = try await CommunityAPI.createPost(json)
             saveTask?.cancel()

@@ -82,6 +82,8 @@ final class CommunityPrefs {
         var positions: [String] = []
         var contact = ""
         var extras: [String: String] = [:]
+        /// 내 전적 카드 · VS 카드 첨부(옵셔널 — 이전 버전 초안도 그대로 디코딩된다)
+        var attach: PostAttach?
         var savedAt = Date()
         var isEmpty: Bool {
             title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
