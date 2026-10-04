@@ -26,14 +26,15 @@ struct MatchReportView: View {
         let p = "/api/v1/match/\(matchId)"
         let q = me.map { ["me": $0] } ?? [:]
         if let hit: (value: MatchDetailResponse, isFresh: Bool) = await APIClient.shared.cachedValue(p, query: q) {
-            state = .loaded(hit.value)
+            state = .loaded(hit.value.maskedForCapture())
             Analytics.shared.track(.matchView, ["cached": true])
             // 로드 완료 햅틱은 제거 — 사용자 행동이 아닌 네트워크 타이밍에 울리는 진동은 의미가 없다(HIG).
             return
         }
         state = .loading
         do {
-            state = .loaded(try await APIClient.shared.getAndCache(p, query: q, auth: false))
+            let m: MatchDetailResponse = try await APIClient.shared.getAndCache(p, query: q, auth: false)
+            state = .loaded(m.maskedForCapture())
             Analytics.shared.track(.matchView, ["cached": false])
         }
         catch { state = .failed(error) }
@@ -319,5 +320,21 @@ struct MiniShotMap: View {
         .aspectRatio(ShotMapView.pitchRatio, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: Radius.chip))
         .accessibilityLabel("슛맵 · 내 슛 \(mine.count)개, 상대 슛 \(theirs.count)개")
+    }
+}
+
+private extension MatchDetailResponse {
+    /// 홍보 영상·스토어 캡처용(DEBUG 전용) — `-maskOpponent YES` 로 실행하면 상대 구단주명을 "상대"로 그린다.
+    /// 화면 녹화는 프레임마다 가릴 수 없어서 그리기 전에 바꾼다. 릴리스 빌드에서는 아무것도 하지 않는다.
+    func maskedForCapture() -> MatchDetailResponse {
+        #if DEBUG
+        guard UserDefaults.standard.bool(forKey: "maskOpponent"), let o = opponent else { return self }
+        var m = self
+        m.opponent?.nickname = "상대"
+        if m.potm?.side == o.nickname { m.potm?.side = "상대" }
+        return m
+        #else
+        return self
+        #endif
     }
 }

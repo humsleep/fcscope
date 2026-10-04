@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root {
+    --bg0: #05050F; --bg1: #17134A; --ink: #FFFFFF; --mute: #A8A4C4;
+    --lose: #FF4D6D; --violet: #9B7BFF;
+    --grad: linear-gradient(90deg, #F0287A 0%, #FF5A26 55%, #FFB23A 100%);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--bg0); }
+  body { font-family: Pretendard, sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; letter-spacing: -0.02em; }
+  #stage { position: absolute; inset: 0; overflow: hidden;
+    background: radial-gradient(1400px 1100px at 50% 18%, var(--bg1) 0%, #0B0927 45%, var(--bg0) 100%); }
+  #glow { position: absolute; width: 1400px; height: 1400px; left: -160px; top: 520px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(240,40,122,.28), rgba(255,90,38,.10) 55%, transparent); }
+  .layer { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .grad { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .ch { display: inline-block; will-change: transform, opacity; }
+
+  /* S1 score */
+  #score { font-weight: 900; font-size: 330px; line-height: 1; display: flex; align-items: center; gap: 40px; font-variant-numeric: tabular-nums; }
+  #score .colon { font-size: 200px; color: rgba(255,255,255,.35); transform: translateY(-14px); }
+  #score .them { color: var(--lose); }
+  #lost { margin-top: 60px; font-size: 92px; font-weight: 800; }
+
+  /* S2 shots */
+  .big { font-size: 128px; font-weight: 900; line-height: 1.12; text-align: center; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* S3 question */
+  #q { font-size: 196px; font-weight: 900; }
+
+  /* S4 phone */
+  #pill { display: inline-flex; align-items: center; gap: 14px; padding: 16px 30px; border-radius: 999px;
+    background: rgba(255,255,255,.07); border: 1.5px solid rgba(255,255,255,.14); font-size: 36px; font-weight: 700; }
+  #pill i { width: 14px; height: 14px; border-radius: 50%; background: #FF5A26; display: block; }
+  #s4cap { position: absolute; top: 128px; left: 0; right: 0; text-align: center; }
+  #s4cap h2 { margin-top: 26px; font-size: 84px; font-weight: 900; line-height: 1.15; }
+  #phone { position: absolute; left: 50%; top: 470px; width: 800px; height: 1720px; margin-left: -400px;
+    border-radius: 112px; padding: 20px; background: linear-gradient(160deg, #3A3760, #15132C 40%, #0B0A1A);
+    box-shadow: 0 0 0 3px rgba(255,255,255,.08) inset, 0 60px 140px rgba(0,0,0,.6), 0 0 120px rgba(155,123,255,.18);
+    transform-origin: 50% 0%; }
+  #screen { width: 760px; height: 1651px; border-radius: 94px; overflow: hidden; background: #0A0920; display: block; }
+
+  /* S5 why card */
+  #s5cap { position: absolute; top: 250px; left: 0; right: 0; text-align: center; font-size: 104px; font-weight: 900; line-height: 1.15; }
+  #card { position: absolute; left: 40px; top: 760px; width: 1000px; padding: 5px; border-radius: 44px; background: linear-gradient(135deg,#6A35FF 0%,#E0218A 40%,#FF5A26 75%,#FFC23A 100%);
+    box-shadow: 0 40px 120px rgba(224,33,138,.35); }
+  #cardIn { position: relative; width: 990px; height: 333px; border-radius: 40px; overflow: hidden; }
+  #cardIn img { position: absolute; left: 0; top: 0; width: 990px; height: 333px; }
+  .cover { position: absolute; }
+  .reveal { position: absolute; overflow: hidden; }
+  .reveal img { position: absolute; }
+
+  /* S6 shot map */
+  #s6cap { position: absolute; top: 190px; left: 0; right: 0; text-align: center; font-size: 92px; font-weight: 900; line-height: 1.18; }
+  #mapWrap { position: absolute; left: 30px; top: 700px; width: 1020px; height: 773px; border-radius: 36px; overflow: hidden;
+    box-shadow: 0 40px 120px rgba(0,0,0,.55); }
+  #mapInner { position: absolute; left: 0; top: 0; width: 1260px; height: 955px; transform-origin: 0 0; }
+  #mapInner img { position: absolute; left: 0; top: 0; }
+  .ring { position: absolute; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; border: 5px solid #FF5A26; }
+
+  /* S7 end */
+  #icon { width: 300px; height: 300px; border-radius: 68px; box-shadow: 0 30px 100px rgba(224,33,138,.45); }
+  #brand { margin-top: 64px; font-size: 120px; font-weight: 900; letter-spacing: -0.03em; }
+  #tag { margin-top: 26px; font-size: 58px; font-weight: 700; color: var(--mute); }
+  #store { margin-top: 110px; padding: 26px 50px; border-radius: 999px; border: 2px solid rgba(255,255,255,.22); font-size: 42px; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="glow"></div>
+
+  <div class="layer" id="s1">
+    <div id="score"><span class="ch" id="sc1">1</span><span class="ch colon" id="scc">:</span><span class="ch them" id="sc4">4</span></div>
+    <div id="lost"><span class="ch" id="lost1">또</span>&nbsp;<span class="ch" id="lost2">졌다.</span></div>
+  </div>
+
+  <div class="layer" id="s2">
+    <div class="big" id="s2a">내 슛 <span class="num" id="n2">2</span>개.</div>
+    <div class="big" id="s2b" style="margin-top:24px">상대는 <span class="num grad" id="n9">9</span>개.</div>
+  </div>
+
+  <div class="layer" id="s3"><div id="q"></div></div>
+
+  <div class="layer" id="s4" style="justify-content:flex-start">
+    <div id="s4cap"><span id="pill"><i></i>FC Scope 매치 리포트</span><h2 id="s4h">경기 끝나면,<br>바로 진단.</h2></div>
+    <div id="phone"><canvas id="screen" width="880" height="1912"></canvas></div>
+  </div>
+
+  <div class="layer" id="s5" style="justify-content:flex-start">
+    <div id="s5cap"><div id="s5a">이유는 이거였고,</div><div id="s5b" class="grad">다음엔 이렇게.</div></div>
+    <div id="card"><div id="cardIn"></div></div>
+  </div>
+
+  <div class="layer" id="s6" style="justify-content:flex-start">
+    <div id="s6cap"><div id="s6a">상대는</div><div id="s6b"><span class="grad">박스 안</span>에서 끝냈다.</div></div>
+    <div id="mapWrap"><div id="mapInner"><img id="mapImg" width="1260" height="955"></div></div>
+  </div>
+
+  <div class="layer" id="s7">
+    <img id="icon">
+    <div id="brand">FC Scope</div>
+    <div id="tag">진 경기엔 이유가 있다</div>
+    <div id="store">App Store에서 ‘FC Scope’</div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+const easeIn = (x) => x * x * x;
+const easeInOut = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+// overshoot spring — the "slam" feel
+const back = (x) => { const c = 1.9; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const lerp = (a, b, x) => a + (b - a) * x;
+
+// scene windows [in, out] seconds
+const S = { s1: [0, 2.2], s2: [2.2, 4.4], s3: [4.4, 5.9], s4: [5.9, 10.2], s5: [10.2, 13.8], s6: [13.8, 16.8], s7: [16.8, 20] };
+
+function show(id, t, fadeIn = .001, fadeOut = .25) {
+  const [a, b] = S[id], el = $(id);
+  const v = t >= a && t < b;
+  el.style.display = v ? 'flex' : 'none';
+  if (!v) return 0;
+  const o = Math.min(prog(t, a, a + fadeIn), 1 - prog(t, b - fadeOut, b));
+  el.style.opacity = o;
+  return t - a; // local time
+}
+function pop(el, lt, start, dur = .45, from = 2.4, blur = 18) {
+  const x = prog(lt, start, start + dur);
+  const s = lerp(from, 1, back(x));
+  el.style.opacity = clamp(x * 3);
+  el.style.transform = `scale(${s})`;
+  el.style.filter = `blur(${(1 - easeOut(x)) * blur}px)`;
+}
+function rise(el, lt, start, dur = .5, dy = 70) {
+  const x = easeOut(prog(lt, start, start + dur));
+  el.style.opacity = x;
+  el.style.transform = `translateY(${(1 - x) * dy}px)`;
+  el.style.filter = `blur(${(1 - x) * 10}px)`;
+}
+
+// question syllables
+const Q = '왜 졌을까?';
+$('q').innerHTML = [...Q].map((c, i) => c === ' ' ? '&nbsp;' : `<span class="ch grad" data-i="${i}">${c}</span>`).join('');
+
+// assets — populated by render.mjs via window.ASSETS
+let frames = [], cardBg = '#15132E';
+window.setup = async (A) => {
+  $('mapImg').src = A.map; $('icon').src = A.icon;
+  frames = await Promise.all(A.frames.map((src) => new Promise((r) => { const i = new Image(); i.onload = () => r(i); i.src = src; })));
+  // why card: base with line covers + per-line reveal strips
+  const ci = $('cardIn');
+  const k = 990 / 1221; // crop px → card px
+  const im = new Image(); im.src = A.why; await im.decode();
+  const cv = document.createElement('canvas'); cv.width = 1221; cv.height = 411; cv.getContext('2d').drawImage(im, 0, 0);
+  const d = cv.getContext('2d').getImageData(600, 104, 1, 1).data; cardBg = `rgb(${d[0]},${d[1]},${d[2]})`;
+  ci.innerHTML = `<img src="${A.why}">`;
+  const LINES = [[104, 172], [178, 250], [256, 330]]; // y bands in crop px
+  LINES.forEach(([y0, y1], i) => {
+    const c = document.createElement('div'); c.className = 'cover';
+    Object.assign(c.style, { left: 20 * k + 'px', top: y0 * k + 'px', width: (1200 - 20) * k + 'px', height: (y1 - y0) * k + 'px', background: cardBg });
+    ci.appendChild(c);
+    const r = document.createElement('div'); r.className = 'reveal'; r.id = 'rv' + i;
+    Object.assign(r.style, { left: 20 * k + 'px', top: y0 * k + 'px', width: 0, height: (y1 - y0) * k + 'px' });
+    r.innerHTML = `<img src="${A.why}" style="width:990px;height:333px;left:${-20 * k}px;top:${-y0 * k}px">`;
+    ci.appendChild(r);
+  });
+  await document.fonts.ready;
+  await Promise.all([...document.images].map((i) => i.decode().catch(() => {})));
+};
+
+window.render = (t) => {
+  // background glow drifts slowly the whole time
+  $('glow').style.transform = `translate(${Math.sin(t * .5) * 80}px, ${Math.cos(t * .35) * 60 - t * 8}px)`;
+
+  // S1 — 1 : 4 slam, then "또 졌다."
+  let lt = show('s1', t, .001, .2);
+  if (lt !== 0 || t < S.s1[1]) {
+    pop($('sc1'), lt, 0.05, .42, 2.8);
+    pop($('scc'), lt, 0.22, .35, 2.2);
+    pop($('sc4'), lt, 0.38, .45, 3.2, 24);
+    // tiny camera shake when the 4 lands
+    const sh = prog(lt, .62, 1.0); const amp = (1 - sh) * (sh > 0 ? 10 : 0);
+    $('score').style.transform = `translate(${Math.sin(lt * 90) * amp}px, ${Math.cos(lt * 70) * amp}px)`;
+    rise($('lost1'), lt, 1.0, .4); rise($('lost2'), lt, 1.12, .4);
+    $('s1').style.transform = `scale(${1 + prog(t, 1.8, 2.2) * .08})`;
+  }
+
+  // S2 — shots count-up
+  lt = show('s2', t, .15, .2);
+  if (t >= S.s2[0] && t < S.s2[1]) {
+    rise($('s2a'), lt, 0, .45);
+    $('n2').textContent = Math.round(2 * easeOut(prog(lt, .1, .5)));
+    rise($('s2b'), lt, .75, .45);
+    $('n9').textContent = Math.round(9 * easeOut(prog(lt, .8, 1.45)));
+    const p = back(prog(lt, 1.4, 1.75)); // 9 pops when it lands
+    $('n9').style.display = 'inline-block';
+    $('n9').style.transform = `scale(${lt > 1.4 ? lerp(1.5, 1, p) : 1})`;
+  }
+
+  // S3 — 왜 졌을까? syllable pop + push-through
+  lt = show('s3', t, .001, .12);
+  if (t >= S.s3[0] && t < S.s3[1]) {
+    document.querySelectorAll('#q .ch').forEach((el, j) => pop(el, lt, .05 + j * .075, .38, 2.0, 14));
+    const z = easeIn(prog(lt, 1.15, 1.5));
+    $('q').style.transform = `scale(${1 + z * 5})`;
+    $('q').style.opacity = 1 - z;
+  }
+
+  // S4 — phone rises with tilt, plays the screen recording
+  lt = show('s4', t, .001, .3);
+  if (t >= S.s4[0] && t < S.s4[1]) {
+    $('pill').style.opacity = easeOut(prog(lt, .25, .6));
+    rise($('s4h'), lt, .35, .5);
+    const x = easeOut(prog(lt, 0, .9));
+    $('phone').style.transform = `perspective(2400px) translateY(${(1 - x) * 900}px) rotateX(${(1 - x) * 28}deg) scale(${lerp(.86, 1, x)})`;
+    // map 4.3s scene onto 136 recorded frames; hold first frames while phone rises
+    const fi = Math.round(clamp((lt - .2) / 4.0) * (frames.length - 1));
+    const f = frames[fi]; if (f) $('screen').getContext('2d').drawImage(f, 0, 0, 880, 1912);
+    // slow push-in toward the end
+    $('s4').style.transform = `scale(${1 + prog(lt, 3.6, 4.3) * .06})`;
+  }
+
+  // S5 — 왜 졌을까 card, lines reveal like a diagnosis being written
+  lt = show('s5', t, .2, .25);
+  if (t >= S.s5[0] && t < S.s5[1]) {
+    rise($('s5a'), lt, .05, .45);
+    rise($('s5b'), lt, 1.9, .45);
+    const x = prog(lt, .1, .65);
+    $('card').style.opacity = clamp(x * 2);
+    $('card').style.transform = `translateY(${(1 - easeOut(x)) * 120}px) scale(${lerp(.9, 1, back(x))})`;
+    const k = 990 / 1221, full = (1200 - 20) * k;
+    [[.75, .55], [1.35, .6], [2.05, .65]].forEach(([s, d], i) => {
+      $('rv' + i).style.width = easeInOut(prog(lt, s, s + d)) * full + 'px';
+    });
+    $('card').style.marginTop = (-prog(lt, 2.8, 3.6) * 20) + 'px';
+  }
+
+  // S6 — shot map: full → push into the box, rings on goals
+  lt = show('s6', t, .2, .25);
+  if (t >= S.s6[0] && t < S.s6[1]) {
+    rise($('s6a'), lt, .05, .4); rise($('s6b'), lt, .25, .45);
+    $('mapWrap').style.opacity = easeOut(prog(lt, 0, .4));
+    const z = easeInOut(prog(lt, .7, 1.8));
+    // base fit 1020/1260; zoom toward the opponent box (x≈1100, y≈480)
+    const s0 = 1020 / 1260, s1 = 1.6;
+    const s = lerp(s0, s1, z);
+    const cx = lerp(630, 940, z), cy = lerp(477, 500, z); // cx ≤ 1260 - 510/s1 — keep the pitch edge inside the frame
+    $('mapInner').style.transform = `translate(${510 - cx * s}px, ${386 - cy * s}px) scale(${s})`;
+    document.querySelectorAll('.ring').forEach((r, i) => {
+      const p = prog(lt, 1.7 + i * .16, 2.5 + i * .16);
+      r.style.opacity = p > 0 ? 1 - p : 0;
+      r.style.transform = `scale(${lerp(.6, 2.2, easeOut(p))})`;
+    });
+  }
+
+  // S7 — end card
+  lt = show('s7', t, .25, .001);
+  if (t >= S.s7[0]) {
+    pop($('icon'), lt, .05, .5, .4, 10);
+    rise($('brand'), lt, .4, .5); rise($('tag'), lt, .6, .5); rise($('store'), lt, 1.0, .5);
+  }
+};
+
+// goal rings (map px)
+[[1120, 462], [1178, 460], [1149, 554], [1071, 580]].forEach(([x, y]) => {
+  const r = document.createElement('div'); r.className = 'ring'; r.style.left = x + 'px'; r.style.top = y + 'px'; $('mapInner').appendChild(r);
+});
+</script>
+</body>
+</html>

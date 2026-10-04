@@ -239,15 +239,15 @@ struct MatchDetailResponse: Decodable {
     let matchType: Int
     let matchTypeName: String
     let me: MatchSide
-    let opponent: MatchSide?
+    var opponent: MatchSide?
     let verdict: Verdict
-    let potm: Potm?
+    var potm: Potm?
     let cardUrl: String
-    struct Potm: Decodable { let spId: Int; let name: String; let positionLabel: String; let side: String; let rating: Double; let imageUrl: String }
+    struct Potm: Decodable { let spId: Int; let name: String; let positionLabel: String; var side: String; let rating: Double; let imageUrl: String }
 }
 struct MatchSide: Decodable {
     let ouid: String
-    let nickname: String
+    var nickname: String
     let result: String
     let forfeit: Bool
     let goals: Int
