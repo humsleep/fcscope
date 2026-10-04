@@ -144,6 +144,14 @@ struct CommunityView: View {
     @State private var toast: String?
     @State private var showNotifications = false
     @State private var fabCollapsed = false
+    /// 화면에 보이는 광고 행 프레임(전역)과 FAB 프레임 — 겹치는 동안 FAB 를 숨긴다(AD-PLACEMENT 1-6 · 콘텐츠가 광고를 가리면 안 됨)
+    @State private var adRowFrames: [CGRect] = []
+    @State private var fabFrame: CGRect = .zero
+    private var fabOverAd: Bool {
+        guard fabFrame != .zero else { return false }
+        let f = fabFrame.insetBy(dx: -8, dy: -8)
+        return adRowFrames.contains { $0.intersects(f) }
+    }
     @State private var lastOffset: CGFloat = 0
     @State private var highlightId: String?
     @SceneStorage("community.tab") private var savedTab = CommunityTab.all.rawValue
@@ -175,6 +183,7 @@ struct CommunityView: View {
                 }
                 .coordinateSpace(name: "cmScroll")
                 .onPreferenceChange(ScrollOffsetKey.self) { y in trackScroll(y) }
+                .onPreferenceChange(AdRowFramesKey.self) { adRowFrames = $0 }
                 .refreshable {
                     await model.load(reset: true)
                     CMHaptic.selection()
@@ -374,8 +383,11 @@ struct CommunityView: View {
                     row(p)
                         .onAppear { if p.id == visible.last?.id { Task { await model.loadMore() } } }
                     // 광고 — 3번째 행 뒤(행이 3개 미만이면 마지막 행 뒤), 이후 15행마다. 목록 행 모양의 작은 배너(320×50 · 운영자 결정 2026-10-04)
-                    if i == min(2, visible.count - 1) || (i > 2 && (i - 2) % 15 == 0) {
-                        CompactAdRow()
+                    // 첫 슬롯은 첫 화면 안이라 높이를 미리 잡는다(R1). 반복 슬롯도 LazyVStack 이라 늦게 만들어진다 → 예약(R5).
+                    if i == min(2, visible.count - 1) {
+                        CompactAdRow(placement: "community_list", reserve: true)
+                    } else if i > 2, (i - 2) % 15 == 0 {
+                        CompactAdRow(placement: "community_list_more", reserve: true)
                     }
                 }
             }
@@ -500,8 +512,14 @@ struct CommunityView: View {
             .contentShape(Capsule())
         }
         .buttonStyle(PressScaleStyle())
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { fabFrame = $0 }
+        // 광고 행 위를 지나가는 동안 페이드 아웃 — 축소(fabCollapsed)만으로는 광고 일부를 가렸다
+        .opacity(fabOverAd ? 0 : 1)
+        .allowsHitTesting(!fabOverAd)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: fabOverAd)
         .padding(.trailing, 16).padding(.bottom, 18)
         .accessibilityLabel("글쓰기")
+        .accessibilityHidden(fabOverAd)
     }
 
     private func trackScroll(_ y: CGFloat) {

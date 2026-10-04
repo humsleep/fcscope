@@ -249,10 +249,12 @@ struct PostDetailView: View {
                     if let a = p.attach { PostAttachCard(attach: a) }
                     if let c = p.contact { contactRow(c) }
                     actionRow(d, proxy: proxy)
-                    // 광고는 본문 바로 아래가 아니라 댓글 첫 묶음(BEST) 뒤로 내렸다 — 상세 첫 화면에서 댓글이 하나도
-                    // 안 보이던 문제(유저 패널 B). comments() 안에서 배치한다.
                 }
                 .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 18)
+
+                // 광고 — 본문 액션 줄(추천·댓글·공유) 뒤 · "댓글 N" 헤더 앞(AD-PLACEMENT 1-7).
+                // 정렬 버튼 바로 밑에 있던 자리는 오탭 위험이 커서 옮겼다. 위는 본문 여백 18pt, 아래는 띠 + 헤더 여백.
+                adBlock("community_detail").padding(.bottom, 8)
 
                 // 8pt 띠 — 위아래 hair 를 붙이면 "이중선"으로 보였다(디자인 리뷰). 채움만 둔다.
                 Rectangle().fill(FC.surface).frame(height: 8)
@@ -474,7 +476,6 @@ struct PostDetailView: View {
             }
             .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 4)
 
-            if best.isEmpty { adBlock }
             if list.isEmpty {
                 VStack(spacing: 4) {
                     Text("아직 댓글이 없어요").cmText(15, .semibold).foregroundStyle(FC.ink)
@@ -487,10 +488,9 @@ struct PostDetailView: View {
             ForEach(best.map { ("best-\($0.id)", $0) }, id: \.0) { item in
                 commentRow(item.1, d: d, best: true, parentNick: item.1.parentId.flatMap { byId[$0]?.author.nickname })
             }
-            if !best.isEmpty {
-                adBlock
-            }
-            ForEach(threads) { t in
+            ForEach(Array(threads.enumerated()), id: \.element.id) { ti, t in
+                // 루트 댓글 15개마다 1개(깊은 자리 — 받은 뒤 편다)
+                if ti > 0, ti % 15 == 0 { adBlock("community_detail_more").padding(.vertical, 8) }
                 rootOrCollapsed(t.root, d: d, isBest: bestIds.contains(t.root.id))
                 let showAll = t.replies.count <= 3 || expanded.contains(t.id)
                 let shown = showAll ? t.replies : Array(t.replies.prefix(2))
@@ -520,9 +520,9 @@ struct PostDetailView: View {
         .padding(.bottom, 24)
     }
 
-    /// 댓글 흐름 속 광고 — 목록과 같은 작은 배너 행(320×50). 받기 전·실패 시 접힌다.
-    private var adBlock: some View {
-        CompactAdRow()
+    /// 상세 광고 — 목록과 같은 행형 배너(320×50, 컨테이너 B). 깊은 자리라 받은 뒤 편다(R4).
+    private func adBlock(_ placement: String) -> some View {
+        CompactAdRow(placement: placement)
     }
 
     /// 원래 자리 — BEST 로 올라간 댓글은 한 줄로 접는다(같은 글이 한 화면에 두 번 보이면 버그처럼 읽혔다 · 디자인 M4).

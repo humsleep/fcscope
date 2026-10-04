@@ -288,10 +288,8 @@ struct RecordView: View {
                 case .players: PlayersSection(state: vm.players, nickname: o.profile.nickname, overview: o, retry: retrySection)
                 case .style: PlaystyleSection(state: vm.playstyle, retry: retrySection)
                 }
-                // 광고는 히어로(승률·스코어)·탭 위가 아니라 콘텐츠 뒤 — 화면당 1개(UX-AUDIT-GENZ #1).
-                // "경기" 탭은 목록 3번째 행 뒤에 MatchesSection 이 직접 넣는다(카톡 목록 광고처럼 첫 행이 아니게).
-                // 기록이 없는 모드(빈 상태 한 줄)에는 두지 않는다 — 콘텐츠 없는 화면의 광고(AdMob 정책)
-                if vm.section != .matches, o.summary.played > 0 { AdSlot() }
+                // 광고는 각 탭 섹션 안 "콘텐츠가 바뀌는 틈"에 둔다(AD-PLACEMENT 1-2) — 맨 끝 슬롯은 없앴다.
+                // 기록이 없는 모드(빈 상태)에는 섹션이 슬롯을 만들지 않는다.
             }
             .padding(16)
         }
@@ -359,6 +357,8 @@ struct MatchesSection: View {
             }
             // 전적을 여는 가장 흔한 이유는 "방금 그 경기" — 맨 위에 슛맵·POTM 까지 바로 보여 준다.
             if let last = o.matches.first { LastMatchCard(m: last, me: o.profile.ouid) }
+            // 광고 #1 — 마지막 경기 카드 뒤 · "이전 경기" 라벨 앞(AD-PLACEMENT 1-2). 위는 카드(탭) → +12pt, 아래는 라벨.
+            if o.summary.played > 0 { AdSlot(placement: "record_matches", reserve: true).padding(.top, 12) }
             matchList
             // 진단은 최대 두 장만 펼쳐 둔다: 이번 주 + 경기 성향.
             if o.week.games >= 3 { weekly(o.week) }
@@ -412,8 +412,8 @@ struct MatchesSection: View {
                             Button { router.push(.match(id: m.matchId, me: o.profile.ouid, fromRecord: true)) } label: { Label("슛맵 · 매치 리포트", systemImage: "soccerball") }
                             if let opp = m.opponent { Button { router.push(.user(opp.nickname)) } label: { Label("\(opp.nickname) 전적 보기", systemImage: "person") } }
                         }
-                    // 화면당 광고 1개 — 목록 3번째 행 뒤(마지막 경기 카드 + 3행을 먼저 본 다음). 3행이 안 되면 목록 끝.
-                    if i == min(2, shown.count - 1) { AdSlot() }
+                    // 광고 #2 — "더 보기"로 펼친 뒤 이전 경기 12행째 뒤(행 ≈ 70pt × 12 ≈ 1화면). LazyVStack 이라 예약(R5).
+                    if allMatches, i == 11 { AdSlot(placement: "record_matches_2", reserve: true).padding(.vertical, 12) }
                 }
             }
             if rest.count > Self.listPreview {

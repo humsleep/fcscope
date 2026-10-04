@@ -49,7 +49,10 @@ struct MetaView: View {
                         // 데이터가 있을 때만(빈 화면에 광고만 있으면 광고가 본문처럼 보인다).
                         ForEach(Array(m.lines.enumerated()), id: \.element.id) { i, line in
                             lineBlock(line)
-                            if i == 0 { AdSlot() }
+                            // #1 — 첫 라인 순위표 패널 뒤(예약, R1). #2 — 세 번째 라인 뒤, 라인이 4개 이상일 때만(깊은 자리, inline).
+                            // AD-PLACEMENT 1-4 · 순위표 행(탭)과 떨어지게 위아래 +8pt
+                            if i == 0 { AdSlot(placement: "meta_1", reserve: true).padding(.vertical, 8) }
+                            if i == 2, m.lines.count >= 4 { AdSlot(placement: "meta_2", format: .inline(maxHeight: 250)).padding(.vertical, 8) }
                         }
                         Text("순위: FC Scope에 조회된 최근 \(modeName)에서 선발로 뛴 횟수. 골·패스는 넥슨 상위 랭커 기록(카드당 최근 20경기).").fcFont(11).foregroundStyle(FC.muted)
                     }

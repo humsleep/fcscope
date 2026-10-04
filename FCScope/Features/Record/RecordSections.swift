@@ -69,6 +69,8 @@ struct ReportSection: View {
                             }
                         }
                     }
+                    // 광고 — 첫 요약 패널 뒤 · 시간대별 득실 앞(AD-PLACEMENT 1-2). 위는 탭 불가 인사이트 문장.
+                    AdSlot(placement: "record_report", reserve: true)
                     Panel {
                         VStack(alignment: .leading, spacing: 8) {
                             SectionLabel("시간대별 득실")
@@ -183,9 +185,15 @@ struct PlayersSection: View {
                             }
                         }
                     }
+                    // 광고 — "내 픽 vs 인기 픽" 뒤 · 선수 카드 앞(AD-PLACEMENT 1-2). 위 패널의 공유 버튼과 떨어지게 +8pt.
+                    AdSlot(placement: "record_players", reserve: true).padding(.top, 8)
                     // 랭커 비교값이 하나도 없으면 "랭커 평균은…" 안내는 없는 기능을 설명하는 셈이라 뺀다.
                     Text("최근 \(p.sampleGames)경기 · \(p.minGames)경기 이상 출전 선수" + (p.players.contains { $0.ranker != nil } ? " · 랭커 평균은 같은 포지션 상위 랭커 기준" : "")).fcFont(12).foregroundStyle(FC.muted)
-                    ForEach(p.players) { card(_: $0) }
+                    ForEach(Array(p.players.enumerated()), id: \.element.id) { i, pl in
+                        card(pl)
+                        // 선수 카드가 15장을 넘으면 15번째 뒤 1개 추가(깊은 자리 — 받은 뒤 편다)
+                        if i == 14, p.players.count > 15 { AdSlot(placement: "record_players_2", format: .inline(maxHeight: 250)).padding(.vertical, 12) }
+                    }
                 }
             }
         }
@@ -329,6 +337,8 @@ struct PlaystyleSection: View {
                 if !r.chips.isEmpty {
                     FlowLayout(spacing: 6) { ForEach(r.chips) { c in Chip(text: c.text, color: c.kind == "strength" ? FC.win : FC.lose, bg: (c.kind == "strength" ? FC.win : FC.lose).opacity(0.15)) } }
                 }
+                // 광고 — 5축 성향(과 강점·약점 칩, 탭 불가) 뒤 · 누적 슛맵 앞(AD-PLACEMENT 1-2)
+                AdSlot(placement: "record_style", reserve: true)
                 if !p.shots.isEmpty {
                     Panel { VStack(alignment: .leading, spacing: 8) { SectionLabel("누적 슛맵 · 최근 경기 내 슛 \(p.shots.count)개"); ShotMapView(mine: p.shots, theirs: [], myTone: FC.tint, theirTone: FC.lose) } }
                 }

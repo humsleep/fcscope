@@ -36,15 +36,23 @@ struct MyPageView: View {
                 if prefs.streak.current >= 2 { Text("🔥 \(prefs.streak.current)일 연속 방문 (최고 \(prefs.streak.best)일)").fcFont(13, weight: .semibold).foregroundStyle(FC.gold) }
                 // 시스템 기본 폰트는 AX5 까지 3배로 커져 이 한 줄이 화면 절반을 차지했다 — 앱 공통 배율(1.6배 상한)을 쓴다.
                 NavigationLink { SettingsView() } label: { Panel(padding: 12) { HStack { Label("설정 · 약관 · 계정", systemImage: "gearshape").fcFont(15).lineLimit(1).minimumScaleFactor(0.8).foregroundStyle(FC.ink); Spacer(); Image(systemName: "chevron.right").font(.system(size: 13 * TypeScale.factor(typeSize), weight: .semibold)).foregroundStyle(FC.muted) } } }.buttonStyle(.plain)
-                // 광고는 설정 행 아래 맨 끝(화면당 1개) — 첫 화면 가운데에 있던 것을 내렸다(디자인 N10).
-                AdSlot()
+                // 광고 — 설정 행 뒤 맨 끝, 위 +16pt(AD-PLACEMENT 1-9). 로그인 상태 + 본문 카드가 하나 이상일 때만 —
+                // 로그아웃 화면은 안내 카드 + 설정뿐인 "콘텐츠가 적은 화면"이다.
+                if auth.isLoggedIn, hasContent { AdSlot(placement: "me", format: .inline(maxHeight: 250)).padding(.top, 16) }
             }.padding(16)
         }
+        .safeAreaPadding(.bottom, 24)
         .fcScreen().navigationTitle("내 정보").navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showLogin) { LoginView(reason: nil) }
         .sheet(isPresented: $showSetup) { ProfileSetupView(current: profile?.profile) { Task { await load() } } }
         .task(id: auth.user?.id) { await load() }
         .refreshable { await load() }
+    }
+
+    /// 본문 카드(새 댓글·내 구단·즐겨찾기·내 스쿼드·내가 쓴 글) 중 하나라도 있는가
+    private var hasContent: Bool {
+        (notif?.total ?? 0) > 0 || prefs.myNickname != nil || !prefs.favorites.isEmpty
+            || !(profile?.squads.isEmpty ?? true) || !(profile?.posts.isEmpty ?? true)
     }
 
     private func load() async {

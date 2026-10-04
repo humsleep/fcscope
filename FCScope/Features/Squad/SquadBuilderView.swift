@@ -249,6 +249,9 @@ struct SquadBuilderView: View {
                     }
                 }
                 Text("슬롯을 탭해 선수를 검색·배치하고, 배치된 선수를 탭하면 교체·제거할 수 있어요. 선수를 길게 눌러 다른 자리에 놓으면 서로 바뀌고, 빈 잔디에 놓으면 그 자리의 포지션이 바뀌어요(예: LW → LM). 11자리가 어떤 포메이션과 딱 맞으면 포메이션 이름도 바뀌어요. 같은 선수는 시즌이 달라도 한 명만.").fcFont(12).foregroundStyle(FC.muted)
+                // 광고 — 도움말 문단(탭 불가) 뒤 맨 끝. 드래그가 계속되는 피치와 75pt 이상 떨어진다(AD-PLACEMENT 1-5 · 정책 P2).
+                // 편집 중 저장 줄 아래에서 갑자기 펼쳐지면 손가락이 걸리므로 높이를 미리 잡는다(R1).
+                AdSlot(placement: "squad_builder", reserve: true).padding(.top, 8)
             }.padding(16)
         }
         // 저장·비우기 줄이 유리 탭 바 뒤에 깔리지 않게(디자인 M10)
@@ -709,9 +712,12 @@ struct SquadDetailView: View {
                         ShareCardButton(squad: SquadCardData(name: model.name, formationId: model.formation.id, slots: model.exportSlots, shareCode: squadId), label: "카드")
                         ShareLink(item: AppConfig.absolute("/squad/\(squadId)")) { Image(systemName: "link") }.buttonStyle(.bordered).accessibilityLabel("스쿼드 링크 공유")
                     }
+                    // 광고 — 액션 줄 뒤, 위 +16pt(AD-PLACEMENT 1-5 스쿼드 보기). 깊은 자리라 받은 뒤 편다.
+                    AdSlot(placement: "squad_view", format: .inline(maxHeight: 250)).padding(.top, 16)
                 } else if let m = model.message { ErrorState(title: "스쿼드를 찾을 수 없어요", message: m) } else { Skeleton(height: 400) }
             }.padding(16)
         }
+        .safeAreaPadding(.bottom, 24)
         .fcScreen().navigationTitle("스쿼드").navigationBarTitleDisplayMode(.inline)
         .task { await model.load(id: squadId); loaded = model.message == nil }
     }

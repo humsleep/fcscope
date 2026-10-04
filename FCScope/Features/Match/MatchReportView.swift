@@ -73,8 +73,9 @@ struct MatchReportView: View {
                 ShotMapView(mine: m.me.shots, theirs: m.opponent?.shots ?? [], myTone: FC.tint, theirTone: FC.muted)
                 Text("● 골 · ○ 노골 · 금색 골대 · 점을 누르면 시간·선수").fcFont(11).foregroundStyle(FC.muted)
             }
-            // 광고는 스코어·판정·POTM·슛맵을 본 다음 — 경기 직후 화면 맨 위가 광고이던 것을 내렸다(UX-AUDIT-GENZ #1). 화면당 1개.
-            AdSlot()
+            // 광고 — 슛맵 범례 캡션(탭 불가) 뒤 · 팀 스탯 앞(AD-PLACEMENT 1-3). 슛맵 점은 탭 가능하므로 +8pt.
+            // 읽는 화면이라 큰 소재(inline, 최대 250pt)가 들어올 수 있는 자리 — 깊은 자리라 받은 뒤 편다.
+            AdSlot(placement: "match", format: .inline(maxHeight: 250)).padding(.top, 8)
             if let o = m.opponent {
                 VStack(alignment: .leading, spacing: 8) {
                     SectionLabel("팀 스탯")

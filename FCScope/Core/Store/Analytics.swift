@@ -28,6 +28,8 @@ final class Analytics {
         case interstitial
         case favoriteAdd = "favorite_add"
         case accountDelete = "account_delete"
+        /// 배너 슬롯 이벤트 — props.placement 로 배치별 노출을 나눠 본다(docs/ads/AD-PLACEMENT.md 5장)
+        case adSlot = "ad_slot"
     }
 
     private static let installKey = "fcscope.analytics.installId"

@@ -219,16 +219,74 @@ enum SearchGate {
     }
 }
 
-/// 적응형 배너 — 홈·전적·매치 리포트·픽 랭킹·커뮤니티 목록 맨 위(카카오톡식, 2026-09-21 운영자 결정)
+// MARK: - 배너 (docs/ads/AD-PLACEMENT.md)
+//
+// 한 줄 규칙: 보일 자리는 정확한 크기로 미리 잡고(R1), 안 보일 자리는 받은 뒤 편다(R4).
+// 보고 있는 콘텐츠는 어떤 경우에도 움직이지 않는다(R2·R6).
+
+/// 배너 크기 — 예약 슬롯은 폭만으로 높이가 정해지는 크기만 쓴다(예약 높이 = 실제 높이).
+enum BannerFormat: Equatable {
+    /// 큰 앵커 적응형 크기(폭 결정적) — 예약 슬롯(컨테이너 A)
+    case anchored
+    /// 인라인 적응형 + 최대 높이 — 깊은 슬롯(300×250급 소재 가능)
+    case inline(maxHeight: CGFloat)
+    /// 320×50 고정 — 커뮤니티 행(컨테이너 B)
+    case banner320x50
+
+    func adSize(width: CGFloat) -> AdSize {
+        switch self {
+        case .anchored: return largeAnchoredAdaptiveBanner(width: width)
+        case .inline(let h): return inlineAdaptiveBanner(width: width, maxHeight: h)
+        case .banner320x50: return AdSizeBanner
+        }
+    }
+    /// 예약 높이(받기 전 자리). inline 은 응답마다 높이가 달라 예약하지 않는다.
+    func reservedHeight(width: CGFloat) -> CGFloat? {
+        switch self {
+        case .anchored: return largeAnchoredAdaptiveBanner(width: width).size.height
+        case .banner320x50: return 50
+        case .inline: return nil
+        }
+    }
+}
+
+/// 세션 단위 배너 상태 — R3: 연속 2회 무응답이면 이번 세션의 예약 슬롯은 접기 모드로.
+@Observable
+@MainActor
+final class BannerSession {
+    static let shared = BannerSession()
+    private(set) var consecutiveNoFill = 0
+    var reserveDisabled: Bool { consecutiveNoFill >= 2 }
+    func noteFill() { consecutiveNoFill = 0 }
+    func noteNoFill() { consecutiveNoFill += 1 }
+}
+
+/// 슬롯 이벤트 기록 — 배치별 노출을 나중에 비교하기 위해(광고 단위는 아직 하나, 운영자가 나중에 나눈다).
+/// props: placement · event(slot/fill/nofill/visible/impression/collapse) · format · reserved
+/// 이벤트 이름 `ad_slot` 은 서버 허용 목록(웹 lib/analytics/events.ts)에 있어야 저장된다.
+@MainActor
+enum AdEvents {
+    static func log(_ placement: String, _ event: String, format: BannerFormat? = nil, reserved: Bool? = nil, extra: [String: Any] = [:]) {
+        var p: [String: Any] = ["placement": placement, "event": event]
+        if let format { p["format"] = { switch format { case .anchored: "anchored"; case .inline: "inline"; case .banner320x50: "320x50" } }() }
+        if let reserved { p["reserved"] = reserved }
+        for (k, v) in extra { p[k] = v }
+        #if DEBUG
+        print("[ad] \(placement) \(event) \(extra)")
+        #endif
+        Analytics.shared.track(.adSlot, p)
+    }
+}
+
 struct BannerAdView: UIViewRepresentable {
     let width: CGFloat
-    /// 고정 크기(예: `AdSizeBanner` 320×50). nil 이면 폭에 맞춘 큰 적응형 배너.
-    var size: AdSize? = nil
-    /// 받은 광고의 실제 높이. 실패하면 0 — 고정 60pt 는 큰 적응형 배너를 잘랐고, 광고가 없을 때 빈 칸을 남겼다.
+    var format: BannerFormat = .anchored
+    let placement: String
+    /// 받은 광고의 실제 높이. 실패하면 0.
     @Binding var height: CGFloat?
-    func makeCoordinator() -> Coordinator { Coordinator(height: $height) }
+    func makeCoordinator() -> Coordinator { Coordinator(height: $height, placement: placement) }
     func makeUIView(context: Context) -> BannerView {
-        let v = BannerView(adSize: size ?? largeAnchoredAdaptiveBanner(width: width))
+        let v = BannerView(adSize: format.adSize(width: width))
         v.adUnitID = AppConfig.bannerAdUnit ?? ""
         v.rootViewController = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController }.first
         v.delegate = context.coordinator
@@ -237,56 +295,187 @@ struct BannerAdView: UIViewRepresentable {
     }
     func updateUIView(_ uiView: BannerView, context: Context) {}
 
+    @MainActor
     final class Coordinator: NSObject, BannerViewDelegate {
         private let height: Binding<CGFloat?>
-        init(height: Binding<CGFloat?>) { self.height = height }
+        private let placement: String
+        init(height: Binding<CGFloat?>, placement: String) { self.height = height; self.placement = placement }
         func bannerViewDidReceiveAd(_ bannerView: BannerView) {
             let h = max(bannerView.adSize.size.height, bannerView.frame.height)
             height.wrappedValue = h > 0 ? h : nil
+            BannerSession.shared.noteFill()
+            AdEvents.log(placement, "fill", extra: ["height": Int(h)])
         }
-        func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) { height.wrappedValue = 0 }
+        func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
+            height.wrappedValue = 0
+            BannerSession.shared.noteNoFill()
+            AdEvents.log(placement, "nofill", extra: ["code": (error as NSError).code, "msg": String(error.localizedDescription.prefix(50))])
+        }
+        func bannerViewDidRecordImpression(_ bannerView: BannerView) { AdEvents.log(placement, "impression") }
     }
 }
 
-/// 배너 자리 — 광고 크리에이티브는 대부분 흰 배경이라, 다크 화면 끝에 그냥 놓으면
-/// "본문 카드"처럼 보이거나 탭바에 눌린 흰 덩어리로 보인다. 라벨 + 카드로 감싸 광고임을 분명히 하고
-/// 탭바와 간격을 둔다. 광고가 없으면(height == 0) 자리까지 접는다.
+/// 슬롯이 지금 화면 안에 보이는가(전역 좌표로 판정) — R2 "보고 있으면 접지 않는다", R6 "지나간 뒤 받으면 펴지 않는다"
+private struct ScreenVisibility: ViewModifier {
+    let changed: (_ visible: Bool, _ above: Bool) -> Void
+    func body(content: Content) -> some View {
+        content.onGeometryChange(for: [Bool].self) { g in
+            let f = g.frame(in: .global)
+            let screen = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.bounds ?? CGRect(x: 0, y: 0, width: 400, height: 900)
+            return [f.height > 0 ? f.intersects(screen) : (f.minY >= 0 && f.minY <= screen.maxY), f.maxY < 0]
+        } action: { v in changed(v[0], v[1]) }
+    }
+}
+
+/// 배너 자리 — 컨테이너 A(카드형): 화면 카드와 같은 가로 여백·모서리 18pt·배경 surface2, 위 라벨 "AD · 광고".
+///
+/// - `reserve: true`(첫 1.5화면 · R1): 폭 결정적 크기만큼 자리를 미리 잡는다. 6초 안에 못 받거나 실패하면 접되(R2),
+///   그 순간 화면에 보이고 있으면 화면을 떠날 때 접는다. 세션에서 연속 2회 무응답이면 예약하지 않는다(R3).
+/// - `reserve: false`(깊은 자리 · R4): 받은 뒤 편다. 슬롯이 이미 화면 위로 지나간 뒤 받으면 이번엔 펴지 않는다(R6).
+///   요청은 슬롯이 만들어질 때(화면 진입) 바로 나간다(R5).
+/// - SDK 시작 전이면 아무것도 그리지 않는다(R7).
 struct AdSlot: View {
-    /// 로드 전에 예상 높이를 미리 잡을지. 기본 false — 로드되기 전 "AD · 광고" 빈 상자가 150pt 를 차지해
-    /// 화면 한가운데 회색 덩어리로 남았다(디자인 리뷰 M7 · 배틀 상세). 받으면 페이드로 나타난다.
-    /// 손가락 바로 위에서 콘텐츠가 밀리면 안 되는 자리(목록 맨 위 등)만 true.
+    /// 배치 이름 — 분석 이벤트(ad_slot)에 실린다. 예: home, record_matches, match, meta_1
+    var placement: String
     var reserve = false
+    var format: BannerFormat = .anchored
     @State private var ads = AdsManager.shared
+    @State private var session = BannerSession.shared
     /// nil = 로딩 중, 0 = 광고 없음(접힘)
     @State private var height: CGFloat?
-    /// 적응형 배너 높이는 폭만으로 정해진다 — 60pt 로 잡아 두면 실제 높이(보통 90pt+)로 바뀌며 아래 콘텐츠가 뛰었다.
-    private var expectedHeight: CGFloat {
-        largeAnchoredAdaptiveBanner(width: UIScreen.main.bounds.width - 52).size.height
+    @State private var timedOut = false
+    @State private var visible = false
+    @State private var passed = false
+    /// 받았지만 이미 지나간 뒤라 이번 화면에선 펴지 않는다(R6)
+    @State private var suppressed = false
+    /// "visible"은 슬롯당 한 번만 기록한다(스크롤마다 쌓이지 않게)
+    @State private var loggedVisible = false
+    @State private var timerStarted = false
+    /// 이번 화면에서 예약을 쓸지 — 처음 만들어질 때 한 번 정한다(세션 학습이 중간에 바뀌어도 보이는 자리는 그대로)
+    @State private var reservedAtStart: Bool?
+
+    private var useReserve: Bool { reservedAtStart ?? (reserve && !session.reserveDisabled && format.reservedHeight(width: 300) != nil) }
+    /// 무응답(0) 또는 시간 초과면 접는다 — 단 예약 자리가 보이는 중이거나 이미 위로 지나갔으면 그대로 둔다(R2)
+    private var collapsed: Bool {
+        let failed = height == 0 || (timedOut && height == nil)
+        guard failed else { return false }
+        return !useReserve || (!visible && !passed)
     }
+
     var body: some View {
-        // 시작 전(첫 검색 전)·시작 불가(동의 거부)에는 아무것도 그리지 않는다(빈 회색 카드 회귀 방지, E2E 2026-09-22).
-        if ads.starting, ads.canShowAds, height != 0 {
-            let loaded = height != nil
-            let shown = loaded || reserve
-            // 카카오톡 목록 상단 광고처럼 둥근 카드 + "AD" 표기(광고 소재 위에는 아무것도 겹치지 않는다 — AdMob 정책)
+        // R2: 예약 슬롯이 시간 안에 못 받으면 접되, 보이는 중(visible)이거나 이미 위로 지나간(passed) 자리는 접지 않는다 —
+        // 위쪽 자리가 접히면 지금 보고 있는 콘텐츠가 위로 끌려 올라간다. 아래쪽(아직 안 본) 자리만 접는다.
+        if ads.starting, ads.canShowAds, !collapsed {
+            let loaded = (height ?? 0) > 0 && !suppressed
+            let shown = loaded || useReserve
             VStack(alignment: .leading, spacing: shown ? 6 : 0) {
                 if shown { Text("AD · 광고").fcText(.caption, weight: .semibold).foregroundStyle(FC.muted) }
                 GeometryReader { geo in
-                    // 첫 배치 때 폭이 0 으로 오면 잘못된 크기로 요청해 실패 → 자리가 영구히 접혔다. 폭이 잡힌 뒤에만 만든다.
+                    // 폭이 0 으로 오면 잘못된 크기로 요청해 실패한다 — 폭이 잡힌 뒤에만 만든다.
                     if ads.ready, geo.size.width > 100 {
-                        BannerAdView(width: geo.size.width, height: $height)
+                        // 배너 뷰 자체에는 요청 크기만큼의 프레임을 준다 — 높이 0 프레임의 인라인 배너는
+                        // "Invalid ad width or height" 로 실패했다. 받기 전에는 투명·터치 불가로 두고(겉 프레임이 0이라 자리는 안 차지한다),
+                        // 받은 뒤 겉 프레임이 실제 높이로 펴진다.
+                        BannerAdView(width: geo.size.width, format: format, placement: placement, height: $height)
+                            .frame(width: geo.size.width, height: height.flatMap { $0 > 0 ? $0 : nil } ?? format.adSize(width: geo.size.width).size.height, alignment: .top)
+                            .opacity(loaded ? 1 : 0)
+                            .allowsHitTesting(loaded)
                     }
                 }
-                // 로드 전에는 높이 0(배너 뷰는 계층에 있어야 요청이 나간다) — 받은 뒤 실제 높이로 편다.
-                .frame(height: height ?? (reserve ? expectedHeight : 0))
-                // 배너 자체는 클리핑하지 않는다 — 우상단 AdChoices 아이콘이 잘리면 소재 변형(정책 위반)
+                .frame(height: loaded ? (height ?? 0) : (useReserve ? reservedHeight : 0))
+                // 배너는 클리핑하지 않는다 — AdChoices 아이콘이 잘리면 소재 변형(정책 위반)
             }
-            // 가로 여백은 항상 같게 — 배너 폭은 처음 잡힌 폭으로 고정되므로 펼칠 때 폭이 바뀌면 안 된다.
             .padding(.horizontal, 10).padding(.vertical, shown ? 10 : 0)
-            .background(shown ? FC.surface2 : Color.clear, in: RoundedRectangle(cornerRadius: 18))
-            .padding(.vertical, shown ? 2 : 0)
+            .background(shown ? FC.surface2 : Color.clear, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .opacity(shown ? 1 : 0)
-            .animation(.easeOut(duration: 0.25), value: loaded)
+            .animation(useReserve ? nil : .easeOut(duration: 0.25), value: loaded)
+            .modifier(ScreenVisibility { v, above in
+                visible = v; passed = above
+                if v, loaded, !loggedVisible { loggedVisible = true; AdEvents.log(placement, "visible") }
+            })
+            .onChange(of: height) { _, h in
+                // R6: 접기 슬롯이 이미 화면 위로 지나간 뒤 받으면 펴지 않는다(보이는 콘텐츠가 밀린다)
+                if let h, h > 0, !useReserve, passed { suppressed = true }
+            }
+            .task {
+                if reservedAtStart == nil { reservedAtStart = reserve && !session.reserveDisabled && format.reservedHeight(width: 300) != nil }
+                AdEvents.log(placement, "slot", format: format, reserved: useReserve)
+            }
+            // R2: 요청 후 6초 안에 못 받으면 접는다. 시계는 SDK 가 준비되고 슬롯이 처음 화면에 들어온 뒤부터 —
+            // 딥링크로 다른 화면이 바로 덮은 홈처럼 아직 배치되지 않은 슬롯이 미리 접히지 않게.
+            .task(id: ads.ready && (visible || timerStarted)) {
+                guard useReserve, ads.ready, visible || timerStarted, !timerStarted else { return }
+                timerStarted = true
+                try? await Task.sleep(for: .seconds(6))
+                if height == nil { timedOut = true; AdEvents.log(placement, "collapse", extra: ["reason": "timeout"]) }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("광고")
+            .accessibilityHidden(!shown)
+        }
+    }
+
+    private var reservedHeight: CGFloat {
+        let w = ((UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.bounds.width ?? 390) - 52
+        return format.reservedHeight(width: w) ?? 0
+    }
+}
+
+/// 커뮤니티 목록·상세용 **행형 배너(320×50, 컨테이너 B)** — 왼쪽 `AD` 알약, 위아래 12pt + 위·아래 1pt 헤어라인,
+/// 배경 surface2 로 글 행과 구별한다(운영자 결정 2026-10-04 · AD-PLACEMENT 1-6).
+/// `reserve: true` 는 목록 첫 슬롯만(첫 화면 · LazyVStack 이라 늦게 펴지면 손가락 아래에서 밀린다).
+struct CompactAdRow: View {
+    var placement: String
+    var reserve = false
+    @State private var ads = AdsManager.shared
+    @State private var session = BannerSession.shared
+    @State private var height: CGFloat?
+    @State private var timedOut = false
+    @State private var visible = false
+    @State private var passed = false
+    @State private var timerStarted = false
+    @State private var reservedAtStart: Bool?
+
+    private var useReserve: Bool { reservedAtStart ?? (reserve && !session.reserveDisabled) }
+    private var collapsed: Bool {
+        let failed = height == 0 || (timedOut && height == nil)
+        guard failed else { return false }
+        return !useReserve || (!visible && !passed)
+    }
+
+    var body: some View {
+        if ads.starting, ads.canShowAds, !collapsed {
+            let loaded = (height ?? 0) > 0
+            let shown = loaded || useReserve
+            HStack(spacing: 6) {
+                Text("AD").font(.system(size: 9, weight: .heavy)).tracking(0.5).foregroundStyle(CM.faint)
+                    .frame(width: 22, height: 16)
+                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(CM.faint.opacity(0.6), lineWidth: 1))
+                if ads.ready {
+                    BannerAdView(width: 320, format: .banner320x50, placement: placement, height: $height)
+                        .frame(width: 320, height: 50)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, shown ? 12 : 0)
+            .frame(height: shown ? nil : 0)
+            .background(shown ? FC.surface2.opacity(0.6) : Color.clear)
+            .opacity(shown ? 1 : 0)
+            .overlay(alignment: .top) { if shown { Rectangle().fill(CM.hair).frame(height: 1) } }
+            .overlay(alignment: .bottom) { if shown { Rectangle().fill(CM.hair).frame(height: 1) } }
+            .animation(useReserve ? nil : .easeOut(duration: 0.2), value: loaded)
+            .modifier(ScreenVisibility { v, above in visible = v; passed = above })
+            .task {
+                if reservedAtStart == nil { reservedAtStart = reserve && !session.reserveDisabled }
+                AdEvents.log(placement, "slot", format: .banner320x50, reserved: useReserve)
+            }
+            .task(id: ads.ready && (visible || timerStarted)) {
+                guard useReserve, ads.ready, visible || timerStarted, !timerStarted else { return }
+                timerStarted = true
+                try? await Task.sleep(for: .seconds(6))
+                if height == nil { timedOut = true; AdEvents.log(placement, "collapse", extra: ["reason": "timeout"]) }
+            }
+            .background { if shown { GeometryReader { g in Color.clear.preference(key: AdRowFramesKey.self, value: [g.frame(in: .global)]) } } }
             .accessibilityElement(children: .contain)
             .accessibilityLabel("광고")
             .accessibilityHidden(!shown)
@@ -294,37 +483,8 @@ struct AdSlot: View {
     }
 }
 
-
-/// 커뮤니티 목록·상세용 **작은 배너(320×50)** — 목록 행과 같은 문법: 행 높이(약 60pt), 왼쪽 "AD" 표기, 아래 1pt 헤어라인.
-/// 320×100·적응형 큰 배너는 제목만 있는 목록에서 행 5~6개 높이를 차지해 흐름을 끊었다(운영자 결정 2026-10-04).
-/// 광고 단위·설정은 `AdSlot` 과 같다(`AppConfig.bannerAdUnit`). 받기 전·실패 시에는 높이 0으로 접혀 자리를 남기지 않는다.
-/// "AD" 표기는 배너 옆에 둔다 — 소재 위에 겹치지 않는다(AdMob 정책).
-struct CompactAdRow: View {
-    @State private var ads = AdsManager.shared
-    /// nil = 로딩 중, 0 = 광고 없음(접힘)
-    @State private var height: CGFloat?
-
-    var body: some View {
-        if ads.starting, ads.canShowAds, height != 0 {
-            let loaded = height != nil
-            HStack(spacing: 6) {
-                Text("AD").font(.system(size: 9, weight: .heavy)).tracking(0.5).foregroundStyle(CM.faint)
-                    .frame(width: 22, height: 16)
-                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(CM.faint.opacity(0.6), lineWidth: 1))
-                if ads.ready {
-                    BannerAdView(width: 320, size: AdSizeBanner, height: $height)
-                        .frame(width: 320, height: 50)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, loaded ? 5 : 0)
-            .frame(height: loaded ? nil : 0)
-            .opacity(loaded ? 1 : 0)
-            .overlay(alignment: .bottom) { if loaded { Rectangle().fill(CM.hair).frame(height: 1) } }
-            .animation(.easeOut(duration: 0.2), value: loaded)
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel("광고")
-            .accessibilityHidden(!loaded)
-        }
-    }
+/// 커뮤니티 목록의 광고 행 프레임(전역) — 글쓰기 FAB 가 광고 행과 겹치는 동안 숨기기 위해(정책: 콘텐츠가 광고를 가리면 안 됨)
+struct AdRowFramesKey: PreferenceKey {
+    static let defaultValue: [CGRect] = []
+    static func reduce(value: inout [CGRect], nextValue: () -> [CGRect]) { value += nextValue() }
 }

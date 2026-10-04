@@ -240,6 +240,8 @@ struct VersusView: View {
                 }
                 Text("폼 티어는 FC Scope 가 최근 경기(승률 50% · 득실 25% · 스코어 25%)로 계산한 등급이에요. 넥슨 공식 등급이 아니에요. 동점 항목은 어느 쪽 승리로도 세지 않아요.")
                     .fcText(.caption).foregroundStyle(FC.muted)
+                // 광고 — 비교 결과가 있을 때만, 맨 아래 캡션(탭 불가) 뒤(AD-PLACEMENT 1-8). 입력·빈 안내·로딩·오류에는 없다.
+                AdSlot(placement: "vs", format: .inline(maxHeight: 250)).padding(.top, 8)
             }
         }
     }
