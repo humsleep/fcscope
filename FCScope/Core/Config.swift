@@ -85,6 +85,10 @@ enum AppConfig {
     /// Info.plist 의 AdMob 앱 ID가 실제 계정 값인지. 테스트 값이면 릴리스에서 광고를 끈다
     /// (수익 0 + AdMob 정책 위반 방지).
     static var admobConfigured: Bool {
+        #if DEBUG
+        // 스토어 스크린샷 촬영용 — `-noAds YES` 로 실행하면 광고 SDK·동의 팝업·광고 자리를 모두 끈다.
+        if UserDefaults.standard.bool(forKey: "noAds") { return false }
+        #endif
         guard servesRealAds else { return true }   // Debug·TestFlight 는 테스트 광고로 동작
         guard let appId = plist("GADApplicationIdentifier") else { return false }
         return !appId.hasPrefix(googleTestPrefix) && bannerAdUnit != nil
