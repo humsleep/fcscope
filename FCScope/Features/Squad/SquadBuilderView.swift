@@ -356,11 +356,21 @@ struct PitchView: View {
             let size = g.size
             ZStack {
                 RoundedRectangle(cornerRadius: Radius.card).fill(LinearGradient(colors: [FC.pitchTop, FC.pitchBottom], startPoint: .top, endPoint: .bottom))
+                // 센터서클 위에 선수가 서면(4-3-3 가운데 CM 등) 원 대신 센터 스폿만 그린다 — 선수 좌표는 그대로(저장 스쿼드 영향 없음).
+                // 디자인 3R 4-4: CM 사진이 원 선과 겹쳐 지저분했다.
+                let centerTaken = model.formation.slots.contains { s in
+                    let pt = screen(model.point(of: s), size)
+                    return hypot(pt.x - size.width / 2, pt.y - size.height / 2) < 36 + 26
+                }
                 Canvas { ctx, size in
                     var p = Path()
                     p.addRect(CGRect(x: 8, y: 8, width: size.width - 16, height: size.height - 16))
                     p.move(to: CGPoint(x: 8, y: size.height / 2)); p.addLine(to: CGPoint(x: size.width - 8, y: size.height / 2))
-                    p.addEllipse(in: CGRect(x: size.width / 2 - 36, y: size.height / 2 - 36, width: 72, height: 72))
+                    if centerTaken {
+                        ctx.fill(Path(ellipseIn: CGRect(x: size.width / 2 - 2.5, y: size.height / 2 - 2.5, width: 5, height: 5)), with: .color(.white.opacity(0.25)))
+                    } else {
+                        p.addEllipse(in: CGRect(x: size.width / 2 - 36, y: size.height / 2 - 36, width: 72, height: 72))
+                    }
                     p.addRect(CGRect(x: size.width * 0.22, y: size.height - 8 - size.height * 0.16, width: size.width * 0.56, height: size.height * 0.16))
                     p.addRect(CGRect(x: size.width * 0.22, y: 8, width: size.width * 0.56, height: size.height * 0.16))
                     ctx.stroke(p, with: .color(.white.opacity(0.25)), lineWidth: 1)

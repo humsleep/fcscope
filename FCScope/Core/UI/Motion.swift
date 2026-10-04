@@ -64,6 +64,7 @@ struct FormBlocks: View {
     var spacing: CGFloat = 4
     @State private var appeared = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         let recent = Array(matches.prefix(count).reversed())
@@ -72,7 +73,9 @@ struct FormBlocks: View {
                 let c = FC.resultColor(m.result)
                 // 몰수는 채움 대신 옅은 틴트 + 결과색 점선 — 초록 채움 위 회색 점선(1pt)은 확대해야 보였다(유저 패널 C).
                 // 몰수패(이미 틴트)와 같은 문법이라 승·패 어느 쪽이든 "점선 = 몰수"로 같은 무게로 읽힌다.
-                let solid = m.result == "승" && !m.forfeit
+                // 라이트에서는 승도 틴트 — 승만 진초록 채움 + 흰 글자라 패(연분홍 + 빨강 글자)보다 훨씬 무거워 보였다(디자인 3R 4-5).
+                // 다크는 채움 승이 배경과 대비가 맞아 그대로 둔다.
+                let solid = m.result == "승" && !m.forfeit && scheme == .dark
                 Text(m.result)
                     .fcFont(11, weight: .bold)
                     .foregroundStyle(solid ? FC.tintInk : c)

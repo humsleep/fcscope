@@ -57,14 +57,25 @@ struct MyPageView: View {
     private var accountCard: some View {
         Panel {
             if !auth.isLoggedIn {
-                // 가로 배치에서 글자를 키우면 설명이 폭을 다 먹어 버튼이 "로그/인" 으로 쪼개진 큰 원이 됐다.
-                // 접근성 크기에서는 세로로 쌓고, 버튼 라벨은 한 줄 고정 + 캡슐 모양으로.
-                let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(spacing: 12))
-                layout {
-                    Text("로그인하면 연동 구단주·내 글·댓글 알림을 한 곳에서 볼 수 있어요.").fcFont(13).foregroundStyle(FC.muted)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Button { showLogin = true } label: { Text("로그인").lineLimit(1).fixedSize() }
-                        .buttonStyle(BrandButtonStyle(compact: true))
+                // 로그인 전 화면이 한 줄 안내 + 버튼뿐이라 2/3 가 비어 보였다(디자인 3R 4-6). 로그인하면 생기는 것을 보여 준다.
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(spacing: 12) {
+                        SpotGlyph(height: 30)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("로그인하고 내 구단을 이어 봐요").fcFont(17, weight: .bold).foregroundStyle(FC.ink)
+                            Text("전적·VS·스쿼드는 로그인 없이도 다 돼요").fcFont(12.5).foregroundStyle(FC.muted)
+                        }
+                    }
+                    VStack(alignment: .leading, spacing: 10) {
+                        perk("checkmark.seal.fill", "구단주 인증", "닉네임 옆 ✓ — 커뮤니티에서 내 구단주명을 증명해요")
+                        perk("bell.badge.fill", "댓글 알림", "내 글에 달린 새 댓글을 여기서 모아 봐요")
+                        perk("square.and.pencil", "글쓰기 · 추천 · 답글", "스쿼드 평가 받고, 전적·VS 카드도 첨부해요")
+                        perk("shield.fill", "내 스쿼드 보관", "빌더에서 만든 스쿼드를 저장하고 공유코드로 꺼내 써요")
+                    }
+                    Button { showLogin = true } label: { Text("Apple · Google로 로그인").lineLimit(1).minimumScaleFactor(0.8) }
+                        .buttonStyle(BrandButtonStyle(fullWidth: true))
+                    Text("구단주명·전적은 넥슨 공개 데이터예요. 로그인은 커뮤니티 활동에만 써요.").fcFont(11.5).foregroundStyle(CM.faint)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             } else {
                 HStack {
@@ -90,6 +101,17 @@ struct MyPageView: View {
                 Text(s.prevDate.map { "\($0) 방문 대비" } ?? "내일 다시 방문하면 변화를 보여드려요.").fcFont(11).foregroundStyle(FC.muted)
             }
         }
+    }
+
+    private func perk(_ icon: String, _ title: String, _ desc: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon).font(.system(size: 15, weight: .semibold)).foregroundStyle(FC.tint).frame(width: 22)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).fcFont(14, weight: .semibold).foregroundStyle(FC.ink)
+                Text(desc).fcFont(12.5).foregroundStyle(FC.muted).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var myClubCard: some View {

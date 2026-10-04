@@ -539,7 +539,7 @@ struct RuleBadge: View {
     }
 }
 
-/// "4:04" 장식은 진짜 없는 대상일 때만 — 502·오프라인은 다른 장식(ErrorState 참고).
+/// "찾을 수 없음" 장식은 진짜 없는 대상일 때만 — 502·오프라인은 다른 장식(ErrorState 참고).
 extension APIError: ErrorDecorating {
     var decorationIsNotFound: Bool {
         if case .server(let code, _, let status, _) = self { return status == 404 || code.hasSuffix("not_found") }

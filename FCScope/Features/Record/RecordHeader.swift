@@ -77,6 +77,8 @@ struct RecordHeader: View {
                 Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundStyle(FC.muted)
             }
             .padding(.leading, 14).padding(.trailing, 12).padding(.vertical, 10)
+            // 폭은 아래 타일과 같은 전체 폭 — AX5 에서 내용 폭만큼만 잡혀 오른쪽 끝이 약 8pt 안쪽이었다(디자인 3R 4-1)
+            .frame(maxWidth: .infinity, alignment: .leading)
             // surface2 + 왼쪽 3pt 바. 가로 브랜드 그라디언트를 3pt 로 자르면 시작색(빨강)만 보여 경고 띠처럼 읽혔다(디자인 2R N-3)
             // → 세로 tint 그라디언트 — 경고색 없이 브랜드 바이올렛만.
             .background(FC.surface2, in: RoundedRectangle(cornerRadius: 14, style: .continuous))

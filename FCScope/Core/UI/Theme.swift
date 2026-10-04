@@ -391,7 +391,8 @@ struct ErrorState: View {
     var body: some View {
         VStack(spacing: 10) {
             switch kind {
-            case .notFound: Text("4:04").fcScoreboard(44).foregroundStyle(FC.surface2)
+            // "4:04"(전광판 스코어 장식)는 시계처럼 읽혔다(디자인 3R 4-7) — 찾는 모양 아이콘으로
+            case .notFound: Image(systemName: "person.crop.circle.badge.questionmark").fcFont(38).foregroundStyle(FC.muted)
             case .network: Image(systemName: "wifi.exclamationmark").fcFont(36).foregroundStyle(FC.muted)
             case .other: Image(systemName: "exclamationmark.triangle").fcFont(36).foregroundStyle(FC.muted)
             }
