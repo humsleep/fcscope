@@ -493,11 +493,14 @@ struct PostDetailView: View {
             ForEach(threads) { t in
                 rootOrCollapsed(t.root, d: d, isBest: bestIds.contains(t.root.id))
                 let showAll = t.replies.count <= 3 || expanded.contains(t.id)
-                ForEach(showAll ? t.replies : Array(t.replies.prefix(2))) { r in
+                let shown = showAll ? t.replies : Array(t.replies.prefix(2))
+                ForEach(shown) { r in
                     if bestIds.contains(r.id) && !expandedBest.contains(r.id) {
                         bestPlaceholder(r, reply: true)
                     } else {
-                        commentRow(r, d: d, reply: true, parentNick: t.root.author.nickname).id(r.id)
+                        // 마지막 답글이 아니거나 "더 보기"가 아래에 있으면 세로선을 잇는다
+                        commentRow(r, d: d, reply: true, parentNick: t.root.author.nickname,
+                                   continuesBelow: r.id != shown.last?.id || !showAll).id(r.id)
                     }
                 }
                 if !showAll {
@@ -565,9 +568,9 @@ struct PostDetailView: View {
         .accessibilityAddTraits(commentSort == key ? .isSelected : [])
     }
 
-    private func commentRow(_ c: Comment, d: PostDetailResponse, best: Bool = false, reply: Bool = false, parentNick: String? = nil) -> some View {
+    private func commentRow(_ c: Comment, d: PostDetailResponse, best: Bool = false, reply: Bool = false, parentNick: String? = nil, continuesBelow: Bool = false) -> some View {
         CommentRow(
-            comment: c, isReply: reply && !best, isBest: best,
+            comment: c, isReply: reply && !best, continuesBelow: continuesBelow, isBest: best,
             isPostAuthor: c.authorId == d.post.authorId,
             parentNick: parentNick,
             like: model.likesEnabled ? model.commentLikes[c.id] : nil,

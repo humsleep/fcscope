@@ -199,12 +199,14 @@ enum CommunityAPI {
         try await APIClient.shared.sendNoContent("/api/community/report", method: "POST", json: ["target_type": type, "target_id": id, "reason": reason])
     }
 
-    static func createPost(_ json: [String: Any]) async throws -> String {
+    /// 글 등록 결과 — `attachSaved`: 첨부를 보냈을 때 서버가 저장했는가(첨부 지원 전 서버는 키를 안 준다 → false)
+    struct CreateResult: Decodable { let id: String; var attach: String? = nil }
+    static func createPost(_ json: [String: Any]) async throws -> (id: String, attachSaved: Bool) {
         #if DEBUG
-        if let m = CommunityMock.active { return m.createPost(json) }
+        if let m = CommunityMock.active { return (m.createPost(json), json["attach"] != nil) }
         #endif
-        let r: IdBody = try await APIClient.shared.send("/api/community/posts", method: "POST", json: json)
-        return r.id
+        let r: CreateResult = try await APIClient.shared.send("/api/community/posts", method: "POST", json: json)
+        return (r.id, r.attach == "saved")
     }
 
     static func profile() async throws -> ProfileResponse {

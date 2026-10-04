@@ -41,6 +41,8 @@ struct LikeState: Equatable { var liked: Bool; var count: Int }
 struct CommentRow: View {
     let comment: Comment
     var isReply = false
+    /// 아래에 형제 답글이 더 있다 — 세로선을 행 끝까지 이어 답글끼리 한 줄로 잇는다(디자인 3R 4-3: 답글마다 ㄴ 이 끊겼다)
+    var continuesBelow = false
     var isBest = false
     /// 글쓴이가 단 댓글 — `작성자` 배지
     var isPostAuthor = false
@@ -87,6 +89,11 @@ struct CommentRow: View {
         // BEST — 채움 없이 왼쪽 2pt 골드 바만(인디고 위 골드 12% 채움이 탁한 갈색·살구색이 됐다 · 디자인 M4)
         .overlay(alignment: .leading) {
             if isBest { Rectangle().fill(Self.bestGold).frame(width: 2).padding(.vertical, 6) }
+        }
+        .overlay(alignment: .topLeading) {
+            if isReply && continuesBelow {
+                Rectangle().fill(FC.line).frame(width: 1.5).frame(maxHeight: .infinity).padding(.leading, 30.25)
+            }
         }
         .overlay(alignment: .topLeading) {
             if isReply { ReplyConnector().stroke(FC.line, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)).frame(width: 20, height: 23).padding(.leading, 31) }

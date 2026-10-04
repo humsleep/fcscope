@@ -147,18 +147,25 @@ struct AttachPickerSheet: View {
     @State private var other = ""
     @State private var mode = 50
 
-    private static func clean(_ s: String) -> String? {
-        let t = s.trimmingCharacters(in: .whitespaces).precomposedStringWithCanonicalMapping
-        guard (1...20).contains(t.count), t.range(of: #"[\s/\\?#%&<>"'`]"#, options: .regularExpression) == nil else { return nil }
-        return t
-    }
+    /// 서버와 같은 규칙(PostAttach.clean · sameNickname) — 여기서 통과하면 서버도 받는다.
     private var result: PostAttach? {
-        guard let m = Self.clean(me) else { return nil }
+        guard let m = PostAttach.clean(me) else { return nil }
         if kind == .versus {
-            guard let o = Self.clean(other), o.caseInsensitiveCompare(m) != .orderedSame else { return nil }
+            guard let o = PostAttach.clean(other), !PostAttach.sameNickname(o, m) else { return nil }
             return PostAttach(kind: .versus, me: m, with: o, mode: mode)
         }
         return PostAttach(kind: .record, me: m, mode: mode)
+    }
+    /// 첨부 버튼이 왜 꺼져 있는지 한 줄로
+    private var problem: String? {
+        if me.trimmingCharacters(in: .whitespaces).isEmpty { return nil }
+        if PostAttach.clean(me) == nil { return "구단주명은 공백·특수문자 없이 20자 이하예요" }
+        if kind == .versus {
+            if other.trimmingCharacters(in: .whitespaces).isEmpty { return nil }
+            guard let o = PostAttach.clean(other) else { return "친구 구단주명은 공백·특수문자 없이 20자 이하예요" }
+            if let m = PostAttach.clean(me), PostAttach.sameNickname(o, m) { return "서로 다른 두 구단주를 넣어 주세요(대소문자만 다른 이름은 같은 구단주예요)" }
+        }
+        return nil
     }
 
     var body: some View {
@@ -183,6 +190,7 @@ struct AttachPickerSheet: View {
                         Text("공식경기").tag(50); Text("감독모드").tag(52); Text("클래식 1on1").tag(40)
                     }
                 } footer: {
+                    if let p = problem { Text(p).cmText(12.5, .semibold).foregroundStyle(CM.coral) }
                     Text(kind == .versus
                          ? "두 구단주의 최근 30경기를 붙인 VS 카드가 글에 들어가요. 보는 사람이 열 때마다 최신 전적으로 그려요."
                          : "폼 티어 · 승률 · 경기당 득실 · 요즘 흐름이 담긴 카드가 글에 들어가요. 열 때마다 최신 전적으로 그려요.")

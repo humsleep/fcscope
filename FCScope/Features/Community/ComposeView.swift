@@ -16,6 +16,8 @@ struct ComposeView: View {
     @State private var saveTask: Task<Void, Never>?
     @State private var squadPickerFor: SquadSlot?
     @State private var showAttachPicker = false
+    /// 첨부 없이 저장된 글 id — 알림을 보여 준 뒤 닫는다
+    @State private var attachNotice: String?
     @State private var showPositions = false
     @State private var confirmLeave = false
     @State private var titleLimitHit = 0
@@ -66,6 +68,9 @@ struct ComposeView: View {
         .presentationDetents([.large])
         .sensoryFeedback(.warning, trigger: titleLimitHit)
         .alert("알림", isPresented: Binding(get: { msg != nil }, set: { _ in msg = nil })) { Button("확인") {} } message: { Text(msg ?? "") }
+        .alert("글은 올라갔어요", isPresented: Binding(get: { attachNotice != nil }, set: { if !$0, let id = attachNotice { attachNotice = nil; onDone(id); dismiss() } })) {
+            Button("확인") {}
+        } message: { Text("서버가 아직 전적·VS 첨부를 지원하지 않아 첨부는 빠졌어요. 서버 업데이트 후 다시 첨부할 수 있어요.") }
         .confirmationDialog("작성 중인 글이 있어요", isPresented: $confirmLeave, titleVisibility: .visible) {
             Button("임시저장하고 나가기") { flushDraft(); dismiss() }
             Button("지우고 나가기", role: .destructive) { cprefs.clearDraft(); dismiss() }
@@ -88,6 +93,7 @@ struct ComposeView: View {
             if let raw = UserDefaults.standard.string(forKey: "communityAttach") {
                 let p = raw.split(separator: ":").map(String.init)
                 if p.count >= 2, let k = PostAttach.Kind(rawValue: p[0]) { draft.attach = PostAttach(kind: k, me: p[1], with: p.count > 2 ? p[2] : nil) }
+                if UserDefaults.standard.bool(forKey: "communityAttachOpen") { showAttachPicker = true }
             }
             #endif
             focus = .title
@@ -391,11 +397,7 @@ struct ComposeView: View {
                     }
                     .accessibilityLabel("내 전적 카드나 VS 카드 첨부")
                 }
-                if let t = type, !t.template.isEmpty {
-                    Button { draft.body = draft.body.isEmpty ? t.template : draft.body + "\n" + t.template; focus = .body } label: {
-                        Text("양식").cmText(14, .semibold).foregroundStyle(FC.muted).frame(minHeight: 44)
-                    }
-                }
+                // "양식"은 본문 아래 점선 "+ 양식 넣기" 하나만 둔다 — 같은 기능이 두 곳에 있었다(디자인 3R 4-2)
                 Spacer()
                 if let savedAt {
                     TimelineView(.periodic(from: .now, by: 30)) { ctx in
@@ -445,11 +447,17 @@ struct ComposeView: View {
         // 첨부 — 서버가 meta.attach_* 로 저장한다. 첨부를 모르는 옛 서버는 이 키를 무시한다(글은 그대로 등록).
         if let a = draft.attach, t.type != "squad_battle" { json["attach"] = a.json }
         do {
-            let id = try await CommunityAPI.createPost(json)
+            let r = try await CommunityAPI.createPost(json)
             saveTask?.cancel()
             cprefs.clearDraft()
             Haptic.success()
-            onDone(id)
+            if json["attach"] != nil, !r.attachSaved {
+                // 첨부를 모르는 서버(웹 배포 전)는 attach 를 버리고 글만 저장한다 — 조용히 넘어가지 않고 알린다.
+                // 형식이 틀린 첨부는 서버가 400 으로 막으므로(위 catch) 여기 오는 건 "지원 전 서버"뿐이다.
+                attachNotice = r.id
+                return
+            }
+            onDone(r.id)
             dismiss()
         } catch {
             msg = error.localizedDescription

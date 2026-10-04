@@ -441,6 +441,18 @@ struct PostAttach: Codable, Hashable {
         if k == .versus && w == nil { return nil }
         self.init(kind: k, me: me, with: k == .versus ? w : nil, mode: meta["attach_mode"].flatMap(Int.init) ?? 50)
     }
+    /// 구단주명 정리 — 서버 `cleanNickname`(웹 lib/community/attach.ts)과 같은 규칙:
+    /// NFC → 앞뒤 공백 제거 → 길이 1~20(UTF-16 단위, JS `length` 와 같게) → 공백·경로/쿼리 문자·제어문자 거부.
+    static func clean(_ raw: String) -> String? {
+        let s = raw.precomposedStringWithCanonicalMapping.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (1...20).contains(s.utf16.count) else { return nil }
+        if s.range(of: #"[\s/\\?#%&<>"'`]"#, options: .regularExpression) != nil { return nil }
+        if s.unicodeScalars.contains(where: { $0.properties.generalCategory == .control }) { return nil }
+        return s
+    }
+    /// 같은 구단주인가 — 서버 `sameNickname` 과 같게 정리된 값끼리 대소문자만 무시.
+    static func sameNickname(_ a: String, _ b: String) -> Bool { a.lowercased() == b.lowercased() }
+
     /// 작성 요청 본문(`attach`)
     var json: [String: Any] {
         var j: [String: Any] = ["kind": kind.rawValue, "me": me, "mode": mode]
