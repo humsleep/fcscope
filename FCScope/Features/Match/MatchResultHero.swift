@@ -17,7 +17,6 @@ struct MatchResultHero: View {
     @State private var shownOpp = 0
     @State private var celebrated = false
     @State private var counted = false
-    @State private var fcScore: Double?
 
     private var tone: Color { FC.resultColor(m.me.result) }
     private var resultWord: String {
@@ -55,13 +54,10 @@ struct MatchResultHero: View {
                 statBox(m.opponent.map { "\(m.me.stats.shots) / \($0.stats.shots)" } ?? "\(m.me.stats.shots)", m.opponent == nil || typeSize.isAccessibilitySize ? "슛" : "슛 · 나/상대")
                 // 옆 칸과 같은 형식인데 (나/상대)가 빠져 헷갈렸다(유저 패널 C)
                 statBox(m.opponent.map { "\(m.me.stats.effectiveShots) / \($0.stats.effectiveShots)" } ?? "\(m.me.stats.effectiveShots)", m.opponent == nil || typeSize.isAccessibilitySize ? "유효슛" : "유효슛 · 나/상대")
-                // verdict.score 는 0~100 게이지 값이라 FC 스코어(10점)가 아니다. 경기별 FC 스코어는 전적 응답(MatchSummary)에만
-                // 있으므로 디스크 캐시에서 찾고(네트워크 0), 없으면(딥링크로 바로 들어온 경우) 경기 평점으로 대신한다.
-                if let s = fcScore {
-                    statBox(String(format: "%.1f", s), "FC 스코어", color: s >= 6.5 ? FC.win : s < 5 ? FC.lose : FC.ink)
-                } else {
-                    statBox(m.me.rating > 0 ? String(format: "%.1f", m.me.rating) : "-", "경기 평점", color: m.me.rating >= 7.5 ? FC.gold : FC.ink)
-                }
+                // 세 번째 칸은 항상 "경기 평점"(넥슨 matchDetail 의 내 평점). FC 스코어는 전적 응답(MatchSummary)에만 있어
+                // 디스크 캐시 유무에 따라 칸 이름과 숫자가 바뀌었다(같은 경기가 "FC 스코어 6.8" ↔ "경기 평점 7.2" — QA 4R).
+                // 경기 평점은 매치 응답에 늘 있어 추가 네트워크가 없다. 경기별 FC 스코어는 전적 경기 목록 행에 그대로 있다.
+                statBox(m.me.rating > 0 ? String(format: "%.1f", m.me.rating) : "-", "경기 평점", color: m.me.rating >= 7.5 ? FC.gold : FC.ink)
             }
         }
         .padding(16)
@@ -76,7 +72,6 @@ struct MatchResultHero: View {
         }
         .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(tone.opacity(0.5), lineWidth: 1))
         .sensoryFeedback(.success, trigger: celebrated) { _, new in new }
-        .task { await loadScore() }
         .task { await countUp() }
     }
 
@@ -116,15 +111,6 @@ struct MatchResultHero: View {
         .background(FC.bg.opacity(0.5), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(FC.line, lineWidth: 1))
         .accessibilityElement(children: .combine)
-    }
-
-    private func loadScore() async {
-        let nick = m.me.nickname
-        let path = "/api/v1/user/\(nick.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? nick)"
-        if let hit: (value: UserOverview, isFresh: Bool) = await APIClient.shared.cachedValue(path, query: ["type": String(m.matchType)]),
-           let row = hit.value.matches.first(where: { $0.matchId == m.matchId }) {
-            fcScore = row.score
-        }
     }
 
     /// 한 골씩 올라간다(최대 10단계, 0.07초 간격). 두 숫자를 같은 박자로 — 큰 쪽이 끝날 때 함께 멈춘다.
