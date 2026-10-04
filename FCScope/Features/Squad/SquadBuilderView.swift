@@ -118,33 +118,34 @@ final class SquadBuilderModel {
     }
     func clear() { slots = [:]; coords = [:]; labels = [:]; naturalGK = [:]; savedId = nil; teamTag = nil }
 
-    /// 라인별로 빈 슬롯에 순서대로 배치 (프리셋/임포트)
+    /// 선발 불러오기 배치 — 선수·자리 쌍마다 비용을 매겨 **싼 쌍부터** 채운다(전역 탐욕).
+    /// 비용: 정확 일치 0 · 같은 역할(`Formation.nearby` 순서) 1+ · 같은 라인 10 · 이웃 라인 20 · 먼 라인 40 · GK 엇갈림 100.
+    /// 예전엔 슬롯 순서대로 돌며 마지막에 포지션을 보지 않고 남은 칸을 채워, 서버가 4-1-2-1-2 와 CDM 2명을 주면
+    /// 수비형 MF 알라바가 ST 에, CF 벨링엄이 CAM 에 들어갔다(QA 3R P2-1). 이제 CF→ST, CDM→CAM 이 된다.
     func place(players: [(spid: Int, name: String, pos: String, season: String)]) {
         for p in players { remember(p.spid, gk: p.pos == "GK") }
-        var rest = players
-        var used = Set<String>()
-        // 1) 정확한 포지션 매칭
-        for s in formation.slots {
-            if let i = rest.firstIndex(where: { $0.pos == s.pos }) {
-                let p = rest.remove(at: i); slots[s.id] = SquadSlotModel(slotId: s.id, spid: p.spid, name: p.name, season: p.season, x: nil, y: nil); used.insert(s.id)
+        var pairs: [(cost: Int, p: Int, s: Int)] = []
+        for (pi, p) in players.enumerated() {
+            for (si, slot) in formation.slots.enumerated() {
+                pairs.append((Self.placementCost(player: p.pos, slot: slot.pos), pi, si))
             }
         }
-        // 1.5) 같은 역할(LS·RS → ST, LCB → CB …) — 라인만 보면 LS 가 LW 칸에 먼저 들어갔다
-        for s in formation.slots where !used.contains(s.id) {
-            if let i = rest.firstIndex(where: { Formation.nearby($0.pos).contains(s.pos) }) {
-                let p = rest.remove(at: i); slots[s.id] = SquadSlotModel(slotId: s.id, spid: p.spid, name: p.name, season: p.season, x: nil, y: nil); used.insert(s.id)
-            }
+        pairs.sort { ($0.cost, $0.s, $0.p) < ($1.cost, $1.s, $1.p) }
+        var usedP = Set<Int>(), usedS = Set<Int>()
+        for pr in pairs where !usedP.contains(pr.p) && !usedS.contains(pr.s) {
+            let p = players[pr.p], slot = formation.slots[pr.s]
+            slots[slot.id] = SquadSlotModel(slotId: slot.id, spid: p.spid, name: p.name, season: p.season, x: nil, y: nil)
+            usedP.insert(pr.p); usedS.insert(pr.s)
         }
-        // 2) 같은 라인
-        for s in formation.slots where !used.contains(s.id) {
-            if let i = rest.firstIndex(where: { Formation.lineOf($0.pos) == Formation.lineOf(s.pos) }) {
-                let p = rest.remove(at: i); slots[s.id] = SquadSlotModel(slotId: s.id, spid: p.spid, name: p.name, season: p.season, x: nil, y: nil); used.insert(s.id)
-            }
-        }
-        // 3) 남은 자리
-        for s in formation.slots where !used.contains(s.id) && !rest.isEmpty {
-            let p = rest.removeFirst(); slots[s.id] = SquadSlotModel(slotId: s.id, spid: p.spid, name: p.name, season: p.season, x: nil, y: nil)
-        }
+    }
+
+    static func placementCost(player: String, slot: String) -> Int {
+        if player == slot { return 0 }
+        if (player == "GK") != (slot == "GK") { return 100 }
+        if let i = Formation.nearby(player).firstIndex(of: slot) { return 1 + i }
+        let rank = ["GK": 0, "DEF": 1, "MID": 2, "ATT": 3]
+        let a = rank[Formation.lineOf(player)] ?? 2, b = rank[Formation.lineOf(slot)] ?? 2
+        switch abs(a - b) { case 0: return 10; case 1: return 20; default: return 40 }
     }
 
     func loadPreset(_ id: String) async {
