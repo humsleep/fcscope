@@ -214,7 +214,36 @@ struct RecordHeader: View {
 
     // MARK: CTA
 
-    private var ctas: some View {
+    @ViewBuilder private var ctas: some View {
+        if typeSize.isAccessibilitySize {
+            // AX 크기: 한 줄에 셋이면 "스토리…", "🏆…"로 잘렸다(QA 3R P2-4) — 주 CTA 한 줄, 보조 둘을 아랫줄에
+            VStack(spacing: 8) {
+                if o.summary.played > 0 { ShareCardButton(story: .user(o), label: "스토리로 자랑", style: .hero) }
+                HStack(spacing: 8) {
+                    if !o.profile.divisions.isEmpty { ShareCardButton(story: .rank(o), label: "🏆 계급 카드", style: .secondary) }
+                    versusButton
+                }
+            }
+        } else {
+            ctaRow
+        }
+    }
+
+    private var versusButton: some View {
+        Button(action: { Haptic.light(); onVersus() }) {
+            Text("VS").fcScoreboard(15).foregroundStyle(FC.tint)
+                .frame(minWidth: 50, minHeight: 50)
+                .padding(.horizontal, typeSize.isAccessibilitySize ? 12 : 0)
+                .background(FC.surface2, in: Capsule())
+                .overlay(Capsule().strokeBorder(FC.tint.opacity(0.7), lineWidth: 1.5))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(PressScaleStyle())
+        .accessibilityLabel("친구랑 비교 VS")
+        .accessibilityHint("승률 · 폼 티어 맞대결을 열어요")
+    }
+
+    private var ctaRow: some View {
         HStack(spacing: 8) {
             if o.summary.played > 0 {
                 ShareCardButton(story: .user(o), label: "스토리로 자랑", style: .hero)
@@ -229,16 +258,7 @@ struct RecordHeader: View {
                 }
             }
             // 친구 VS — 풀폭 행이던 것을 보조 원형 버튼으로(헤더 다이어트 · 디자인 M8)
-            Button(action: { Haptic.light(); onVersus() }) {
-                Text("VS").fcScoreboard(15).foregroundStyle(FC.tint)
-                    .frame(width: 50, height: 50)
-                    .background(FC.surface2, in: Circle())
-                    .overlay(Circle().strokeBorder(FC.tint.opacity(0.7), lineWidth: 1.5))
-                    .contentShape(Circle())
-            }
-            .buttonStyle(PressScaleStyle())
-            .accessibilityLabel("친구랑 비교 VS")
-            .accessibilityHint("승률 · 폼 티어 맞대결을 열어요")
+            versusButton
         }
     }
 }
@@ -258,15 +278,27 @@ struct RecordIdentityRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 14) {
+        // AX 크기에서는 엠블럼을 위로 — 이름이 화면 폭을 다 쓰게
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .center, spacing: 14))
+        layout {
             emblem
             VStack(alignment: .leading, spacing: 5) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(profile.nickname).fcFont(26, weight: .bold).foregroundStyle(FC.ink).lineLimit(1).minimumScaleFactor(0.6)
-                    (Text("LV.").foregroundStyle(FC.muted) + Text("\(profile.level)").foregroundStyle(FC.ink))
-                        .font(.fcScoreboard(13, typeSize, weight: .semibold)).lineLimit(1).fixedSize()
-                    Spacer(minLength: 0)
-                    if isMine { Chip(text: "내 구단", color: FC.tintInk, bg: FC.tint).fixedSize() }
+                if typeSize.isAccessibilitySize {
+                    // AX 크기: 이름이 LV·"내 구단" 칩에 밀려 통째로 "…"가 됐다(QA 3R P2-4) — 이름은 한 줄을 다 쓰고 줄바꿈 허용
+                    Text(profile.nickname).fcFont(26, weight: .bold).foregroundStyle(FC.ink)
+                        .lineLimit(2).minimumScaleFactor(0.5).fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 6) {
+                        levelText
+                        if isMine { Chip(text: "내 구단", color: FC.tintInk, bg: FC.tint).fixedSize() }
+                    }
+                } else {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(profile.nickname).fcFont(26, weight: .bold).foregroundStyle(FC.ink).lineLimit(1).minimumScaleFactor(0.6)
+                            .layoutPriority(1)
+                        levelText
+                        Spacer(minLength: 0)
+                        if isMine { Chip(text: "내 구단", color: FC.tintInk, bg: FC.tint).fixedSize() }
+                    }
                 }
                 if let d = division {
                     // 넥슨 division 은 "역대 최고 + 달성일"이다 — 현재 등급으로 읽히지 않게 "역대 최고"를 밝힌다.
@@ -278,6 +310,11 @@ struct RecordIdentityRow: View {
             }
             Spacer(minLength: 0)
         }
+    }
+
+    private var levelText: some View {
+        (Text("LV.").foregroundStyle(FC.muted) + Text("\(profile.level)").foregroundStyle(FC.ink))
+            .font(.fcScoreboard(13, typeSize, weight: .semibold)).lineLimit(1).fixedSize()
     }
 
     private var emblem: some View {

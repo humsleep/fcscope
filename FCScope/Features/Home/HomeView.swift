@@ -34,6 +34,27 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 hero
+                homeSections
+            }
+            .padding(16)
+            // 히어로 드롭다운이 닫히는 애니메이션도 화면 밖(전적으로 이동 중)에서 멈추면 아래 섹션 위치가 어긋난 채 남는다 — 홈 전체를 즉시 배치
+            .transaction { $0.animation = nil; $0.disablesAnimations = true }
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .fcScreen()
+        .navigationTitle("전적").navigationBarTitleDisplayMode(.inline)
+        .toolbar { brandToolbar }
+        .task { await vm.load() }
+        .refreshable { await vm.refresh() }
+        // 전적을 보고 돌아오면 본 경기 표시가 바뀌므로 나타날 때마다 다시 센다(디스크 읽기 1회).
+        .onAppear { Task { await loadSinceLastSeen() } }
+    }
+
+    /// 히어로 아래 섹션들. 최근 검색·내 구단 스냅샷은 **다른 화면(전적)에서** 바뀐다 — 그 변경이 애니메이션 트랜잭션에
+    /// 실려 오면 홈이 화면 밖일 때 시작한 삽입·이동 애니메이션이 멈춘 채 남아, 처음 돌아왔을 때 "최근 검색" 칩이
+    /// "이런 것도 돼요" 위에 겹쳤다(QA 3R P2-2, 2R P2-3 과 같은 계열). 이 묶음의 레이아웃 변경은 애니메이션 없이 즉시.
+    @ViewBuilder private var homeSections: some View {
+        VStack(alignment: .leading, spacing: 14) {
                 if let mine = prefs.myNickname { myFormCard(mine) }
                 else if let demo = vm.state.value?.demoNickname { demoCard(demo) }
                 if !prefs.favorites.isEmpty { favoritesSection }
@@ -47,13 +68,11 @@ struct HomeView: View {
                 if let home = vm.state.value, !home.posts.isEmpty { latestPosts(home.posts) }
                 if !prefs.recentSearches.isEmpty { recentSection }
                 featureGrid
-            }
-            .padding(16)
         }
-        .scrollDismissesKeyboard(.interactively)
-        .fcScreen()
-        .navigationTitle("전적").navigationBarTitleDisplayMode(.inline)
-        .toolbar {
+        .transaction { $0.animation = nil; $0.disablesAnimations = true }
+    }
+
+    @ToolbarContentBuilder private var brandToolbar: some ToolbarContent {
             // 앱 안에서 아이콘 마크가 한 번도 안 나오던 문제 — 홈 내비에 S 마크 + 워드마크(디자인 M11)
             ToolbarItem(placement: .principal) {
                 HStack(spacing: 7) {
@@ -65,11 +84,6 @@ struct HomeView: View {
                 .accessibilityLabel("FC Scope")
                 .accessibilityAddTraits(.isHeader)
             }
-        }
-        .task { await vm.load() }
-        .refreshable { await vm.refresh() }
-        // 전적을 보고 돌아오면 본 경기 표시가 바뀌므로 나타날 때마다 다시 센다(디스크 읽기 1회).
-        .onAppear { Task { await loadSinceLastSeen() } }
     }
 
     private func loadSinceLastSeen() async {
