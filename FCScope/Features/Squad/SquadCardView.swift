@@ -68,7 +68,7 @@ struct SquadCardView: View {
                 }
             }
         }
-        .frame(height: 1010)
+        .frame(height: 935)   // App Store QR 꼬리말(+73)만큼 줄였다
     }
 
     @ViewBuilder

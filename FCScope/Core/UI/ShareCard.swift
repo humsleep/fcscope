@@ -170,10 +170,13 @@ struct ShareCardView: View {
                     }
                 }
             }
-            HStack {
-                Text("내 전적도 검색 →").font(.pretendard(30)).foregroundStyle(CardPalette.muted)
+            HStack(alignment: .center, spacing: 24) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("내 전적도 검색 →").font(.pretendard(30)).foregroundStyle(CardPalette.muted)
+                    Text("App Store에서 FC Scope").font(.pretendard(26, .medium)).foregroundStyle(CardPalette.muted)
+                }
                 Spacer()
-                Text(AppConfig.shareHost).font(.pretendard(30, .bold)).foregroundStyle(CardPalette.brand)
+                AppStoreQRTile(side: 140)
             }
         }
     }

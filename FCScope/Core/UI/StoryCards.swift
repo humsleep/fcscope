@@ -179,20 +179,20 @@ struct UserCardView: View {
                 CardHeader(chip: "\(matchTypeName) · 최근 \(o.summary.played)경기" + ((o.perf.forfeits ?? 0) > 0 ? "(몰수 \(o.perf.forfeits ?? 0))" : ""))          // 264–308
                 Spacer().frame(height: 16)
                 NicknameTitle(text: o.profile.nickname)                                     // 324–500
-                Spacer().frame(height: 16)
+                Spacer().frame(height: 10)
                 IdentityPills(level: o.profile.level, divisions: o.profile.divisions, images: images)   // 516–572
-                Spacer().frame(height: 24)
+                Spacer().frame(height: 12)
                 if o.summary.played == 0 {
                     Text("최근 기록이 없어요").font(.pretendard(32, .semibold)).foregroundStyle(CardPalette.muted)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     if let s = d.style { styleBlock(s) } // 596–716
-                    Spacer().frame(height: 24)
+                    Spacer().frame(height: 14)
                     scorePanel.frame(height: d.style == nil ? 352 : 232)                   // 740–972
-                    Spacer().frame(height: 24)
+                    Spacer().frame(height: 14)
                     let best = d.bestPlayers
                     if !best.isEmpty { bestBlock(best) }                                    // 996–1250
-                    Spacer().frame(height: best.isEmpty ? 0 : 38)
+                    Spacer().frame(height: best.isEmpty ? 0 : 18)
                     finishing(tall: best.isEmpty)                                           // 1288–1480
                     Spacer(minLength: 0)
                 }
@@ -395,14 +395,14 @@ struct TemplateCard<Hero: View, Sub: View, Body: View>: View {
                     NicknameTitle(text: o.profile.nickname, maxSize: 88, minSize: 56, boxHeight: 112)  // 324–436
                     Spacer().frame(height: 16)
                     IdentityPills(level: o.profile.level, divisions: o.profile.divisions, images: images, compact: true) // 452–500
-                    Spacer().frame(height: 32)
+                    Spacer().frame(height: 20)
                 }
                 Text(kicker).font(.pretendard(30, .bold)).kerning(2).foregroundStyle(CardPalette.muted).lineLimit(1)
                     .frame(height: 48, alignment: .leading)
                 hero.frame(maxWidth: .infinity, alignment: .leading).frame(height: 260)
-                Spacer().frame(height: 20)
+                Spacer().frame(height: 12)
                 sub.frame(maxWidth: .infinity, alignment: .leading).frame(height: 64)
-                Spacer().frame(height: 24)
+                Spacer().frame(height: 14)
                 content.frame(maxWidth: .infinity, alignment: .topLeading)
                 Spacer(minLength: 0)
                 CardFooter(cta: cta)

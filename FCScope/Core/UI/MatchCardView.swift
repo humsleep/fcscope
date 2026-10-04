@@ -13,15 +13,15 @@ struct MatchCardView: View {
         CardCanvas {
             VStack(alignment: .leading, spacing: 0) {
                 CardHeader(chip: "\(m.matchTypeName) · \(m.matchDateLabel)")
-                Spacer().frame(height: 20)
+                Spacer().frame(height: 12)
                 scoreboard.frame(height: 130)
-                Spacer().frame(height: 16)
+                Spacer().frame(height: 10)
                 verdict.frame(height: 104)
-                Spacer().frame(height: 24)
+                Spacer().frame(height: 14)
                 shotMap
-                Spacer().frame(height: 16)
+                Spacer().frame(height: 10)
                 if let p = m.potm { potm(p).frame(height: 96) }
-                Spacer().frame(height: 16)
+                Spacer().frame(height: 10)
                 if let o = m.opponent { compare(o) }
                 Spacer(minLength: 0)
                 CardFooter(cta: "내 경기 리포트도 보기 →")

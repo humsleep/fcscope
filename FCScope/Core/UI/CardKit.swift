@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import CoreImage
 
 /**
  공유 카드 v2 공통 부품 (1080×1920, ImageRenderer scale 1 → 1pt = 1px).
@@ -245,25 +246,57 @@ struct CardLabel: View {
 /// 하단 CTA — 구분선 + 문구 + 도메인 필 (y 1488~1560)
 struct CardFooter: View {
     var cta: String = "나도 내 전적 카드 만들기 →"
-    private var host: String {
-        let h = AppConfig.shareHost
-        return h.hasPrefix("www.") ? String(h.dropFirst(4)) : h
-    }
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             Rectangle().fill(CardPalette.line).frame(height: 1)
-            HStack {
-                // 설치 안내는 인스타 답장창(1580~)에 가려지지 않도록 CTA 옆에 둔다
-                // 홍보는 한 줄 — CTA + 도메인 필. 설치 안내 줄은 뺐다(도메인·앱 이름이 이미 필에 있다).
-                Text(cta).font(.pretendard(28, .semibold)).foregroundStyle(CardPalette.ink.opacity(0.85)).lineLimit(1)
-                Spacer()
-                Text(host).font(.scoreboard(30)).foregroundStyle(Color.white)
-                    .padding(.horizontal, 20).padding(.vertical, 8)
-                    .background(CardPalette.brand, in: Capsule())
+            HStack(alignment: .center, spacing: 24) {
+                // 도메인 필(fcscope.xyz) 대신 App Store QR — 스토리를 본 친구가 카메라로 바로 설치(운영자 결정 2026-10-04)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(cta).font(.pretendard(30, .semibold)).foregroundStyle(CardPalette.ink.opacity(0.9)).lineLimit(1).minimumScaleFactor(0.8)
+                    HStack(spacing: 10) {
+                        Image(systemName: "apple.logo").font(.system(size: 24, weight: .semibold)).foregroundStyle(CardPalette.muted)
+                        Text("App Store에서 FC Scope").font(.pretendard(26, .medium)).foregroundStyle(CardPalette.muted).lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 0)
+                AppStoreQRTile(side: 140)
             }
-            .frame(height: 64)
+            .frame(height: 140)
         }
-        .frame(height: 80)
+        // 안전영역 하단(1560) 안 — 예전 80pt 도메인 필보다 73pt 크다. 각 카드의 고정 간격을 그만큼 줄였다.
+        .frame(height: 153)
+    }
+}
+
+/// App Store QR — 흰 둥근 타일 위 검정 모듈(카메라 인식률이 가장 좋은 대비). CoreImage `CIQRCodeGenerator`로 만들고
+/// 모듈 경계가 흐려지지 않게 정수 배율 + 최근접 보간으로 키운다. 1080×1920 렌더에서 150px 타일 · 모듈 약 4px.
+struct AppStoreQRTile: View {
+    var side: CGFloat = 150
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: side * 0.14, style: .continuous).fill(Color.white)
+            if let img = AppStoreQR.image {
+                Image(uiImage: img).interpolation(.none).resizable()
+                    .frame(width: side * 0.84, height: side * 0.84)
+            }
+        }
+        .frame(width: side, height: side)
+        .accessibilityLabel("App Store FC Scope 설치 QR 코드")
+    }
+}
+
+enum AppStoreQR {
+    static let url = "https://apps.apple.com/kr/app/id6812981907"
+    /// 모듈 1개 = 1px 의 QR 을 정수 배율로 키운 비트맵(조용한 영역 없음 — 흰 타일 여백이 대신한다)
+    static let image: UIImage? = make(url)
+
+    static func make(_ text: String, scale: CGFloat = 12) -> UIImage? {
+        guard let f = CIFilter(name: "CIQRCodeGenerator") else { return nil }
+        f.setValue(Data(text.utf8), forKey: "inputMessage")
+        f.setValue("M", forKey: "inputCorrectionLevel")
+        guard let out = f.outputImage?.transformed(by: CGAffineTransform(scaleX: scale, y: scale)),
+              let cg = CIContext(options: [.useSoftwareRenderer: false]).createCGImage(out, from: out.extent) else { return nil }
+        return UIImage(cgImage: cg)
     }
 }
 
