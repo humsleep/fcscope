@@ -62,11 +62,11 @@ struct HomeView: View {
                     if let mover = home.mover { MoverCard(m: mover) }
                     if !home.liveSearches.isEmpty { liveChips(home.liveSearches) }
                 } else if vm.state.isLoading { Skeleton(height: 60) }
-                // 광고는 "첫 3초" 영역 밖 — 내 폼·급상승·검색 칩을 먼저 보여 준 뒤 한 장(화면당 1개 유지).
-                // 예전엔 슬로건 바로 아래라 첫 화면 두 번째 블록이 광고였다(UX-AUDIT-GENZ #1).
-                AdSlot()
-                if let home = vm.state.value, !home.posts.isEmpty { latestPosts(home.posts) }
+                // "커뮤니티 최신"은 그리지 않는다(운영자 요청 2026-10-04). /api/v1/home 의 posts 는 v1 계약이라 서버는 계속 준다.
                 if !prefs.recentSearches.isEmpty { recentSection }
+                // 광고 — 개인화·실시간 블록이 끝나고 기능 소개가 시작되는 경계(AD-PLACEMENT 1-1). 위는 칩(탭) → +8pt,
+                // 아래는 탭 불가 섹션 라벨. 첫 화면(Max) 안이라 높이를 미리 잡는다(R1).
+                AdSlot(placement: "home", reserve: true).padding(.top, 8)
                 featureGrid
         }
         .transaction { $0.animation = nil; $0.disablesAnimations = true }
@@ -270,23 +270,6 @@ struct HomeView: View {
                 }
             }
             .scrollClipDisabled()
-        }
-    }
-
-    private func latestPosts(_ posts: [HomePost]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            SectionLabel("커뮤니티 최신")
-            ForEach(posts) { p in
-                Button { router.push(.post(p.id)) } label: {
-                    HStack {
-                        Text(p.title).fcFont(14, weight: .medium).foregroundStyle(FC.ink).lineLimit(1)
-                        Spacer()
-                        if let c = p.commentCount, c > 0 { Text("💬\(c)").fcFont(12).foregroundStyle(FC.muted) }
-                        Text(DateFmt.relative(p.createdAt)).fcFont(12).foregroundStyle(FC.muted)
-                    }
-                    .padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control))
-                }.buttonStyle(.plain)
-            }
         }
     }
 
