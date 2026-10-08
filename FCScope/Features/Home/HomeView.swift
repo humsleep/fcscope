@@ -349,7 +349,10 @@ struct OnboardingView: View {
             }
             .tabViewStyle(.page)
             // 2쪽에서 키보드를 띄운 채 넘기면 3쪽에 키보드가 남았다(QA P2-5)
-            .onChange(of: page) { _, p in if p != 1 { nickFocused = false } }
+            .onChange(of: page) { _, p in
+                if p != 1 { nickFocused = false }
+                Analytics.shared.track(.onboarding, ["step": p, "action": "view"])
+            }
             // 기본 페이지 점은 흰색이라 라이트 모드 배경(거의 흰색)에서 보이지 않았다 — 반투명 배경 캡슐을 깐다.
             .indexViewStyle(.page(backgroundDisplayMode: .always))
             Button {
@@ -360,6 +363,8 @@ struct OnboardingView: View {
             .padding(.horizontal, 24).padding(.bottom, 24)
         }
         .background(FC.bg.ignoresSafeArea())
+        // 온보딩 이탈 지점 — 어느 쪽에서 앱을 닫았는지 본다(step 0 = 첫 화면)
+        .onAppear { Analytics.shared.track(.onboarding, ["step": 0, "action": "view"]) }
         // 입력이 멈춘 뒤 0.6초에 확인 — 글자마다 넥슨을 치지 않게(프로필 단계는 넥슨 2콜).
         .task(id: trimmed) { await validate(trimmed) }
     }
@@ -418,6 +423,12 @@ struct OnboardingView: View {
         default: trimmed.isEmpty ? nil : trimmed
         }
         if let saved { prefs.myNickname = saved }
+        let nickResult: String = switch current {
+        case .ok: "ok"
+        case .notFound: "not_found"
+        default: saved == nil ? "skip" : "unverified"
+        }
+        Analytics.shared.track(.onboarding, ["step": page, "action": "done", "nick": nickResult])
         prefs.onboardingDone = true
         if let saved { router.tab = .home; router.homePath.append(Route.user(saved)) }
     }

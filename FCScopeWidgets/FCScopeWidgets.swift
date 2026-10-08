@@ -72,7 +72,7 @@ struct MyFormWidgetView: View {
                 if family == .accessoryRectangular { lockScreen(nick) } else { home(nick) }
             } else {
                 VStack(spacing: 4) { Text("FC SCOPE").font(.scoreboard(12)).foregroundStyle(FC.brandSolid); Text("앱에서 내 구단주명을 설정하면 폼이 여기 떠요").font(.system(size: 11)).foregroundStyle(FC.muted).multilineTextAlignment(.center) }
-                    .widgetURL(AppConfig.absolute("/me"))
+                    .widgetURL(AppConfig.absolute("/me?src=widget"))
             }
         }
         .containerBackground(for: .widget) { FC.bg }
@@ -91,7 +91,7 @@ struct MyFormWidgetView: View {
             HStack(spacing: 3) { ForEach(Array(entry.form.enumerated()), id: \.offset) { _, r in Text(r).font(.system(size: 11, weight: .bold)).foregroundStyle(FC.resultColor(r)).frame(width: 20, height: 20).background(FC.resultColor(r).opacity(0.18), in: RoundedRectangle(cornerRadius: 4)) } }
             if family != .systemSmall { Spacer(minLength: 0); Text("최근 30경기 · \(entry.date.formatted(date: .omitted, time: .shortened)) 갱신").font(.system(size: 11)).foregroundStyle(FC.muted).lineLimit(1) }
         }
-        .widgetURL(AppConfig.absolute("/user/\(nick.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? nick)"))
+        .widgetURL(AppConfig.absolute("/user/\(nick.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? nick)?src=widget"))
     }
 
     /// 잠금 화면 직사각형(약 160×72pt)은 홈 위젯 레이아웃이 넘친다 — 세 줄로 줄인다.
@@ -106,7 +106,7 @@ struct MyFormWidgetView: View {
             Text(entry.form.joined(separator: " ")).font(.system(size: 11, weight: .semibold)).lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .widgetURL(AppConfig.absolute("/user/\(nick.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? nick)"))
+        .widgetURL(AppConfig.absolute("/user/\(nick.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? nick)?src=widget"))
     }
 }
 
@@ -187,9 +187,9 @@ struct MoverWidgetView: View {
                     }
                     Text(m.isNew ? "NEW 진입" : "▲\(m.deltaValue ?? 0) 랭커 사용").font(.scoreboard(13)).foregroundStyle(m.isNew ? FC.gold : FC.win).lineLimit(1)
                 }
-                .widgetURL(AppConfig.absolute("/player/\(m.spId)"))
+                .widgetURL(AppConfig.absolute("/player/\(m.spId)?src=widget"))
             } else {
-                VStack(spacing: 4) { Text("RANKER PICKS").font(.scoreboard(11)).foregroundStyle(FC.tint); Text("랭커 픽 랭킹 준비 중").font(.system(size: 11)).foregroundStyle(FC.muted) }.widgetURL(AppConfig.absolute("/meta"))
+                VStack(spacing: 4) { Text("RANKER PICKS").font(.scoreboard(11)).foregroundStyle(FC.tint); Text("랭커 픽 랭킹 준비 중").font(.system(size: 11)).foregroundStyle(FC.muted) }.widgetURL(AppConfig.absolute("/meta?src=widget"))
             }
         }
         .containerBackground(for: .widget) { FC.bg }

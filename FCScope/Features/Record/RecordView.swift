@@ -76,7 +76,26 @@ final class RecordViewModel {
             loadedFromCache = false
         } catch {
             guard type == matchType else { return }
-            if overview.value == nil { overview = .failed(error) }
+            if overview.value == nil {
+                overview = .failed(error)
+                if !failTracked {
+                    failTracked = true
+                    Analytics.shared.track(.recordFail, ["reason": Self.failReason(error), "match_type": type])
+                }
+            }
+        }
+    }
+
+    /// 조회 실패 1회만 센다(다시 시도 버튼으로 같은 실패가 반복돼도 검색 1번의 결과는 하나).
+    private var failTracked = false
+
+    private static func failReason(_ error: Error) -> String {
+        guard let e = error as? APIError else { return error is CancellationError ? "cancelled" : "other" }
+        switch e {
+        case .server(let code, _, _, _): return code
+        case .network: return "network"
+        case .decoding: return "decoding"
+        case .unauthorized: return "unauthorized"
         }
     }
 
@@ -95,7 +114,8 @@ final class RecordViewModel {
         overview = .loaded(o)
         if !viewTracked {
             viewTracked = true
-            Analytics.shared.track(.recordView, ["match_type": matchType])
+            Analytics.shared.track(.recordView, ["match_type": matchType, "empty": o.matches.isEmpty])
+            if !o.matches.isEmpty { ReviewPrompt.recordViewed() }
         }
         quickProfile = nil
         LocalPrefs.shared.addRecent(o.profile.nickname)

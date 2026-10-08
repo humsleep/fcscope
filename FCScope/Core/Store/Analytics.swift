@@ -30,10 +30,26 @@ final class Analytics {
         case accountDelete = "account_delete"
         /// 배너 슬롯 이벤트 — props.placement 로 배치별 노출을 나눠 본다(docs/ads/AD-PLACEMENT.md 5장)
         case adSlot = "ad_slot"
+        // ↓ 2026-10-08 "사용이 왜 적은가"를 가르기 위해 추가(유입 경로·실패·이탈·크래시). 서버 허용 목록(lib/analytics/events.ts)에 먼저 넣어야 저장된다.
+        /// 푸시·위젯·링크로 들어온 진입. props.source = push | widget | link, props.target = 첫 경로 조각
+        case openVia = "open_via"
+        /// 전적 조회 실패. props.reason = user_not_found | network | decoding | 서버 코드
+        case recordFail = "record_fail"
+        /// 온보딩 진행. props.step(0~2) + action = view | done, done 에는 nick = ok | not_found | unverified | skip
+        case onboarding
+        /// 시스템 푸시 팝업 응답. props.granted
+        case pushOptin = "push_optin"
+        /// 설치된 위젯 수(하루 1회). props.my_form · mover
+        case widgetState = "widget_state"
+        /// MetricKit 크래시 진단(다음 실행에 도착). props.exception · signal · version
+        case crash
+        /// 앱 내 리뷰 요청을 시도함(실제 표시 여부는 iOS 가 정한다). props.trigger = share | revisit
+        case reviewPrompt = "review_prompt"
     }
 
     private static let installKey = "fcscope.analytics.installId"
     private static let lastActiveKey = "fcscope.analytics.lastActiveAt"
+    private static let widgetDayKey = "fcscope.analytics.widgetDay"
     /// 백그라운드에 이만큼 있다가 돌아오면 새 방문으로 센다(재방문율 계산의 기준).
     private static let sessionGap: TimeInterval = 30 * 60
     /// 요청 1회 상한 — 서버(lib/analytics/events.ts MAX_EVENTS)가 20개 넘는 부분을 **조용히 잘라낸다**.
@@ -44,6 +60,8 @@ final class Analytics {
     private static let iso = ISO8601DateFormatter()
 
     private let installId: String
+    /// 이번 실행에서 설치 ID 를 새로 만들었다 — 첫 app_open 에 first=true 를 붙인다(신규 설치 수).
+    private var isFirstOpen = false
     private var queue: [[String: Any]] = []
     /// 전송 중인 배치 — 응답 전에 앱이 종료돼도 파일에 함께 남긴다.
     private var inFlight: [[String: Any]] = []
@@ -62,6 +80,7 @@ final class Analytics {
             let id = UUID().uuidString.lowercased()
             UserDefaults.standard.set(id, forKey: Self.installKey)
             installId = id
+            isFirstOpen = true
         }
         // 지난 실행에서 못 보낸 이벤트 복원
         if let url = Self.fileURL, let data = try? Data(contentsOf: url),
@@ -86,9 +105,39 @@ final class Analytics {
     func appBecameActive() -> Bool {
         let last = UserDefaults.standard.double(forKey: Self.lastActiveKey)
         let newVisit = last == 0 || Date().timeIntervalSince1970 - last > Self.sessionGap
-        if newVisit { track(.appOpen) }
+        if newVisit {
+            let props: [String: Any] = isFirstOpen ? ["first": true] : [:]
+            track(.appOpen, props)
+            isFirstOpen = false
+            trackWidgetsDaily()
+        }
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.lastActiveKey)
         return newVisit
+    }
+
+    enum OpenSource: String { case push, widget, link }
+
+    /// 푸시·위젯·링크로 들어온 진입. app_open 과 같은 시각대에 찍혀 서버에서 묶어 본다
+    /// (scenePhase .active 와 onOpenURL·푸시 콜백의 순서가 보장되지 않아 app_open 에 직접 붙이지 않는다).
+    func trackOpen(_ source: OpenSource, url: URL) {
+        let target = url.scheme == "fcscope" ? url.host : url.pathComponents.dropFirst().first
+        track(.openVia, ["source": source.rawValue, "target": target ?? "home"])
+    }
+
+    /// 위젯을 실제로 홈 화면에 올린 사람이 몇인지 — KST 하루 1회만 센다.
+    private func trackWidgetsDaily() {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.timeZone = TimeZone(identifier: "Asia/Seoul")
+        let today = f.string(from: Date())
+        guard UserDefaults.standard.string(forKey: Self.widgetDayKey) != today else { return }
+        UserDefaults.standard.set(today, forKey: Self.widgetDayKey)
+        WidgetKitReloader.installedCounts { counts in
+            Task { @MainActor in
+                Analytics.shared.track(.widgetState, [
+                    "my_form": counts[WidgetBridge.Kind.myForm.rawValue] ?? 0,
+                    "mover": counts[WidgetBridge.Kind.mover.rawValue] ?? 0,
+                ])
+            }
+        }
     }
 
     /// 백그라운드로 갈 때 — 마지막 활동 시각을 남기고, 큐를 파일에 저장한 뒤 쌓인 이벤트를 모두 보낸다.

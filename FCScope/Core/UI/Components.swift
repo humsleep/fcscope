@@ -380,6 +380,8 @@ struct ShareCardSheet: View {
     let image: UIImage
     var filename: String = "fcscope-card"
     @Environment(\.dismiss) private var dismiss
+    /// 공유를 눌렀는가 — 시트가 닫힐 때 리뷰 요청 조건이 된다(ReviewPrompt).
+    @State private var shared = false
     var body: some View {
         VStack(spacing: 16) {
             Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 420)
@@ -387,6 +389,7 @@ struct ShareCardSheet: View {
             if InstagramShare.available {
                 Button {
                     Analytics.shared.track(.cardShare, ["type": Analytics.cardType(filename), "channel": "instagram"])
+                    shared = true
                     InstagramShare.shareStory(image)
                     dismiss()
                 } label: {
@@ -400,6 +403,7 @@ struct ShareCardSheet: View {
             // ShareLink 는 완료 콜백이 없다 — 시트를 연 시점을 공유 의사로 센다.
             .simultaneousGesture(TapGesture().onEnded {
                 Analytics.shared.track(.cardShare, ["type": Analytics.cardType(filename), "channel": "system"])
+                shared = true
             })
             .buttonStyle(.bordered)
             Text("앱에서 직접 만든 이미지예요. 서버를 거치지 않아 바로 만들어져요.")
@@ -408,6 +412,7 @@ struct ShareCardSheet: View {
         .padding(20)
         .presentationDetents([.large])
         .presentationBackground(FC.bg)
+        .onDisappear { if shared { ReviewPrompt.shareCompleted() } }
     }
 }
 

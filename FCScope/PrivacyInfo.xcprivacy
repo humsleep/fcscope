@@ -22,6 +22,19 @@
 				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
 			</array>
 		</dict>
+		<!-- 크래시 진단 요약(CrashReporter.swift — MetricKit 예외 종류·시그널·빌드): 계정과 연결하지 않음 -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeCrashData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
 		<!-- 로그인(커뮤니티): 이메일·사용자 ID — 계정과 연결 -->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>

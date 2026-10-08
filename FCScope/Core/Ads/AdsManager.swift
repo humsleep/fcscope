@@ -178,9 +178,9 @@ final class InterstitialDelegate: NSObject, FullScreenContentDelegate {
     func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) { finish() }
 }
 
-/// 구단주명 검색 전면광고 — 하루 첫 검색은 무료, 두 번째 검색부터는 **직전 전면광고 후 90초가 지났을 때만**.
-/// 하루 상한은 없다(2026-10-04 운영자 결정 — 0초 쿨다운은 상대 닉을 연달아 칠 때마다 광고가 떠
-/// 유저 패널 5라운드 1순위 불만이었다).
+/// 구단주명 검색 전면광고 — 하루 첫 검색은 무료, 두 번째 검색부터는 **직전 전면광고 후 90초가 지났을 때만**,
+/// 그리고 **하루 3회까지**(2026-10-08 — 상한이 없으면 광고 예민 유저가 2~3일 안에 지운다는 5라운드 패널 지적.
+/// 0초 쿨다운은 상대 닉을 연달아 칠 때마다 광고가 떠 2026-10-04 에 90초로 고쳤다).
 ///
 /// - 날짜는 KST 기준으로 매일 초기화한다.
 /// - 대상은 **검색창에 직접 입력한 검색**뿐이다. 즐겨찾기·최근 검색·칩을 누르는 건 탐색이라 제외.
@@ -190,10 +190,13 @@ enum SearchGate {
     static let freePerDay = 1
     /// 전면광고 사이 최소 간격(초)
     static let cooldown: TimeInterval = 90
+    /// 하루 전면광고 상한(KST)
+    static let maxAdsPerDay = 3
 
     private static let dayKey = "fcscope.search.day"
     private static let countKey = "fcscope.search.count"
     private static let lastAdKey = "fcscope.search.lastAdAt"
+    private static let adsTodayKey = "fcscope.search.adsToday"
 
     /// 이번 검색 전에 광고를 보여야 하는가. 호출하면 검색 1회로 센다.
     static func shouldShowAd(now: Date = Date()) -> Bool {
@@ -202,16 +205,18 @@ enum SearchGate {
         if d.string(forKey: dayKey) != today {
             d.set(today, forKey: dayKey)
             d.set(0, forKey: countKey)
+            d.set(0, forKey: adsTodayKey)
         }
         let count = d.integer(forKey: countKey) + 1
         d.set(count, forKey: countKey)
-        guard count > freePerDay else { return false }
+        guard count > freePerDay, d.integer(forKey: adsTodayKey) < maxAdsPerDay else { return false }
         return now.timeIntervalSince1970 - d.double(forKey: lastAdKey) >= cooldown
     }
 
     /// 광고를 **실제로 띄웠을 때만** 쿨다운을 시작한다 — 준비가 안 돼 못 띄운 검색이 90초 무료 구간을 만들면 안 된다.
     static func markAdShown(now: Date = Date()) {
         UserDefaults.standard.set(now.timeIntervalSince1970, forKey: lastAdKey)
+        UserDefaults.standard.set(UserDefaults.standard.integer(forKey: adsTodayKey) + 1, forKey: adsTodayKey)
     }
 
     private static func dayString(_ date: Date) -> String {

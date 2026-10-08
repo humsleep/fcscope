@@ -11,7 +11,10 @@ final class PushManager {
 
     func requestPermission() async {
         let center = UNUserNotificationCenter.current()
+        // 시스템 팝업은 처음 한 번만 뜬다 — 이미 답한 기기의 재호출은 응답으로 세지 않는다.
+        let firstAsk = await center.notificationSettings().authorizationStatus == .notDetermined
         let granted = (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        if firstAsk { Analytics.shared.track(.pushOptin, ["granted": granted]) }
         if granted { UIApplication.shared.registerForRemoteNotifications() }
     }
 
