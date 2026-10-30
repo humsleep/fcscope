@@ -8,7 +8,7 @@ const HERE = path.dirname(new URL(import.meta.url).pathname);
 const OUT = process.env.OUTDIR || path.resolve(HERE, '..');
 const SHOTS = path.join(HERE, 'clean') + '/';
 const CARDS = '/Users/hyukahn/workspace/fcscope-ios/docs/cards/';
-const W = 1320, H = 2868, N = 9;
+const W = 1320, H = 2868, N = 10;
 const only = process.argv[2] ? process.argv[2].split(',') : null;
 const THEMES = {
   lime:   { acc: '#C8F542', accbg: 'linear-gradient(90deg,#C8F542,#C8F542)', ring: '#C8F542', glow: 'rgba(200,245,66,.30)' },
@@ -138,24 +138,33 @@ function frames(s) {
         pop({ src, r, x: opt.x ?? (W - w) / 2, y: cy + (opt.dy ?? -60), w, ring: true, radius: opt.radius ?? 50, rot: opt.rot ?? 0 }) + (opt.extra ?? '') });
   };
 
-  // 1 HERO — match result + shot map
+  // 1 HERO — 오늘의 피온(매일 열 이유) + 친구 리그 카드 확대 (2026-11 탭 재편)
   {
     const px = PX + 40, py = 950;
+    const [, sy] = onScreen(px, py, 40, 1200);
+    const w = 1290;
+    F.push({ name: '01-today', hero: true,
+      title: `매일 여는<br><em>오늘의 피온</em>`,
+      sub: `내 폼 · 새 경기 · 친구 순위를 <strong>한 화면</strong>에`,
+      body: phone({ src: s.today, x: px, y: py, rot: 4 }) +
+        pop({ src: s.today, r: [40, 1200, 1280, 1480], x: (W - w) / 2, y: sy - 120, w, ring: true, radius: 56, rot: -4 }) });
+  }
+  std('02-league', '친구 리그', `친구보다<br><em>잘했을까?</em>`, `즐겨찾기 친구와 최근 7일 승률 순위 · 추월 알림`, s.league, [48, 620, 1272, 1525], { w: 1220, dy: -60 });
+  // 3 매치 리포트 — 예전 1번(슛맵)
+  {
+    const px = PX + 40, py = PY + 90;
     const [, sy] = onScreen(px, py, 50, 1215);
     const w = 1290;
-    F.push({ name: '01-hero', hero: true,
-      title: `감이 아니라,<br><em>데이터</em>로.`,
-      sub: `내 슛과 상대 슛을 <strong>한 운동장</strong>에`,
+    F.push({ name: '03-shotmap', eyebrow: '매치 리포트',
+      title: `내 슛과 상대 슛을<br><em>한 운동장</em>에`,
+      sub: `슛맵 · POTM · 선수 평점까지 한 번에`,
       body: phone({ src: s.win, x: px, y: py, rot: 4 }) +
         pop({ src: s.win2, r: [24, 1240, 1296, 2140], x: (W - w) / 2, y: sy - 150, w, ring: true, radius: 56, rot: -4 }) });
   }
-  std('02-form', '폼 티어', `지금 내 실력,<br><em>폼 티어</em>로`, `최근 경기 흐름으로 매기는 나의 폼 티어`, s.record2, [40, 400, 1280, 705], { w: 1240, dy: -60 });
-  std('03-players', '선수 성적표', `<em>랭커 기록</em>과<br>비교한 내 선수`, `경기당 기록 · 패스 성공률을 상위 랭커와 나란히`, s.players, [250, 1932, 1290, 2510], { w: 1180, dy: -240 });
-  std('04-why', '매치 리포트', `진 경기엔<br><em>이유와 처방</em>`, `슛 · 유효슛 · 점유로 짚는 ‘왜 졌을까’`, s.loss, [40, 1432, 1280, 1852], { w: 1240, dy: -50 });
-  std('05-vs', '친구랑 VS', `친구랑 붙으면<br><em>누가 셀까</em>`, `최근 30경기로 폼 티어 · 득실 맞대결`, s.vs, [40, 830, 1280, 1440], { w: 1220, dy: -60 });
-  std('06-community', '커뮤니티', `스쿼드 평가,<br><em>같이</em> 봐요`, `평가 · 배틀 · 클럽 모집 · 대회 게시판`, s.commd, [40, 1290, 1280, 1590], { w: 1220, dy: -40,
-    extra: pop({ src: s.comml, r: [48, 505, 1272, 938], x: 50, y: 2140, w: 1220, ring: true, radius: 48 }) });
-  std('07-meta', '픽 랭킹', `지금 랭커는<br><em>누굴</em> 쓸까`, `상위 랭커 선발 카드를 포지션별로, 매일 갱신`, s.meta, [48, 1250, 1272, 1830], { w: 1120, dy: -50 });
+  std('04-form', '폼 티어', `지금 내 실력,<br><em>폼 티어</em>로`, `최근 경기 흐름으로 매기는 나의 폼 티어`, s.record2, [40, 400, 1280, 705], { w: 1240, dy: -60 });
+  std('05-players', '선수 성적표', `<em>랭커 기록</em>과<br>비교한 내 선수`, `경기당 기록 · 패스 성공률을 상위 랭커와 나란히`, s.players, [250, 1932, 1290, 2510], { w: 1180, dy: -240 });
+  std('06-vs', '친구랑 VS', `친구랑 붙으면<br><em>누가 셀까</em>`, `최근 30경기로 폼 티어 · 득실 맞대결`, s.vs, [40, 830, 1280, 1440], { w: 1220, dy: -60 });
+  std('07-calc', '계산기', `팀컬러 · 수수료<br><em>바로 계산</em>`, `시즌 팀컬러 · 이적시장 수수료 · 공식 도구 바로가기`, s.calc, [48, 850, 1272, 1190], { w: 1220, dy: -40 });
   std('08-squad', '스쿼드 빌더', `최근 선발,<br><em>그대로</em> 불러오기`, `내 공식경기 선발 11명이 한 번에 · 팀 프리셋`, s.squad, [40, 405, 870, 520], { w: 830 * 1.4, dy: -80, radius: 44 });
   {
     const cw = 820, ch = Math.round(cw * 1920 / 1080);
@@ -169,12 +178,14 @@ function frames(s) {
       <div class="card" style="right:50px;top:${top + 40}px;width:720px;height:${Math.round(720 * 1920 / 1080)}px;transform:rotate(5deg);box-shadow:0 70px 160px rgba(0,0,0,.8),0 0 0 5px ${T.acc},0 0 110px ${T.glow}"><img src="${s.cvs}"></div>
       <div class="tag" style="left:50%;transform:translateX(-50%);top:${top + ch + 90}px;white-space:nowrap"><i>↗</i> 저장 · 공유 한 번에</div>` });
   }
+  std('10-community', '커뮤니티', `스쿼드 평가,<br><em>같이</em> 봐요`, `평가 · 배틀 · 클럽 모집 · 대회 게시판`, s.commd, [40, 1290, 1280, 1590], { w: 1220, dy: -40,
+    extra: pop({ src: s.comml, r: [48, 505, 1272, 938], x: 50, y: 2140, w: 1220, ring: true, radius: 48 }) });
   return F;
 }
 
 const browser = await chromium.launch();
 const s = {};
-for (const [k, f] of Object.entries({ win: 'win', win2: 'win2', record2: 'record2', players: 'players', loss: 'loss', vs: 'vs',
+for (const [k, f] of Object.entries({ today: 'today', league: 'league', calc: 'calc', win: 'win', win2: 'win2', record2: 'record2', players: 'players', loss: 'loss', vs: 'vs',
   commd: 'comm-detail', comml: 'comm-list', meta: 'meta', squad: 'squad', cuser: 'card-user', cvs: 'card-vs' })) s[k] = uri(SHOTS + f + '.png');
 const list = frames(s);
 const ctx = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
