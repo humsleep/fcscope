@@ -60,6 +60,8 @@ enum BackgroundRefresh {
             }
         }
         // 위젯 갱신은 recordForm 이 내 구단주 값이 바뀐 경우에만 한다(급상승 위젯은 자체 6시간 타임라인).
+        // shortcut: 친구 리그는 위 4명만 새로 받고 나머지는 캐시 값으로 계산한다 — 친구가 많으면 늦게 알 수 있다. 서버 푸시로 옮길 때 해결.
+        await FriendLeague.notifyOvertakes()
     }
 }
 

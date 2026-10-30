@@ -214,6 +214,7 @@ struct SquadBuilderView: View {
                     }
                 }
                 PitchView(model: model)
+                if model.filled > 0 { SeasonMixRow(seasons: model.slots.values.map(\.season)) }
                 HStack(spacing: 8) {
                     Text("길게 눌러 끌면 자리를 옮겨요").fcFont(12).foregroundStyle(FC.muted)
                     Spacer()
@@ -258,6 +259,11 @@ struct SquadBuilderView: View {
         .safeAreaPadding(.bottom, 24)
         .scrollDisabled(model.isDraggingSlot)
         .fcScreen().navigationTitle("스쿼드 빌더").navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("계산기") { router.push(.calculators) }
+            }
+        }
         .sheet(isPresented: $showFormations) { FormationPicker(model: model) }
         .sheet(isPresented: $showPresets) { PresetPicker(model: model) }
         .sheet(item: Binding(get: { model.selectedSlot }, set: { model.selectedSlot = $0 })) { slot in PlayerSearchSheet(model: model, slot: slot) }

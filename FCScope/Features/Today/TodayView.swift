@@ -10,6 +10,7 @@ struct TodayView: View {
     /// 내 구단 공식경기 캐시 — 지난 방문 이후 새 경기·이번 주 성적의 재료
     @State private var mine: UserOverview?
     @State private var hot: [Post] = []
+    @State private var league: [LeagueEntry] = []
 
     var body: some View {
         ScrollView {
@@ -17,6 +18,7 @@ struct TodayView: View {
                 header
                 if let nick = prefs.myNickname { myFormCard(nick) } else { registerCard }
                 if let w = mine?.week, w.games > 0, let nick = prefs.myNickname { weekCard(w, nick: nick) }
+                if league.count >= 2 { leagueCard }
                 if !prefs.favorites.isEmpty { favoritesSection }
                 if let home = vm.state.value {
                     if let mover = home.mover { MoverCard(m: mover) }
@@ -69,6 +71,7 @@ struct TodayView: View {
     }
 
     private func loadMine() async {
+        league = await FriendLeague.cachedRows()
         guard let nick = prefs.myNickname else { mine = nil; return }
         let path = "/api/v1/user/\(nick.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? nick)"
         let hit: (value: UserOverview, isFresh: Bool)? = await APIClient.shared.cachedValue(path, query: ["type": "50"])
@@ -148,6 +151,40 @@ struct TodayView: View {
                     Spacer(minLength: 0)
                     Text("주간 카드").fcFont(12, weight: .semibold).foregroundStyle(FC.tint)
                     Image(systemName: "chevron.right").fcFont(12).foregroundStyle(FC.muted)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// 친구 리그 요약 — 내 순위 + 상위 3명. 캐시만으로 그린다.
+    private var leagueCard: some View {
+        Button { router.push(.league) } label: {
+            Panel(padding: 12) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        SectionLabel("🏆 친구 리그 · 최근 7일")
+                        Spacer()
+                        let ranked = league.filter(\.qualified)
+                        if let i = ranked.firstIndex(where: \.isMe) {
+                            Text("내 순위 \(i + 1)위 / \(ranked.count)명").fcFont(12, weight: .bold).foregroundStyle(FC.tint)
+                        }
+                        Image(systemName: "chevron.right").fcFont(12).foregroundStyle(FC.muted)
+                    }
+                    let top = league.filter(\.qualified).prefix(3)
+                    if top.isEmpty {
+                        Text("아직 3경기 이상 뛴 친구가 없어요. 눌러서 최신 기록을 받아 보세요.").fcFont(12).foregroundStyle(FC.muted)
+                    } else {
+                        HStack(spacing: 8) {
+                            ForEach(Array(top.enumerated()), id: \.element.id) { i, r in
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("\(["🥇", "🥈", "🥉"][i]) \(r.nick)").fcFont(13, weight: .semibold).foregroundStyle(r.isMe ? FC.tint : FC.ink).lineLimit(1)
+                                    Text("\(r.winRate)%").fcScoreboard(13).foregroundStyle(FC.muted)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -12,6 +12,10 @@ enum Route: Hashable {
     case versus(me: String, type: Int = 50, with: String? = nil)
     /// 내 정보 — 탭에서 빠져 홈 오른쪽 위·커뮤니티 등 어디서든 밀어 넣는다(2026-11 탭 재편)
     case me
+    /// 친구 리그(나 + 즐겨찾기 최근 7일 순위)
+    case league
+    /// 계산기 허브(스쿼드 분석·수수료·공식 도구)
+    case calculators
 }
 
 /// 홈("오늘의 피온") · 전적(home — 예전 홈 검색 화면) · 선수(meta) · 스쿼드 · 커뮤니티.
@@ -108,6 +112,7 @@ final class AppRouter {
                 homePath.append(Route.versus(me: parts[1].removingPercentEncoding ?? parts[1], type: t, with: query("with")))
             }
         case "me": tab = .today; todayPath.append(Route.me)
+        case "league": tab = .today; todayPath.append(Route.league)
         default: tab = .today
         }
     }
@@ -134,6 +139,8 @@ struct RouteView: View {
         case .squad: "squad_detail"
         case .versus: "versus"
         case .me: "me"
+        case .league: "league"
+        case .calculators: "calculators"
         }
     }
     @ViewBuilder private var content: some View {
@@ -145,6 +152,8 @@ struct RouteView: View {
         case .squad(let id): SquadDetailView(squadId: id)
         case .versus(let me, let type, let with): VersusView(me: me, matchType: type, initialOther: with)
         case .me: MyPageView()
+        case .league: LeagueView()
+        case .calculators: CalculatorHubView()
         }
     }
 }
