@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root {
+    --bg0: #05050F; --bg1: #17134A; --ink: #FFFFFF; --mute: #A8A4C4;
+    --win: #2EE59D; --lose: #FF4D6D; --violet: #9B7BFF; --gold: #FFC23A; --kakao: #FEE500;
+    --grad: linear-gradient(90deg, #F0287A 0%, #FF5A26 55%, #FFB23A 100%);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--bg0); }
+  body { font-family: Pretendard, sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; letter-spacing: -0.02em; }
+  #world { position: absolute; inset: 0; overflow: hidden; }
+  #stage { position: absolute; inset: 0; overflow: hidden;
+    background: radial-gradient(1400px 1100px at 50% 18%, var(--bg1) 0%, #0B0927 45%, var(--bg0) 100%); }
+  #grid { position: absolute; left: -400px; right: -400px; top: 1100px; height: 1600px; opacity: .22;
+    background-image: linear-gradient(rgba(155,123,255,.7) 2px, transparent 2px), linear-gradient(90deg, rgba(155,123,255,.7) 2px, transparent 2px);
+    background-size: 120px 120px; transform-origin: 50% 0; transform: perspective(700px) rotateX(62deg); }
+  .glow { position: absolute; border-radius: 50%; }
+  #g1 { width: 1400px; height: 1400px; background: radial-gradient(closest-side, rgba(240,40,122,.30), rgba(255,90,38,.10) 55%, transparent); }
+  #g2 { width: 1200px; height: 1200px; background: radial-gradient(closest-side, rgba(110,80,255,.30), transparent); }
+  .streak { position: absolute; width: 1600px; height: 6px; left: -300px; border-radius: 6px; opacity: .55;
+    background: linear-gradient(90deg, transparent, #FF5A26 40%, #F0287A 60%, transparent); transform-origin: 50% 50%; }
+  .layer { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .grad { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .ch { display: inline-block; will-change: transform, opacity, filter; white-space: pre; }
+
+  /* hook */
+  #h1a { font-size: 86px; font-weight: 700; color: var(--mute); }
+  #h1b { margin-top: 30px; font-size: 200px; font-weight: 900; line-height: 1; }
+
+  /* logo */
+  #icon { width: 300px; height: 300px; border-radius: 68px; box-shadow: 0 30px 100px rgba(224,33,138,.45); }
+  .shock { position: absolute; left: 50%; top: 50%; border-radius: 50%; border: 6px solid rgba(255,255,255,.8); }
+  #brand { margin-top: 64px; font-size: 132px; font-weight: 900; letter-spacing: .02em; }
+  #brandSub { margin-top: 18px; font-size: 52px; font-weight: 700; color: var(--mute); }
+
+  /* caption */
+  #cap { position: absolute; top: 120px; left: 0; right: 0; text-align: center; }
+  #pill { display: inline-flex; align-items: center; gap: 14px; padding: 14px 28px; border-radius: 999px;
+    background: rgba(255,255,255,.07); border: 1.5px solid rgba(255,255,255,.14); font-size: 34px; font-weight: 700; }
+  #pill i { width: 14px; height: 14px; border-radius: 50%; background: #FF5A26; display: block; }
+  #capT { margin-top: 24px; font-size: 92px; font-weight: 900; line-height: 1.14; }
+
+  /* phone */
+  #phone { position: absolute; left: 50%; top: 560px; width: 640px; height: 1344px; margin-left: -320px;
+    border-radius: 92px; padding: 20px; background: linear-gradient(160deg, #3A3760, #15132C 40%, #0B0A1A);
+    box-shadow: 0 0 0 3px rgba(255,255,255,.08) inset, 0 60px 140px rgba(0,0,0,.6), 0 0 120px rgba(155,123,255,.2); }
+  #screen { position: relative; width: 600px; height: 1304px; border-radius: 74px; overflow: hidden; background: #0A0920; }
+  #scrImg { position: absolute; left: 0; top: 0; width: 600px; height: 1304px; transform-origin: 50% 0; }
+  #frost { position: absolute; left: 0; right: 0; bottom: 0; height: 49%; backdrop-filter: blur(26px); -webkit-backdrop-filter: blur(26px);
+    background: linear-gradient(180deg, rgba(10,9,32,.55), rgba(10,9,32,.85)); }
+  #hl { position: absolute; left: 14px; right: 14px; border-radius: 22px; border: 5px solid #FF5A26; box-shadow: 0 0 40px rgba(255,90,38,.7); }
+
+  /* floating chips */
+  .chip { position: absolute; padding: 18px 28px; border-radius: 28px; font-size: 36px; font-weight: 800; white-space: nowrap;
+    background: rgba(23,19,74,.78); border: 2px solid rgba(255,255,255,.16); backdrop-filter: blur(14px); box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+  .chip b { font-weight: 900; }
+
+  /* VS slam */
+  #vs { position: absolute; left: 0; right: 0; top: 760px; text-align: center; font-size: 520px; font-weight: 900; line-height: 1; opacity: 0; }
+
+  /* cards */
+  .card { position: absolute; width: 470px; height: 836px; border-radius: 36px; box-shadow: 0 40px 120px rgba(0,0,0,.6); }
+  #kakao { position: absolute; left: 50%; top: 1500px; display: flex; align-items: center; gap: 22px; padding: 30px 52px; border-radius: 999px;
+    background: var(--kakao); color: #191600; font-size: 50px; font-weight: 900; white-space: nowrap; box-shadow: 0 30px 80px rgba(254,229,0,.35); }
+  #kakao svg { width: 58px; height: 58px; }
+
+  /* end */
+  #endTag { margin-top: 28px; font-size: 64px; font-weight: 800; }
+  #store { margin-top: 90px; display: inline-flex; align-items: center; gap: 18px; padding: 28px 54px; border-radius: 999px;
+    background: #fff; color: #05050F; font-size: 46px; font-weight: 900; }
+  #legal { position: absolute; bottom: 70px; left: 0; right: 0; text-align: center; font-size: 26px; color: rgba(255,255,255,.4); }
+
+  #wipe { position: absolute; top: -400px; height: 2720px; width: 1500px; background: var(--grad); transform: rotate(14deg); }
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="world">
+  <div id="stage">
+    <div class="glow" id="g1"></div><div class="glow" id="g2"></div>
+    <div id="grid"></div>
+    <div class="streak" id="st1"></div><div class="streak" id="st2"></div><div class="streak" id="st3"></div>
+  </div>
+
+  <div class="layer" id="hook"><div id="h1a"></div><div id="h1b"></div></div>
+
+  <div class="layer" id="logo">
+    <div class="shock" id="sh1"></div><div class="shock" id="sh2"></div>
+    <img id="icon">
+    <div id="brand"></div>
+    <div id="brandSub">피온 전적 검색 · 분석</div>
+  </div>
+
+  <div id="vs" class="grad">VS</div>
+
+  <div id="phone"><div id="screen"><img id="scrImg"><div id="hl"></div><div id="frost"></div></div></div>
+  <div class="chip" id="c1"></div><div class="chip" id="c2"></div><div class="chip" id="c3"></div>
+
+  <img class="card" id="cardA"><img class="card" id="cardB">
+  <div id="kakao"><svg viewBox="0 0 24 24"><path fill="#191600" d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.9 5.3 4.7 6.7l-1 3.6c-.1.3.3.6.6.4l4.2-2.8c.5.1 1 .1 1.5.1 5.5 0 10-3.6 10-8S17.5 3 12 3z"/></svg>카카오톡으로 보내기</div>
+
+  <div id="cap"><div id="pill"><i></i><span id="pillT"></span></div><div id="capT"></div></div>
+
+  <div class="layer" id="end">
+    <img id="icon2" style="width:260px;height:260px;border-radius:58px;box-shadow:0 30px 100px rgba(224,33,138,.45)">
+    <div style="margin-top:54px;font-size:128px;font-weight:900;letter-spacing:.02em" id="endBrand">FC Scope</div>
+    <div id="endTag"><span class="grad">감이 아니라, 데이터로.</span></div>
+    <div id="store"><svg width="44" height="44" viewBox="0 0 24 24"><path fill="#05050F" d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8s2 .8 3.4.8c1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9 0 0-2.7-1-2.7-4.1zM13.9 5c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.1 1.2.1 2.3-.6 3.1-1.5z"/></svg>App Store에서 FC Scope</div>
+  </div>
+  <div id="legal">비공식 팬 서비스 · NEXON · EA와 관련이 없습니다</div>
+
+  <div id="wipe"></div>
+</div>
+<div id="flash"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const eOut = (x) => 1 - Math.pow(1 - x, 3);
+const eIn = (x) => x * x * x;
+const eIO = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const eBack = (x) => { const c = 1.9; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const lerp = (a, b, x) => a + (b - a) * x;
+const rnd = (n) => { const s = Math.sin(n * 12.9898) * 43758.5453; return s - Math.floor(s); };   // 프레임 고정 난수(재렌더해도 같은 흔들림)
+const show = (el, on) => { el.style.display = on ? '' : 'none'; };
+
+let A;
+const split = (el, html) => { el.innerHTML = html.split(/(<br>)/).map((p) => p === '<br>' ? p : [...p].map((c) => `<span class="ch">${c}</span>`).join('')).join(''); };
+// 글자 단위 등장 — 아래에서 떠오르며 블러가 풀린다
+function typeIn(el, t, start, step = .03, dur = .38) {
+  [...el.querySelectorAll('.ch')].forEach((c, i) => {
+    const p = eOut(seg(t, start + i * step, start + i * step + dur));
+    c.style.transform = `translateY(${(1 - p) * 70}px) scale(${lerp(.9, 1, p)})`;
+    c.style.opacity = p;
+    c.style.filter = `blur(${(1 - p) * 10}px)`;
+  });
+}
+
+// 장면 표 — 시작 초, 캡션
+const S = {
+  hook: [0, 2.4], logo: [2.4, 4.1], today: [4.1, 7.2], league: [7.2, 10.2], record: [10.2, 13.4], shot: [13.4, 16.0],
+  vs: [16.0, 18.4], squad: [18.4, 21.6], calc: [21.6, 24.6], cards: [24.6, 28.2], end: [28.2, 32.0],
+};
+const CAP = {
+  today: ['01 · 오늘의 피온', '매일 여는<br><span class="grad">내 폼 한 화면</span>'],
+  league: ['02 · 친구 리그', '친구랑<br><span class="grad">7일 승률 대결</span>'],
+  record: ['03 · 전적 진단', '구단주명 하나로<br><span class="grad">30경기 진단</span>'],
+  shot: ['04 · 매치 리포트', '슛맵으로 보는<br><span class="grad">진짜 패인</span>'],
+  vs: ['05 · 친구랑 VS', '누가 더 잘하나<br><span class="grad">한 장으로 비교</span>'],
+  squad: ['06 · 스쿼드', '최근 선발<br><span class="grad">그대로 불러오기</span>'],
+  calc: ['07 · 계산기', '이적 수수료<br><span class="grad">바로 계산</span>'],
+  cards: ['08 · 공유 카드', '카톡 · 스토리로<br><span class="grad">바로 자랑</span>'],
+};
+const CHIPS = {
+  today: ['🔥 <b>3연승</b> 폼', '📅 이번 주 <b>6승 2무</b>', '⚡ 오늘의 <b>급상승</b>'],
+  league: ['🏆 내 순위 <b>4위</b>', '🔔 <b>추월 알림</b>', '📈 최근 <b>7일</b>'],
+  record: ['🎯 폼 티어 <b>골드</b>', '⚽ 요즘 흐름', '📊 최근 <b>10경기</b>'],
+  shot: ['🥅 슛맵', '⭐ <b>POTM</b>', '📐 결정력'],
+  vs: ['⚔️ <b>5 : 0</b> 압승', '🧮 폼 티어 비교', ''],
+  squad: ['🧩 <b>11/11</b> 자동 배치', '🎨 시즌 <b>팀컬러</b>', ''],
+  calc: ['💸 받는 금액 <b style="color:#2EE59D">9억 BP</b>', '🎟️ 쿠폰 <b>30%</b>', ''],
+};
+let lastCap = '';
+
+window.setup = (a) => {
+  A = a;
+  $('icon').src = a.icon; $('icon2').src = a.icon;
+  $('cardA').src = a.cardUser; $('cardB').src = a.cardVs;
+  split($('h1a'), '지고 나면 늘 궁금했죠');
+  split($('h1b'), '나 왜 졌지?');
+  split($('brand'), 'FC SCOPE');
+};
+
+function phoneSrc(name, t) {
+  if (name === 'record') return A.rec[Math.min(A.rec.length - 1, Math.floor((t - S.record[0]) * 30))];
+  if (name === 'squad') return A.squad[Math.min(A.squad.length - 1, Math.floor((t - S.squad[0] - .1) * 30))] ?? A.squad[0];
+  if (name === 'calc') return A.calc[Math.min(A.calc.length - 1, Math.max(0, Math.floor((t - S.calc[0] - .15) * 30)))];
+  return A.still[name];
+}
+
+window.render = async (t) => {
+  const scene = Object.keys(S).find((k) => t >= S[k][0] && t < S[k][1]) ?? 'end';
+  const [s0, s1] = S[scene], lt = t - s0, dur = s1 - s0;
+  const f = Math.round(t * 30);
+
+  // ── 배경: 천천히 흐르는 빛 + 앞으로 달리는 바닥 그리드
+  $('g1').style.transform = `translate(${-160 + Math.sin(t * .6) * 120}px, ${520 + Math.cos(t * .4) * 160}px)`;
+  $('g2').style.transform = `translate(${380 + Math.cos(t * .5) * 140}px, ${-120 + Math.sin(t * .7) * 120}px)`;
+  $('grid').style.backgroundPosition = `0 ${(t * 160) % 120}px`;
+  ['st1', 'st2', 'st3'].forEach((id, i) => {
+    const x = ((t * (900 + i * 300) + i * 700) % 2600) - 1300;
+    $(id).style.transform = `translate(${x}px, ${380 + i * 520}px) rotate(${-28 + i * 6}deg)`;
+  });
+
+  // ── 화면 흔들림(충격 장면만)
+  let shake = 0;
+  if (scene === 'hook') shake = (1 - seg(lt, 1.15, 1.6)) * (lt > 1.15 ? 22 : 0);
+  if (scene === 'vs') shake = (1 - seg(lt, .35, .8)) * (lt > .35 ? 26 : 0);
+  if (scene === 'logo') shake = (1 - seg(lt, .05, .45)) * 14;
+  $('world').style.transform = shake ? `translate(${(rnd(f) - .5) * shake}px, ${(rnd(f + 7) - .5) * shake}px)` : '';
+
+  // ── 1. 훅: 회색 한 줄 → 큰 질문이 쾅 + RGB 글리치
+  show($('hook'), scene === 'hook');
+  if (scene === 'hook') {
+    typeIn($('h1a'), lt, .05, .035);
+    const p = seg(lt, 1.1, 1.35);
+    const h = $('h1b');
+    h.style.opacity = p > 0 ? 1 : 0;
+    h.style.transform = `scale(${lerp(2.6, 1, eOut(p))})`;
+    const g = lt > 1.1 && lt < 1.9 && rnd(f * 3) > .35 ? (rnd(f) - .5) * 30 : 0;
+    h.style.textShadow = g ? `${g}px 0 #FF2D55, ${-g}px 0 #00E5FF` : 'none';
+    h.style.color = '#fff';
+    $('hook').style.opacity = 1 - seg(lt, 2.15, 2.4);
+  }
+
+  // ── 2. 로고: 플래시 + 충격파 링 + 자간이 좁혀지며 등장
+  show($('logo'), scene === 'logo');
+  if (scene === 'logo') {
+    const p = eBack(seg(lt, 0, .5));
+    $('icon').style.transform = `scale(${lerp(2.4, 1, p)}) rotate(${lerp(-25, 0, eOut(seg(lt, 0, .5)))}deg)`;
+    $('icon').style.opacity = seg(lt, 0, .12);
+    [['sh1', .05], ['sh2', .22]].forEach(([id, d]) => {
+      const q = seg(lt, d, d + .8);
+      const r = lerp(150, 900, eOut(q));
+      Object.assign($(id).style, { width: `${r * 2}px`, height: `${r * 2}px`, margin: `${-r - 60}px 0 0 ${-r}px`, opacity: (1 - q) * (q > 0 ? 1 : 0) });
+    });
+    [...$('brand').querySelectorAll('.ch')].forEach((c, i) => {
+      const q = eOut(seg(lt, .3 + i * .04, .7 + i * .04));
+      c.style.transform = `translateX(${(1 - q) * (i - 3.5) * 60}px)`;
+      c.style.opacity = q; c.style.filter = `blur(${(1 - q) * 12}px)`;
+    });
+    $('brandSub').style.opacity = seg(lt, .75, 1.05);
+    $('brandSub').style.transform = `translateY(${(1 - eOut(seg(lt, .75, 1.05))) * 30}px)`;
+    $('logo').style.transform = `scale(${lerp(1, 1.08, seg(lt, 1.2, dur))})`;
+    $('logo').style.opacity = 1 - seg(lt, 1.45, dur);
+  }
+
+  // ── 폰 장면 공통
+  const phoneScenes = ['today', 'league', 'record', 'shot', 'vs', 'squad', 'calc'];
+  const onPhone = phoneScenes.includes(scene);
+  show($('phone'), onPhone);
+  show($('cap'), !!CAP[scene]);
+  if (onPhone) {
+    const src = phoneSrc(scene, t);
+    const img = $('scrImg');
+    if (img.getAttribute('src') !== src) { img.src = src; await img.decode().catch(() => {}); }
+    // 첫 등장은 아래에서 눕혀진 채로 날아오고, 이후 장면마다 각도만 바꾼다
+    const enter = scene === 'today' ? eOut(seg(lt, 0, .7)) : 1;
+    const side = { today: -10, league: 12, record: 0, shot: -8, vs: 0, squad: 10, calc: -10 }[scene];
+    const sw = eIO(seg(lt, 0, .5));
+    const ry = lerp(scene === 'today' ? -30 : -side * .8, side, sw) + Math.sin(t * 1.4) * 2;
+    const rx = lerp(40, 6, enter);
+    const y = lerp(1300, 0, enter) + Math.sin(t * 1.8) * 8;
+    let sc = 1;
+    if (scene === 'record') sc = lerp(1, 1.06, eIO(seg(lt, .2, 1.2)));
+    if (scene === 'vs') sc = lerp(.92, 1, eBack(seg(lt, .3, .8)));
+    $('phone').style.transform = `perspective(1800px) translateY(${y}px) rotateX(${rx}deg) rotateY(${ry}deg) scale(${sc})`;
+
+    // 화면 안 카메라 — 확대·이동
+    let zs = 1, zo = '50% 0';
+    if (scene === 'shot') { zs = lerp(1, 1.3, eIO(seg(lt, .5, 1.8))); zo = '50% 61%'; }
+    if (scene === 'league') { zs = lerp(1.0, 1.18, eIO(seg(lt, .6, 2.6))); zo = '50% 35%'; }
+    img.style.transformOrigin = zo; img.style.transform = `scale(${zs})`;
+
+    // 강조 박스
+    const hl = $('hl');
+    const HL = { league: [.395, .055, .9], today: [.2, .108, .7], record: [.33, .1, .9] }[scene];
+    if (HL) {
+      const q = seg(lt, HL[2], HL[2] + .35);
+      const top = scene === 'league' ? (HL[0] - .35) * zs + .35 : HL[0];
+      Object.assign(hl.style, { display: '', top: `${top * 1304}px`, height: `${HL[1] * 1304 * (scene === 'league' ? zs : 1)}px`,
+        opacity: q * (.75 + Math.sin(t * 8) * .25) * (scene === 'record' ? 1 - seg(lt, 2.7, 2.85) : 1), transform: `scale(${lerp(1.15, 1, eOut(q))})` });
+    } else hl.style.display = 'none';
+
+    // 다른 이용자 닉네임이 보이는 전적 녹화 아래쪽은 가린다(카드가 올라오기 전까지)
+    const frost = $('frost');
+    if (scene === 'record') { frost.style.display = ''; frost.style.opacity = 1 - seg(lt, 2.85, 3.0); } else frost.style.display = 'none';
+  }
+
+  // 떠다니는 칩 — 폰 주변, 서로 다른 시차
+  const chips = CHIPS[scene] ?? [];
+  const POS = [[40, 780], [600, 1180], [60, 1560]];
+  ['c1', 'c2', 'c3'].forEach((id, i) => {
+    const el = $(id);
+    if (!chips[i] || !onPhone) { el.style.display = 'none'; return; }
+    el.style.display = '';
+    if (el.dataset.h !== chips[i]) { el.innerHTML = chips[i]; el.dataset.h = chips[i]; }
+    const d = .55 + i * .22 + (scene === 'calc' && i === 0 ? 1.1 : 0);
+    const q = eBack(seg(lt, d, d + .45));
+    const out = seg(lt, dur - .25, dur);
+    const [x, y] = POS[i];
+    el.style.left = `${i === 1 ? x : x}px`;
+    el.style.top = `${y + Math.sin(t * 2 + i) * 10}px`;
+    el.style.opacity = clamp(q * 1.2) * (1 - out);
+    el.style.transform = `scale(${lerp(.4, 1, q)}) rotate(${(i - 1) * 3}deg)`;
+  });
+
+  // VS 글자 슬램
+  if (scene === 'vs') {
+    const q = seg(lt, .25, .5);
+    $('vs').style.opacity = q > 0 ? .9 * (1 - seg(lt, 1.6, 2.2)) : 0;
+    $('vs').style.transform = `scale(${lerp(3.2, 1, eOut(q))})`;
+    $('vs').style.zIndex = 0;
+  } else $('vs').style.opacity = 0;
+
+  // 캡션 — 장면마다 다시 쓰고 글자 단위로 등장
+  if (CAP[scene]) {
+    if (lastCap !== scene) { $('pillT').textContent = CAP[scene][0]; $('capT').innerHTML = CAP[scene][1]; lastCap = scene;
+      // grad 스팬 안 글자도 하나씩
+      $('capT').querySelectorAll('.grad').forEach((g) => { const txt = g.textContent; g.classList.remove('grad'); g.innerHTML = [...txt].map((c) => `<span class="ch grad">${c}</span>`).join(''); });
+      [...$('capT').childNodes].forEach((n) => { if (n.nodeType === 3) { const s = document.createElement('span'); s.innerHTML = [...n.textContent].map((c) => `<span class="ch">${c}</span>`).join(''); n.replaceWith(s); } });
+    }
+    typeIn($('capT'), lt, .12, .028, .36);
+    const pq = eOut(seg(lt, 0, .3));
+    $('pill').style.opacity = pq; $('pill').style.transform = `translateY(${(1 - pq) * -30}px)`;
+    $('cap').style.opacity = 1 - seg(lt, dur - .2, dur);
+  }
+
+  // ── 카드 장면: 두 장이 3D 로 펼쳐지고 카카오 버튼이 튀어 오른다
+  const onCards = scene === 'cards';
+  ['cardA', 'cardB', 'kakao'].forEach((id) => show($(id), onCards));
+  if (onCards) {
+    const a = eOut(seg(lt, .1, .8)), b = eOut(seg(lt, .3, 1.0));
+    const fl = Math.sin(t * 1.6) * 10;
+    $('cardA').style.cssText += `;left:${lerp(-500, 70, a)}px;top:${640 + fl}px;transform:perspective(1600px) rotateY(${lerp(70, 14, a)}deg) rotateZ(${lerp(-20, -7, a)}deg);opacity:${a}`;
+    $('cardB').style.cssText += `;left:${lerp(1100, 540, b)}px;top:${600 - fl}px;transform:perspective(1600px) rotateY(${lerp(-70, -14, b)}deg) rotateZ(${lerp(20, 6, b)}deg);opacity:${b}`;
+    const k = eBack(seg(lt, 1.25, 1.75));
+    const press = lt > 2.3 && lt < 2.5 ? .94 : 1;
+    $('kakao').style.transform = `translateX(-50%) scale(${lerp(.2, 1, k) * press})`;
+    $('kakao').style.opacity = clamp(k * 1.3);
+  }
+
+  // ── 엔딩
+  show($('end'), scene === 'end');
+  show($('legal'), scene === 'end');
+  if (scene === 'end') {
+    const p = eBack(seg(lt, .1, .65));
+    $('icon2').style.transform = `scale(${lerp(.3, 1, p)}) rotate(${lerp(18, 0, eOut(seg(lt, .1, .65)))}deg)`;
+    $('icon2').style.opacity = seg(lt, .1, .25);
+    [['endBrand', .45], ['endTag', .7], ['store', 1.0]].forEach(([id, d]) => {
+      const q = eOut(seg(lt, d, d + .45));
+      $(id).style.opacity = q; $(id).style.transform = `translateY(${(1 - q) * 50}px)`;
+    });
+    $('store').style.transform += ` scale(${1 + Math.max(0, Math.sin((lt - 1.6) * 5)) * .03 * (lt > 1.6 ? 1 : 0)})`;
+    $('legal').style.opacity = seg(lt, 1.2, 1.6) ;
+  }
+
+  // ── 전환: 사선 그라데이션 와이프(장면 경계 ±0.22s) · 흰 플래시
+  const WIPES = [S.league[0], S.shot[0], S.squad[0], S.cards[0], S.end[0]];
+  const w = WIPES.find((b) => t > b - .22 && t < b + .22);
+  if (w !== undefined) { const q = seg(t, w - .22, w + .22); $('wipe').style.display = ''; $('wipe').style.left = `${lerp(-1700, 1300, eIO(q))}px`; }
+  else $('wipe').style.display = 'none';
+  const FL = [S.logo[0], S.record[0], S.vs[0] + .25, S.calc[0]];
+  const fl = FL.map((b) => (t >= b && t < b + .25 ? 1 - seg(t, b, b + .25) : 0)).reduce((m, x) => Math.max(m, x), 0);
+  $('flash').style.opacity = fl * .85;
+};
+</script>
+</body>
+</html>
