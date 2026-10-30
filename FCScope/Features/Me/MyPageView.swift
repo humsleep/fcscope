@@ -38,7 +38,8 @@ struct MyPageView: View {
                 NavigationLink { SettingsView() } label: { Panel(padding: 12) { HStack { Label("설정 · 약관 · 계정", systemImage: "gearshape").fcFont(15).lineLimit(1).minimumScaleFactor(0.8).foregroundStyle(FC.ink); Spacer(); Image(systemName: "chevron.right").font(.system(size: 13 * TypeScale.factor(typeSize), weight: .semibold)).foregroundStyle(FC.muted) } } }.buttonStyle(.plain)
                 // 광고 — 설정 행 뒤 맨 끝, 위 +16pt(AD-PLACEMENT 1-9). 로그인 상태 + 본문 카드가 하나 이상일 때만 —
                 // 로그아웃 화면은 안내 카드 + 설정뿐인 "콘텐츠가 적은 화면"이다.
-                if auth.isLoggedIn, hasContent { AdSlot(placement: "me", format: .inline(maxHeight: 250)).padding(.top, 16) }
+                // 실험(2026-11): 이 자리는 애드몹 대신 쿠팡 파트너스 — 노출당 수익 비교 후 이긴 쪽을 남긴다.
+                if hasContent, AdsManager.shared.canShowAds { CoupangBanner(placement: "me").padding(.top, 16) }
             }.padding(16)
         }
         .safeAreaPadding(.bottom, 24)
