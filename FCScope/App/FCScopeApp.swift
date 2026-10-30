@@ -41,6 +41,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         #if DEBUG
         CardDebugExport.runIfRequested()
         CommunityDebugLaunch.prepare()
+        // 백그라운드 갱신(친구 리그 추월 알림 포함)을 실행 직후 한 번 돌린다 — BGTask 는 시뮬레이터에서 직접 깨우기 어렵다.
+        if ProcessInfo.processInfo.arguments.contains("-runBackgroundRefresh") {
+            Task { @MainActor in try? await Task.sleep(for: .seconds(3)); await BackgroundRefresh.refreshAll() }
+        }
         #endif
         return true
     }

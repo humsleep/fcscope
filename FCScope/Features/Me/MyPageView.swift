@@ -294,7 +294,7 @@ struct SettingsView: View {
             Section("알림") {
                 LabeledContent("주간 성적표·메타 요약 알림", value: notifOn ? "켜짐" : "꺼짐")
                 Button(notifStatus == .notDetermined ? "알림 켜기" : notifOn ? "iOS 설정에서 알림 끄기" : "iOS 설정에서 알림 켜기") { Task { await changeNotifications() } }
-                Text("일요일 밤 주간 리캡, 금요일 메타 한 줄, 내 글 새 댓글만 보내요.").fcFont(12).foregroundStyle(FC.muted)
+                Text("일요일 밤 주간 리캡, 금요일 메타 한 줄, 내 글 새 댓글, 친구 리그 추월만 보내요.").fcFont(12).foregroundStyle(FC.muted)
             }
             Section("약관 · 문의") {
                 Link("이용약관", destination: AppConfig.termsURL)

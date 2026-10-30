@@ -82,7 +82,7 @@ enum FriendLeague {
         guard let first = passed.first,
               let myRank = ranked.firstIndex(where: \.isMe).map({ $0 + 1 }) else { return }
         let center = UNUserNotificationCenter.current()
-        guard await center.notificationSettings().authorizationStatus == .authorized else { return }
+        guard [.authorized, .provisional, .ephemeral].contains(await center.notificationSettings().authorizationStatus) else { return }
         let content = UNMutableNotificationContent()
         content.title = "친구 리그 순위가 바뀌었어요"
         let who = passed.count > 1 ? "\(first.nick)님 외 \(passed.count - 1)명이" : "\(first.nick)님이"

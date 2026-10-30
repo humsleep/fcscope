@@ -1,10 +1,16 @@
 import SwiftUI
+import UserNotifications
 
 /// 친구 리그 — 내 구단 + 즐겨찾기의 최근 7일 공식경기 순위. 캐시로 먼저 그리고 새로 받아 바꾼다.
 struct LeagueView: View {
     @Environment(AppRouter.self) private var router
     @State private var rows: [LeagueEntry] = []
     @State private var loading = false
+    @State private var notifStatus: UNAuthorizationStatus = .authorized   // 확인 전엔 카드를 숨긴다
+    @AppStorage("fcscope.league.alertCardDismissed") private var alertCardDismissed = false
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
+    private var notifOn: Bool { [.authorized, .provisional, .ephemeral].contains(notifStatus) }
 
     var body: some View {
         ScrollView {
@@ -15,6 +21,7 @@ struct LeagueView: View {
                 if FriendLeague.members.count < 2 {
                     emptyState
                 } else {
+                    if !notifOn, !alertCardDismissed, LocalPrefs.shared.myNickname != nil { alertCard }
                     Panel(padding: 8) {
                         VStack(spacing: 0) {
                             ForEach(Array(rows.enumerated()), id: \.element.id) { i, r in
@@ -43,6 +50,38 @@ struct LeagueView: View {
             await refresh()
         }
         .refreshable { await refresh() }
+        .task { await refreshNotifStatus() }
+        // iOS 설정에서 켜고 돌아오면 카드를 거둔다
+        .onChange(of: scenePhase) { _, p in if p == .active { Task { await refreshNotifStatus() } } }
+    }
+
+    private func refreshNotifStatus() async {
+        notifStatus = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+    }
+
+    /// 추월 알림은 권한이 있어야 온다. 미결정이면 시스템 팝업, 이미 거절했으면 iOS 설정으로(팝업이 다시 뜨지 않는다).
+    private var alertCard: some View {
+        Panel(padding: 12, highlight: FC.tint.opacity(0.4)) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("🔔 추월 알림 받기").fcFont(15, weight: .bold).foregroundStyle(FC.ink)
+                Text("친구가 최근 7일 승률로 나를 앞지르면 바로 알려 드려요. 주간 성적표도 같이 받아요.")
+                    .fcFont(13).foregroundStyle(FC.muted)
+                HStack(spacing: 8) {
+                    Button(notifStatus == .notDetermined ? "알림 켜기" : "설정에서 켜기") {
+                        Task {
+                            if notifStatus == .notDetermined {
+                                await PushManager.shared.requestPermission()
+                                await refreshNotifStatus()
+                            } else if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
+                                openURL(url)
+                            }
+                        }
+                    }
+                    .buttonStyle(BrandButtonStyle(compact: true))
+                    Button("괜찮아요") { alertCardDismissed = true }.buttonStyle(.bordered)
+                }
+            }
+        }
     }
 
     private func refresh() async {
