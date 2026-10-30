@@ -225,13 +225,15 @@ struct PlayerDetailView: View {
 struct DataCenterLink: View {
     let title: String
     var playerName: String?
+    /// 데이터센터 하위 도구 경로(예: "teamcolor") — 비우면 선수 검색
+    var path = ""
     @Environment(\.openURL) private var openURL
 
     var body: some View {
         Button {
-            var c = URLComponents(string: "https://fconline.nexon.com/datacenter")!
+            var c = URLComponents(string: "https://fconline.nexon.com/datacenter" + (path.isEmpty ? "" : "/\(path)"))!
             if let playerName { c.queryItems = [URLQueryItem(name: "strPlayerName", value: playerName)] }
-            Analytics.shared.track(.featureOpen, ["feature": "datacenter"])
+            Analytics.shared.track(.featureOpen, ["feature": path.isEmpty ? "datacenter" : "datacenter_\(path)"])
             if let url = c.url { openURL(url) }
         } label: {
             HStack(spacing: 8) {

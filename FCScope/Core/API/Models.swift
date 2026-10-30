@@ -535,7 +535,8 @@ struct Squad: Decodable, Identifiable {
 struct PresetResponse: Decodable { let formation: String; let name: String; let teamTag: String; let slots: [SquadSlotModel] }
 struct FromUserResponse: Decodable {
     let nickname: String; let formation: String; let matchDate: String?; let players: [ImportedPlayer]
-    struct ImportedPlayer: Decodable, Identifiable { let spid: Int; let name: String; let pos: String; let season: String; var id: Int { spid } }
+    /// grade: 강화 단계(1~13). 2026-11 서버부터 — 옛 서버면 nil
+    struct ImportedPlayer: Decodable, Identifiable { let spid: Int; let name: String; let pos: String; let season: String; var grade: Int? = nil; var id: Int { spid } }
 }
 
 // MARK: - profile / me
