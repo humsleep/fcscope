@@ -176,7 +176,7 @@ function frames(s) {
       body: `
       <div class="card" style="left:30px;top:${top + 140}px;width:700px;height:${Math.round(700 * 1920 / 1080)}px;transform:rotate(-8deg)"><img src="${s.cuser}"></div>
       <div class="card" style="right:50px;top:${top + 40}px;width:720px;height:${Math.round(720 * 1920 / 1080)}px;transform:rotate(5deg);box-shadow:0 70px 160px rgba(0,0,0,.8),0 0 0 5px ${T.acc},0 0 110px ${T.glow}"><img src="${s.cvs}"></div>
-      <div class="tag" style="left:50%;transform:translateX(-50%);top:${top + ch + 90}px;white-space:nowrap"><i>↗</i> 저장 · 공유 한 번에</div>` });
+      <div class="tag" style="left:50%;transform:translateX(-50%);top:${top + ch + 90}px;white-space:nowrap"><i>↗</i> 카카오톡 · 인스타 스토리 · 저장</div>` });
   }
   std('10-community', '커뮤니티', `스쿼드 평가,<br><em>같이</em> 봐요`, `평가 · 배틀 · 클럽 모집 · 대회 게시판`, s.commd, [40, 1290, 1280, 1590], { w: 1220, dy: -40,
     extra: pop({ src: s.comml, r: [48, 505, 1272, 938], x: 50, y: 2140, w: 1220, ring: true, radius: 48 }) });
