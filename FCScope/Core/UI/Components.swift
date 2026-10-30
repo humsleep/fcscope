@@ -387,6 +387,7 @@ struct ShareCardSheet: View {
             if InstagramShare.available {
                 Button {
                     Analytics.shared.track(.cardShare, ["type": Analytics.cardType(filename), "channel": "instagram"])
+                    ReviewPrompt.askOnReturn(.share)
                     InstagramShare.shareStory(image)
                     dismiss()
                 } label: {
@@ -394,13 +395,13 @@ struct ShareCardSheet: View {
                 }
                 .buttonStyle(BrandButtonStyle(fullWidth: true))
             }
-            ShareLink(item: Image(uiImage: image), preview: SharePreview("FC Scope 카드", image: Image(uiImage: image))) {
+            // 시트를 연 시점을 공유 의사로 센다(card_share). 리뷰는 공유·저장을 실제로 마쳤을 때만 묻는다.
+            Button {
+                Analytics.shared.track(.cardShare, ["type": Analytics.cardType(filename), "channel": "system"])
+                presentSystemShare()
+            } label: {
                 Label("공유 · 저장", systemImage: "square.and.arrow.up").frame(maxWidth: .infinity)
             }
-            // ShareLink 는 완료 콜백이 없다 — 시트를 연 시점을 공유 의사로 센다.
-            .simultaneousGesture(TapGesture().onEnded {
-                Analytics.shared.track(.cardShare, ["type": Analytics.cardType(filename), "channel": "system"])
-            })
             .buttonStyle(.bordered)
             Text("앱에서 직접 만든 이미지예요. 서버를 거치지 않아 바로 만들어져요.")
                 .fcFont(11).foregroundStyle(FC.muted)
@@ -408,6 +409,22 @@ struct ShareCardSheet: View {
         .padding(20)
         .presentationDetents([.large])
         .presentationBackground(FC.bg)
+    }
+
+    /// ShareLink 는 완료 콜백이 없어 시스템 공유 시트를 직접 띄운다 — completed 가 리뷰 요청의 "공유 성공" 신호.
+    private func presentSystemShare() {
+        var top = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController }.first
+        while let next = top?.presentedViewController { top = next }
+        guard let top else { return }
+        let vc = UIActivityViewController(activityItems: [image], applicationActivities: nil)
+        vc.completionWithItemsHandler = { _, completed, _, _ in
+            if completed { Task { @MainActor in ReviewPrompt.ask(.share) } }
+        }
+        if let pop = vc.popoverPresentationController {   // iPad
+            pop.sourceView = top.view
+            pop.sourceRect = CGRect(x: top.view.bounds.midX, y: top.view.bounds.maxY - 80, width: 0, height: 0)
+        }
+        top.present(vc, animated: true)
     }
 }
 

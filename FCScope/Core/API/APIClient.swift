@@ -83,6 +83,14 @@ final class APIClient {
     }
 
     private func requestData(_ path: String, method: String, query: [String: String], body: Data?, auth: Bool) async throws -> Data {
+        do { return try await performRequest(path, method: method, query: query, body: body, auth: auth) } catch {
+            // 사용자가 에러를 본 직후엔 리뷰를 묻지 않는다. 사용 기록 전송 실패는 화면에 안 보이니 제외.
+            if path != "/api/v1/events" { await MainActor.run { ReviewPrompt.noteError() } }
+            throw error
+        }
+    }
+
+    private func performRequest(_ path: String, method: String, query: [String: String], body: Data?, auth: Bool) async throws -> Data {
         var comps = URLComponents(url: AppConfig.absolute(path), resolvingAgainstBaseURL: false)!
         if !query.isEmpty { comps.queryItems = (comps.queryItems ?? []) + query.map { URLQueryItem(name: $0.key, value: $0.value) } }
         var req = URLRequest(url: comps.url!)

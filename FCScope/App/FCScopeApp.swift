@@ -20,7 +20,9 @@ struct FCScopeApp: App {
                 .onChange(of: scenePhase, initial: true) { _, phase in
                     switch phase {
                     case .active:
-                        AdsManager.shared.noteActive(newVisit: Analytics.shared.appBecameActive())
+                        let newVisit = Analytics.shared.appBecameActive()
+                        AdsManager.shared.noteActive(newVisit: newVisit)
+                        ReviewPrompt.appBecameActive(newVisit: newVisit)
                         Task { await AdsManager.shared.resumeIfConsentAsked() }
                     case .background: Analytics.shared.appWentBackground()
                     default: break
@@ -46,6 +48,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         PushManager.shared.didRegister(token: deviceToken)
     }
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        // apns-collapse-id 가 요청 identifier 가 된다 — 주간 성적표(push-weekly)는 "weekly"
+        if response.notification.request.identifier == "weekly" { await MainActor.run { ReviewPrompt.openedFromWeeklyPush() } }
         if let link = response.notification.request.content.userInfo["link"] as? String, let url = URL(string: link) {
             await MainActor.run { AppRouter.shared.handle(url: url) }
         }

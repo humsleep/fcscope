@@ -74,6 +74,12 @@ final class RecordViewModel {
             guard type == matchType else { return }
             apply(o)
             loadedFromCache = false
+            // 리뷰 트리거는 네트워크로 받은 최신 전적에서만 — 캐시는 지난주 값일 수 있다. 빈 결과에서는 묻지 않는다.
+            if !o.matches.isEmpty {
+                let snap = o.matchType == 50 ? LocalPrefs.shared.snapshot(for: o.profile.nickname) : nil
+                ReviewPrompt.recordShown(isMine: LocalPrefs.shared.myNickname?.caseInsensitiveCompare(o.profile.nickname) == .orderedSame,
+                                         winRateUp: snap.flatMap { s in s.prevWinRate.map { s.winRate > $0 } } ?? false)
+            }
         } catch {
             guard type == matchType else { return }
             if overview.value == nil { overview = .failed(error) }

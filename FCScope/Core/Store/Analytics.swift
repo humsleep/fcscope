@@ -30,6 +30,8 @@ final class Analytics {
         case accountDelete = "account_delete"
         /// 배너 슬롯 이벤트 — props.placement 로 배치별 노출을 나눠 본다(docs/ads/AD-PLACEMENT.md 5장)
         case adSlot = "ad_slot"
+        /// 리뷰 요청을 실제로 띄움 — props.trigger(share·visit_3·weekly_up)
+        case reviewPrompt = "review_prompt"
     }
 
     private static let installKey = "fcscope.analytics.installId"
