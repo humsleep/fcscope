@@ -20,6 +20,7 @@ struct MetaView: View {
                     Spacer(minLength: 0)
                 }
                 .onChange(of: matchType) { _, _ in Task { await load() } }
+                DataCenterLink(title: "선수 시세(BP)·급여는 공식 데이터센터에서")
                 if !hits.isEmpty {
                     Panel(padding: 8) {
                         VStack(spacing: 0) {
@@ -59,7 +60,7 @@ struct MetaView: View {
                 }
             }.padding(16)
         }
-        .fcScreen().navigationTitle("픽 랭킹").navigationBarTitleDisplayMode(.inline)
+        .fcScreen().navigationTitle("선수").navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, prompt: "선수 이름으로 도감 검색")
         .task(id: query) { await search(query) }
         .task { await load() }
@@ -197,6 +198,7 @@ struct PlayerDetailView: View {
                     } label: {
                         Text("🛡️ 스쿼드 빌더에 배치").frame(maxWidth: .infinity)
                     }.buttonStyle(.bordered)
+                    DataCenterLink(title: "\(p.name) 시세 보기 · 공식 데이터센터", playerName: p.name)
                 }.padding(16)
             }
         }
@@ -217,3 +219,31 @@ struct PlayerDetailView: View {
     }
 }
 
+
+/// 시세는 직접 갖지 않는다(A안, docs/STRATEGY-2026-11.md) — 넥슨 공식 데이터센터 선수 검색으로 보낸다.
+/// `strPlayerName` 으로 이름 검색 결과(카드별 BP·급여)가 바로 열린다(2026-10-30 실측).
+struct DataCenterLink: View {
+    let title: String
+    var playerName: String?
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        Button {
+            var c = URLComponents(string: "https://fconline.nexon.com/datacenter")!
+            if let playerName { c.queryItems = [URLQueryItem(name: "strPlayerName", value: playerName)] }
+            Analytics.shared.track(.featureOpen, ["feature": "datacenter"])
+            if let url = c.url { openURL(url) }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "wonsign.circle").font(.system(size: 15, weight: .semibold)).foregroundStyle(FC.gold)
+                Text(title).fcFont(13, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1).minimumScaleFactor(0.85)
+                Spacer(minLength: 4)
+                Image(systemName: "arrow.up.right").font(.system(size: 11, weight: .semibold)).foregroundStyle(FC.muted)
+            }
+            .padding(.horizontal, 12).frame(minHeight: 44)
+            .background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("넥슨 FC온라인 데이터센터를 Safari 로 열어요")
+    }
+}
