@@ -41,7 +41,14 @@ struct LeagueView: View {
         .toolbar {
             if FriendLeague.members.count >= 2, rows.contains(where: \.qualified) {
                 ToolbarItem(placement: .topBarTrailing) {
-                    ShareLink(item: shareText) { Image(systemName: "square.and.arrow.up") }.accessibilityLabel("순위 공유")
+                    Menu {
+                        Button("카카오톡으로 보내기", systemImage: "message.fill") {
+                            Analytics.shared.track(.featureOpen, ["feature": "league_share_kakao"])
+                            KakaoShare.shareText(kakaoText, path: "league", button: "내 순위 보기")
+                        }
+                        ShareLink("다른 앱으로 공유", item: shareText)
+                    } label: { Image(systemName: "square.and.arrow.up") }
+                    .accessibilityLabel("순위 공유")
                 }
             }
         }
@@ -130,6 +137,12 @@ struct LeagueView: View {
                     .buttonStyle(BrandButtonStyle(fullWidth: true, compact: true))
             }
         }
+    }
+
+    /// 카카오 텍스트 템플릿은 200자까지 — 상위 5명만, 링크는 버튼이 대신한다.
+    private var kakaoText: String {
+        let lines = rows.filter(\.qualified).prefix(5).enumerated().map { i, r in "\(i + 1)위 \(r.nick) \(r.winRate)%" }
+        return (["🏆 FC Scope 친구 리그 · 최근 7일"] + lines).joined(separator: "\n")
     }
 
     private var shareText: String {

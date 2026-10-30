@@ -91,10 +91,22 @@
 				<string>fcscope</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>kakao</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kakaod50bc95cb71cf96c72b5c4b66388e8e6</string>
+			</array>
+		</dict>
 	</array>
+	<key>FCKakaoAppKey</key>
+	<string>d50bc95cb71cf96c72b5c4b66388e8e6</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>instagram-stories</string>
+		<string>kakaokompassauth</string>
+		<string>kakaolink</string>
 	</array>
 	<key>SKAdNetworkItems</key>
 	<array>

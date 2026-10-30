@@ -17,6 +17,9 @@ packages:
   GoogleMobileAds:
     url: https://github.com/googleads/swift-package-manager-google-mobile-ads
     from: 13.9.0
+  KakaoSDK:
+    url: https://github.com/kakao/kakao-ios-sdk
+    from: 2.30.0
 settings:
   base:
     SWIFT_VERSION: "5.10"
@@ -61,6 +64,10 @@ targets:
         product: NukeUI
       - package: GoogleMobileAds
         product: GoogleMobileAds
+      - package: KakaoSDK
+        product: KakaoSDKShare
+      - package: KakaoSDK
+        product: KakaoSDKTemplate
       - target: FCScopeWidgets
         embed: true
   FCScopeWidgets:

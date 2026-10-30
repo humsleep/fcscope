@@ -59,6 +59,7 @@ final class AppRouter {
     func openUser(_ nick: String) { tab = .home; homePath.append(Route.user(nick)) }
 
     func handle(url: URL) {
+        if let app = KakaoShare.appURL(from: url) { return handle(url: app) }
         // 유니버설 링크(https://www.fcscope.xyz/...) 와 커스텀 스킴(fcscope://...) 을 같은 규칙으로 다룬다.
         // 스킴은 host 가 첫 경로 조각이라(`fcscope://user/보엠`) 앞에 붙여 준다.
         // 유니버설 링크는 Associated Domains 프로비저닝이 끝나야 동작하므로, 그전까지 공유·테스트 경로는 스킴뿐이다.

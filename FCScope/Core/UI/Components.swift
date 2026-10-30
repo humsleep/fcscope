@@ -395,6 +395,14 @@ struct ShareCardSheet: View {
                 }
                 .buttonStyle(BrandButtonStyle(fullWidth: true))
             }
+            Button {
+                Analytics.shared.track(.cardShare, ["type": Analytics.cardType(filename), "channel": "kakao"])
+                ReviewPrompt.askOnReturn(.share)
+                KakaoShare.shareImage(image, title: "FC Scope · 피온 전적 분석")
+            } label: {
+                Label("카카오톡으로 보내기", systemImage: "message.fill").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
             // 시트를 연 시점을 공유 의사로 센다(card_share). 리뷰는 공유·저장을 실제로 마쳤을 때만 묻는다.
             Button {
                 Analytics.shared.track(.cardShare, ["type": Analytics.cardType(filename), "channel": "system"])
