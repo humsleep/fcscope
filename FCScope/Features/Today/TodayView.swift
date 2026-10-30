@@ -11,6 +11,7 @@ struct TodayView: View {
     @State private var mine: UserOverview?
     @State private var hot: [Post] = []
     @State private var league: [LeagueEntry] = []
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         ScrollView {
@@ -144,12 +145,14 @@ struct TodayView: View {
                     Text("📅").fcFont(22)
                     VStack(alignment: .leading, spacing: 3) {
                         SectionLabel("이번 주 · \(w.label)")
-                        Text("\(w.win)승 \(w.draw)무 \(w.lose)패 · 승률 \(w.winRate)%")
+                        // 한 줄에 몰면 큰 글씨에서 "승률 4…"로 잘렸다 — 기록과 승률을 각자 한 줄로(RecordView 주간 카드와 같은 처리)
+                        Text("\(w.win)승 \(w.draw)무 \(w.lose)패")
                             .fcFont(15, weight: .bold).foregroundStyle(w.winRate >= 50 ? FC.win : FC.lose)
                             .lineLimit(1).minimumScaleFactor(0.8)
+                        Text("승률 \(w.winRate)%").fcFont(12).foregroundStyle(FC.muted).lineLimit(1)
                     }
                     Spacer(minLength: 0)
-                    Text("주간 카드").fcFont(12, weight: .semibold).foregroundStyle(FC.tint)
+                    if !typeSize.isAccessibilitySize { Text("주간 카드").fcFont(12, weight: .semibold).foregroundStyle(FC.tint) }
                     Image(systemName: "chevron.right").fcFont(12).foregroundStyle(FC.muted)
                 }
             }
