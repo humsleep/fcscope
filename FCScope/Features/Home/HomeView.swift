@@ -27,8 +27,6 @@ struct HomeView: View {
     /// 첫 화면의 40% 가 검색창 둘이었다(QA P1-1 · 디자인 M11 · 유저 패널 A). 최근 검색 제안은 이 필드 아래 드롭다운으로.
     @State private var heroQuery = ""
     @FocusState private var heroFocused: Bool
-    /// 내 구단 "지난 방문 이후 새 경기" — 디스크 캐시에 남은 전적(백그라운드 갱신·이전 조회)으로만 계산한다. 홈에서 네트워크 0.
-    @State private var sinceLastSeen: [MatchSummary]?
     /// 내 최근 30경기 상대(소문자) — "상대 저격" 검색은 전면광고에서 뺀다.
     @State private var myOpponents: Set<String> = []
 
@@ -48,8 +46,7 @@ struct HomeView: View {
         .toolbar { brandToolbar }
         .task { await vm.load() }
         .refreshable { await vm.refresh() }
-        // 전적을 보고 돌아오면 본 경기 표시가 바뀌므로 나타날 때마다 다시 센다(디스크 읽기 1회).
-        .onAppear { Task { await loadSinceLastSeen() } }
+        .onAppear { Task { await loadOpponents() } }
     }
 
     /// 히어로 아래 섹션들. 최근 검색·내 구단 스냅샷은 **다른 화면(전적)에서** 바뀐다 — 그 변경이 애니메이션 트랜잭션에
@@ -57,19 +54,12 @@ struct HomeView: View {
     /// "이런 것도 돼요" 위에 겹쳤다(QA 3R P2-2, 2R P2-3 과 같은 계열). 이 묶음의 레이아웃 변경은 애니메이션 없이 즉시.
     @ViewBuilder private var homeSections: some View {
         VStack(alignment: .leading, spacing: 14) {
-                if let mine = prefs.myNickname { myFormCard(mine) }
-                else if let demo = vm.state.value?.demoNickname { demoCard(demo) }
-                if !prefs.favorites.isEmpty { favoritesSection }
+                // 내 폼·즐겨찾기·급상승·배너는 홈("오늘의 피온", TodayView)으로 옮겼다(2026-11 탭 재편). 이 탭은 검색 전용.
+                if prefs.myNickname == nil, let demo = vm.state.value?.demoNickname { demoCard(demo) }
+                if !prefs.recentSearches.isEmpty { recentSection }
                 if let home = vm.state.value {
-                    if let mover = home.mover { MoverCard(m: mover) }
-                    // 광고 — "오늘의 급상승" 카드 뒤 · "지금 검색되는 구단주" 앞(디자인 5R). 최근 검색 뒤였을 때는 Max 첫 화면에서
-                    // 떠 있는 탭 바 2pt 위에 걸쳤다. 위는 카드(탭) → +8pt, 아래는 탭 불가 섹션 라벨.
-                    AdSlot(placement: "home", reserve: true).padding(.top, 8)
                     if !home.liveSearches.isEmpty { liveChips(home.liveSearches) }
                 } else if vm.state.isLoading { Skeleton(height: 60) }
-                // "커뮤니티 최신"은 그리지 않는다(운영자 요청 2026-10-04). /api/v1/home 의 posts 는 v1 계약이라 서버는 계속 준다.
-                if !prefs.recentSearches.isEmpty { recentSection }
-                featureGrid
         }
         .transaction { $0.animation = nil; $0.disablesAnimations = true }
     }
@@ -88,11 +78,10 @@ struct HomeView: View {
             }
     }
 
-    private func loadSinceLastSeen() async {
-        guard let mine = prefs.myNickname else { sinceLastSeen = nil; myOpponents = []; return }
+    private func loadOpponents() async {
+        guard let mine = prefs.myNickname else { myOpponents = []; return }
         let path = "/api/v1/user/\(mine.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? mine)"
-        guard let hit: (value: UserOverview, isFresh: Bool) = await APIClient.shared.cachedValue(path, query: ["type": "50"]) else { sinceLastSeen = nil; return }
-        sinceLastSeen = prefs.matchesSinceLastSeen(nick: mine, in: hit.value.matches)
+        guard let hit: (value: UserOverview, isFresh: Bool) = await APIClient.shared.cachedValue(path, query: ["type": "50"]) else { return }
         myOpponents = Set(hit.value.matches.compactMap { $0.opponent?.nickname.lowercased() })
     }
 
@@ -198,72 +187,6 @@ struct HomeView: View {
         .buttonStyle(.plain)
     }
 
-    private func myFormCard(_ nick: String) -> some View {
-        Button { router.push(.user(nick)) } label: {
-            Panel(highlight: FC.tint.opacity(0.5)) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        SectionLabel("내 구단")
-                        Text(nick).fcFont(18, weight: .bold).foregroundStyle(FC.ink)
-                        if let s = prefs.snapshot(for: nick) {
-                            HStack(spacing: 8) {
-                                Text("승률 \(s.winRate)%").fcScoreboard(14).foregroundStyle(FC.ink)
-                                if let p = s.prevWinRate, p != s.winRate {
-                                    Text(s.winRate > p ? "▲\(s.winRate - p)%p" : "▼\(p - s.winRate)%p").fcScoreboard(12).foregroundStyle(s.winRate > p ? FC.win : FC.lose)
-                                }
-                                if s.streak >= 2 { Text("🔥\(s.streak)연승").fcFont(12, weight: .bold).foregroundStyle(FC.gold) }
-                                if s.streak <= -2 { Text("🥶\(-s.streak)연패").fcFont(12, weight: .bold).foregroundStyle(FC.lose) }
-                            }
-                            .transition(.identity)
-                        } else {
-                            Text("탭해서 최근 폼 확인").fcFont(13).foregroundStyle(FC.muted).transition(.identity)
-                        }
-                        if let new = sinceLastSeen, !new.isEmpty {
-                            // 30경기 창 안에서만 셀 수 있다 — 창을 넘으면 "30+"로 정직하게.
-                            let count = new.count >= 30 ? "30+" : "\(new.count)"
-                            let w = new.filter { $0.result == "승" }.count, d = new.filter { $0.result == "무" }.count, l = new.filter { $0.result == "패" }.count
-                            // 무승부가 빠지면 "6개 · 3승 1패"처럼 합이 안 맞아 보인다 — 있을 때만 끼운다.
-                            Text("지난 방문 이후 새 경기 \(count)개 · \(w)승\(d > 0 ? " \(d)무" : "") \(l)패").fcFont(12, weight: .semibold).foregroundStyle(FC.ink)
-                        }
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right").fcFont(12).foregroundStyle(FC.muted)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        // 스냅샷은 전적 화면(다른 탭·푸시된 화면)에서 저장된다. 그 변경이 애니메이션 트랜잭션에 실려 오면
-        // 홈이 화면 밖일 때 시작한 opacity 전환이 끝나지 않고 남아, "탭해서 / 최근 폼 / 확인" 잔상이
-        // 아래 "커뮤니티 최신" 위에 겹쳐 보였다(QA 2R P2-3). 이 카드의 내용 교체는 애니메이션 없이 즉시.
-        .transaction { $0.animation = nil; $0.disablesAnimations = true }
-    }
-
-    private var favoritesSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            SectionLabel("⭐ 즐겨찾기 구단주")
-            FlowLayout(spacing: 8, lineSpacing: 8) {
-                    ForEach(prefs.favorites, id: \.self) { n in
-                        Button { router.push(.user(n)) } label: {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(n).fcFont(14, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1)
-                                if let s = prefs.snapshot(for: n) {
-                                    HStack(spacing: 4) {
-                                        Text("\(s.winRate)%").fcScoreboard(13).foregroundStyle(FC.ink)
-                                        if let p = s.prevWinRate, p != s.winRate {
-                                            Text(s.winRate > p ? "▲" : "▼").fcScoreboard(11).foregroundStyle(s.winRate > p ? FC.win : FC.lose)
-                                        }
-                                        if s.streak >= 2 { Text("🔥\(s.streak)").fcFont(11) }
-                                    }
-                                } else { Text("폼 미확인").fcFont(11).foregroundStyle(FC.muted) }
-                            }
-                            .padding(10).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control))
-                        }.buttonStyle(.plain)
-                    }
-            }
-        }
-    }
-
-
     private func liveChips(_ names: [String]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("지금 검색되는 구단주")
@@ -289,33 +212,6 @@ struct HomeView: View {
                 }
             }
         }
-    }
-
-    private var featureGrid: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            SectionLabel("이런 것도 돼요")
-            feature("전적 · 분석 리포트", "슛맵부터 스쿼드 진단까지", "경기별 슛맵, 선수 성적표, 플레이스타일을 한 번에.") { openReportFeature() }
-            feature("스쿼드 빌더", "스쿼드 만들고 공유", "포메이션에 선수 배치, 팀 프리셋, 최근 경기 선발 그대로 불러오기.") { router.tab = .squad }
-            feature("픽 랭킹 · 선수 도감", "지금 가장 많이 쓰는 카드", "포지션별 인기 카드와 랭커 성적을 매일 갱신.") { router.tab = .meta }
-            feature("커뮤니티 · 배틀", "자랑하고, 모으고, 겨룬다", "스쿼드 자랑과 평가, 클럽원 모집, 투표로 겨루는 스쿼드 배틀.") { router.tab = .community }
-        }
-    }
-    /// 누르면 아무 일도 없던 카드 — 내 구단 → 예시(데모) 리포트 → 검색창 순으로 연다.
-    private func openReportFeature() {
-        if let mine = prefs.myNickname { router.push(.user(mine)) }
-        else if let demo = vm.state.value?.demoNickname { router.push(.user(demo)) }
-        else { heroFocused = true }
-    }
-    private func feature(_ tag: String, _ title: String, _ desc: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Panel(padding: 14) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(tag).fcFont(12, weight: .bold).foregroundStyle(FC.gold)
-                    Text(title).fcFont(16, weight: .bold).foregroundStyle(FC.ink)
-                    Text(desc).fcFont(13).foregroundStyle(FC.muted)
-                }
-            }
-        }.buttonStyle(.plain)
     }
 }
 

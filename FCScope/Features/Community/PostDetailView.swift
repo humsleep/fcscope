@@ -593,7 +593,7 @@ struct PostDetailView: View {
             replyNick: model.repliesEnabled ? replyTo?.author.nickname : nil,
             squadName: attach?.name, sending: sending, focus: $composerFocused,
             onLogin: { showLogin = true },
-            onNickname: { router.tab = .me },
+            onNickname: { router.push(.me) },
             onCancelReply: { replyTo = nil },
             onAttach: { showSquadPicker = true },
             onRemoveSquad: { attach = nil },
@@ -608,7 +608,7 @@ struct PostDetailView: View {
 
     private func startReply(_ c: Comment) {
         guard model.detail?.viewer.canComment == true else {
-            if model.detail?.viewer.loggedIn == true { router.tab = .me } else { showLogin = true }
+            if model.detail?.viewer.loggedIn == true { router.push(.me) } else { showLogin = true }
             return
         }
         if model.repliesEnabled {

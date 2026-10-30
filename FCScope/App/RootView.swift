@@ -13,21 +13,21 @@ struct RootView: View {
                 OnboardingView()
             } else {
                 TabView(selection: $router.tab) {
+                    NavigationStack(path: $router.todayPath) { TodayView().navigationDestination(for: Route.self) { RouteView(route: $0) } }
+                        .tint(FC.tint)
+                        .tabItem { Label("홈", systemImage: "house.fill") }.tag(Tab.today)
                     NavigationStack(path: $router.homePath) { HomeView().navigationDestination(for: Route.self) { RouteView(route: $0) } }
                         .tint(FC.tint)
                         .tabItem { Label("전적", systemImage: "magnifyingglass") }.tag(Tab.home)
+                    NavigationStack(path: $router.metaPath) { MetaView().navigationDestination(for: Route.self) { RouteView(route: $0) } }
+                        .tint(FC.tint)
+                        .tabItem { Label("선수", systemImage: "person.text.rectangle") }.tag(Tab.meta)
                     NavigationStack(path: $router.squadPath) { SquadBuilderView().navigationDestination(for: Route.self) { RouteView(route: $0) } }
                         .tint(FC.tint)
                         .tabItem { Label("스쿼드", systemImage: "shield.lefthalf.filled") }.tag(Tab.squad)
-                    NavigationStack(path: $router.metaPath) { MetaView().navigationDestination(for: Route.self) { RouteView(route: $0) } }
-                        .tint(FC.tint)
-                        .tabItem { Label("픽 랭킹", systemImage: "chart.bar.fill") }.tag(Tab.meta)
                     NavigationStack(path: $router.communityPath) { CommunityView().navigationDestination(for: Route.self) { RouteView(route: $0) } }
                         .tint(FC.tint)
                         .tabItem { Label("커뮤니티", systemImage: "person.2.fill") }.tag(Tab.community)
-                    NavigationStack(path: $router.mePath) { MyPageView().navigationDestination(for: Route.self) { RouteView(route: $0) } }
-                        .tint(FC.tint)
-                        .tabItem { Label("내 정보", systemImage: "person.crop.circle") }.tag(Tab.me)
                 }
                 // 선택 탭은 브랜드 순간(00-accent.png 옵션 C). 탭 바는 그라디언트를 못 받아 브랜드 단색을 쓰고,
                 // 각 탭 콘텐츠는 위에서 일반 강조(tint)로 되돌린다.

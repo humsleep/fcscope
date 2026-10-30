@@ -10,23 +10,27 @@ enum Route: Hashable {
     case squad(String)
     /// 친구랑 VS — me 의 전적(type 모드)과 다른 구단주를 나란히. with 가 있으면 바로 비교한다(딥링크 fcscope://vs/<me>?with=<친구>).
     case versus(me: String, type: Int = 50, with: String? = nil)
+    /// 내 정보 — 탭에서 빠져 홈 오른쪽 위·커뮤니티 등 어디서든 밀어 넣는다(2026-11 탭 재편)
+    case me
 }
 
-enum Tab: Int { case home, squad, meta, community, me }
+/// 홈("오늘의 피온") · 전적(home — 예전 홈 검색 화면) · 선수(meta) · 스쿼드 · 커뮤니티.
+/// Analytics feature_open 은 case 이름을 쓴다(tab_today·tab_home·tab_meta…).
+enum Tab: Int { case today, home, meta, squad, community }
 
 /// 탭별 NavigationPath + 딥링크(유니버설 링크 / fcscope://) 파서.
 @Observable
 @MainActor
 final class AppRouter {
     static let shared = AppRouter()
-    var tab: Tab = .home {
+    var tab: Tab = .today {
         didSet { if tab != oldValue { Analytics.shared.track(.featureOpen, ["feature": "tab_\(tab)"]) } }
     }
+    var todayPath = NavigationPath()
     var homePath = NavigationPath()
     var squadPath = NavigationPath()
     var metaPath = NavigationPath()
     var communityPath = NavigationPath()
-    var mePath = NavigationPath()
     /// 스쿼드 빌더에 넘길 요청 (닉네임·공유 코드 임포트, 선수 1명 배치)
     ///
     /// 알림(NotificationCenter)으로 넘기면 스쿼드 탭을 아직 한 번도 열지 않은 세션에서는 받을 뷰가 없어 버려진다.
@@ -41,11 +45,11 @@ final class AppRouter {
 
     func push(_ r: Route) {
         switch tab {
+        case .today: todayPath.append(r)
         case .home: homePath.append(r)
         case .squad: squadPath.append(r)
         case .meta: metaPath.append(r)
         case .community: communityPath.append(r)
-        case .me: mePath.append(r)
         }
     }
     func openUser(_ nick: String) { tab = .home; homePath.append(Route.user(nick)) }
@@ -103,8 +107,8 @@ final class AppRouter {
                 let t = query("type").flatMap(Int.init).flatMap { [50, 52, 40].contains($0) ? $0 : nil } ?? 50
                 homePath.append(Route.versus(me: parts[1].removingPercentEncoding ?? parts[1], type: t, with: query("with")))
             }
-        case "me": tab = .me
-        default: tab = .home
+        case "me": tab = .today; todayPath.append(Route.me)
+        default: tab = .today
         }
     }
 }
@@ -129,6 +133,7 @@ struct RouteView: View {
         case .post: "post"
         case .squad: "squad_detail"
         case .versus: "versus"
+        case .me: "me"
         }
     }
     @ViewBuilder private var content: some View {
@@ -139,6 +144,7 @@ struct RouteView: View {
         case .post(let id): PostDetailView(postId: id)
         case .squad(let id): SquadDetailView(squadId: id)
         case .versus(let me, let type, let with): VersusView(me: me, matchType: type, initialOther: with)
+        case .me: MyPageView()
         }
     }
 }

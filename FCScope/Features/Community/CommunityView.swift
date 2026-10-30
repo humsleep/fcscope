@@ -210,7 +210,7 @@ struct CommunityView: View {
             NotificationsSheet { id in showNotifications = false; router.push(.post(id)) }
         }
         .alert("닉네임을 먼저 등록해 주세요", isPresented: $needNickname) {
-            Button("내 정보로 이동") { router.tab = .me }
+            Button("내 정보로 이동") { router.push(.me) }
             Button("취소", role: .cancel) {}
         } message: { Text("커뮤니티에 글을 쓰려면 내 정보 탭에서 닉네임을 등록해야 해요.") }
         .reportDialog(target: $reportTarget) { msg in showToast(msg) } needLogin: { showLogin = true }
