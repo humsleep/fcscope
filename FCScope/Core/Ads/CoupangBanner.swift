@@ -5,11 +5,19 @@ import WebKit
 /// 노출·클릭은 feature_open(coupang_view_* / coupang_click_*)로 센다(서버 이벤트 허용 목록을 늘리지 않으려고).
 struct CoupangBanner: View {
     var placement: String
+    /// 노출은 배너당 한 번만 센다 — 위에서 push 했다 돌아올 때마다 onAppear 가 다시 불려 애드몹 비교 수치가 부풀었다.
+    @State private var tracked = false
+    /// 스크립트가 막히거나 오프라인이면 "AD · 쿠팡" 빈 상자만 남는다 — 그땐 통째로 숨긴다.
+    @State private var failed = false
 
     var body: some View {
+        if !failed { banner }
+    }
+
+    private var banner: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("AD · 쿠팡").fcText(.caption, weight: .semibold).foregroundStyle(FC.muted)
-            CoupangWebView(placement: placement)
+            CoupangWebView(placement: placement) { failed = true }
                 .frame(width: 320, height: 100)
                 .frame(maxWidth: .infinity)
             // 공정위 추천·보증 심사지침 — 대가성 문구
@@ -18,12 +26,17 @@ struct CoupangBanner: View {
         }
         .padding(10)
         .background(FC.surface2, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .onAppear { Analytics.shared.track(.featureOpen, ["feature": "coupang_view_\(placement)"]) }
+        .onAppear {
+            guard !tracked else { return }
+            tracked = true
+            Analytics.shared.track(.featureOpen, ["feature": "coupang_view_\(placement)"])
+        }
     }
 }
 
 private struct CoupangWebView: UIViewRepresentable {
     let placement: String
+    let onFail: () -> Void
 
     private static let html = """
     <!doctype html><html><head><meta name="viewport" content="width=320,initial-scale=1">
@@ -33,7 +46,7 @@ private struct CoupangWebView: UIViewRepresentable {
     </body></html>
     """
 
-    func makeCoordinator() -> Coordinator { Coordinator(placement: placement) }
+    func makeCoordinator() -> Coordinator { Coordinator(placement: placement, onFail: onFail) }
 
     func makeUIView(context: Context) -> WKWebView {
         let v = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
@@ -51,7 +64,17 @@ private struct CoupangWebView: UIViewRepresentable {
     /// 상품 탭은 웹뷰 밖(쿠팡 앱·Safari)으로 연다 — 웹뷰 안에서 열면 24시간 구매 추적 쿠키가 남지 않는다.
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         let placement: String
-        init(placement: String) { self.placement = placement }
+        let onFail: () -> Void
+        init(placement: String, onFail: @escaping () -> Void) { self.placement = placement; self.onFail = onFail }
+
+        /// g.js 는 상품 캐러셀을 iframe 으로 넣는다 — 페이지가 뜨고 4초 안에 iframe 이 없으면 실패로 본다.
+        func webView(_ w: WKWebView, didFinish _: WKNavigation!) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak w, onFail] in
+                w?.evaluateJavaScript("!!document.querySelector('iframe')") { r, _ in if (r as? Bool) != true { onFail() } }
+            }
+        }
+        func webView(_ w: WKWebView, didFail _: WKNavigation!, withError _: Error) { onFail() }
+        func webView(_ w: WKWebView, didFailProvisionalNavigation _: WKNavigation!, withError _: Error) { onFail() }
 
         private func openOutside(_ url: URL?) {
             guard let url, url.scheme == "https" else { return }

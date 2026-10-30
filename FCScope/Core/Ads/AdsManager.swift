@@ -35,6 +35,12 @@ final class AdsManager {
         AppConfig.admobConfigured && AppConfig.bannerAdUnit != nil
     }
 
+    /// 쿠팡 파트너스 배너(제3자 스크립트) — EEA 에서 아직 동의를 못 받았으면 애드몹처럼 띄우지 않는다.
+    /// canRequestAds 는 첫 실행 동의 갱신 전엔 한국에서도 false 라 쓰지 않는다(배너가 첫 실행에 사라진다).
+    var canShowPartnerBanner: Bool {
+        canShowAds && ConsentInformation.shared.consentStatus != .required
+    }
+
     /// UMP(EEA 만 폼) → ATT → SDK 시작. 한 실행에 한 번만 돈다.
     func requestConsentIfNeeded() async {
         // SDK 시작은 유예 기간과 무관하게 한다 — 전면광고(검색 3회차부터)는 유예 기간을 따르지 않는다.

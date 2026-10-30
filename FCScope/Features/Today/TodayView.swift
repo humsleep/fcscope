@@ -38,35 +38,21 @@ struct TodayView: View {
             .transaction { $0.animation = nil; $0.disablesAnimations = true }
         }
         .fcScreen()
-        .navigationTitle("홈").navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                HStack(spacing: 7) {
-                    SpotGlyph(height: 22)
-                    (Text("FC ").foregroundStyle(FC.brand) + Text("SCOPE").foregroundStyle(FC.ink))
-                        .font(.scoreboard(17)).tracking(1)
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("FC Scope")
-                .accessibilityAddTraits(.isHeader)
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { router.push(.me) } label: { Image(systemName: "person.crop.circle") }
-                    .accessibilityLabel("내 정보")
-            }
-        }
+        .fcTabHeader("오늘의 피온")
         .task { await vm.load() }
         .task { await loadHot() }
         .refreshable { await vm.refresh(); await loadHot(); await loadMine() }
         // 전적을 보고 돌아오면 본 경기 표시가 바뀌므로 나타날 때마다 다시 읽는다(디스크 읽기 1회).
         .onAppear { Task { await loadMine() } }
+        // 로그인 직후 계정의 구단주명이 늦게 채워지면(AuthManager.syncVerifiedClub) 그때 다시 읽는다
+        .onChange(of: prefs.myNickname) { _, _ in Task { await loadMine() } }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 2) {
-            SectionLabel("오늘의 피온", color: FC.tint)
+            // 제목 "오늘의 피온"은 탭 헤더에 있다 — 여기선 날짜만
             Text(Date.now.formatted(.dateTime.month().day().weekday(.wide).locale(Locale(identifier: "ko_KR"))))
-                .fcFont(22, weight: .bold).foregroundStyle(FC.ink)
+                .fcText(.caption, weight: .semibold).foregroundStyle(FC.muted)
         }
         .accessibilityElement(children: .combine)
     }

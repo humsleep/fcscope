@@ -26,6 +26,9 @@ struct MyPageView: View {
                     }
                 }
                 myClubCard
+                // 실험(2026-11): 애드몹 대신 쿠팡 파트너스 — 노출당 수익 비교 후 이긴 쪽을 남긴다.
+                // 맨 끝(설정 아래)에선 거의 노출되지 않아 내 구단 카드 바로 아래로 올렸다. 본문 카드가 하나 이상일 때만.
+                if hasContent, AdsManager.shared.canShowPartnerBanner { CoupangBanner(placement: "me") }
                 if !prefs.favorites.isEmpty { favoritesCard }
                 if let sq = profile?.squads, !sq.isEmpty {
                     Panel(padding: 12) { VStack(alignment: .leading, spacing: 6) { SectionLabel("내 스쿼드"); ForEach(sq) { s in Button { router.push(.squad(s.id)) } label: { HStack { Text(s.name).fcFont(14, weight: .semibold).foregroundStyle(FC.ink); Spacer(); Text(s.formation).fcScoreboard(12).foregroundStyle(FC.muted) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.chip)) }.buttonStyle(.plain) } } }
@@ -36,10 +39,6 @@ struct MyPageView: View {
                 if prefs.streak.current >= 2 { Text("🔥 \(prefs.streak.current)일 연속 방문 (최고 \(prefs.streak.best)일)").fcFont(13, weight: .semibold).foregroundStyle(FC.gold) }
                 // 시스템 기본 폰트는 AX5 까지 3배로 커져 이 한 줄이 화면 절반을 차지했다 — 앱 공통 배율(1.6배 상한)을 쓴다.
                 NavigationLink { SettingsView() } label: { Panel(padding: 12) { HStack { Label("설정 · 약관 · 계정", systemImage: "gearshape").fcFont(15).lineLimit(1).minimumScaleFactor(0.8).foregroundStyle(FC.ink); Spacer(); Image(systemName: "chevron.right").font(.system(size: 13 * TypeScale.factor(typeSize), weight: .semibold)).foregroundStyle(FC.muted) } } }.buttonStyle(.plain)
-                // 광고 — 설정 행 뒤 맨 끝, 위 +16pt(AD-PLACEMENT 1-9). 로그인 상태 + 본문 카드가 하나 이상일 때만 —
-                // 로그아웃 화면은 안내 카드 + 설정뿐인 "콘텐츠가 적은 화면"이다.
-                // 실험(2026-11): 이 자리는 애드몹 대신 쿠팡 파트너스 — 노출당 수익 비교 후 이긴 쪽을 남긴다.
-                if hasContent, AdsManager.shared.canShowAds { CoupangBanner(placement: "me").padding(.top, 16) }
             }.padding(16)
         }
         .safeAreaPadding(.bottom, 24)
@@ -127,7 +126,7 @@ struct MyPageView: View {
         Panel(padding: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    SectionLabel("내 구단 (기기)")
+                    SectionLabel("내 구단")
                     if let n = prefs.myNickname { Text(n).fcFont(16, weight: .bold).foregroundStyle(FC.ink) } else { Text("전적 페이지에서 '내 구단으로'를 누르면 홈·위젯에 고정돼요.").fcFont(13).foregroundStyle(FC.muted) }
                 }
                 Spacer()

@@ -258,11 +258,8 @@ struct SquadBuilderView: View {
         // 저장·비우기 줄이 유리 탭 바 뒤에 깔리지 않게(디자인 M10)
         .safeAreaPadding(.bottom, 24)
         .scrollDisabled(model.isDraggingSlot)
-        .fcScreen().navigationTitle("스쿼드 빌더").navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("계산기") { router.push(.calculators) }
-            }
+        .fcScreen().fcTabHeader("스쿼드") {
+            Button("계산기") { router.push(.calculators) }
         }
         .sheet(isPresented: $showFormations) { FormationPicker(model: model) }
         .sheet(isPresented: $showPresets) { PresetPicker(model: model) }

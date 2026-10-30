@@ -192,8 +192,15 @@ struct CommunityView: View {
             }
         }
         .background(FC.bg.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
+        .toolbarBackground(FC.bg, for: .navigationBar)
         .toolbarBackground(FC.bg, for: .tabBar)
+        .fcTabHeader("커뮤니티") {
+            // 🔍 은 백엔드 검색(q) 전까지 두지 않는다(SPEC 4절)
+            if CommunityAPI.isLoggedIn {
+                Button { showNotifications = true } label: { Image(systemName: "bell") }
+                    .accessibilityLabel("내 글 새 댓글 알림")
+            }
+        }
         // 빈 상태에는 화면 가운데 CTA 가 있다 — 그라디언트 버튼 두 개(CTA + FAB)를 동시에 두지 않는다(QA P2-11)
         .overlay(alignment: .bottomTrailing) { if !showsEmptyState { fab } }
         .overlay(alignment: .top) { CMToast(text: toast) }
@@ -229,25 +236,10 @@ struct CommunityView: View {
         .onChange(of: model.chip) { _, c in savedChip = c ?? "" }
     }
 
-    // MARK: 머리 — 큰 제목 + 🔔 + 1차 탭
+    // MARK: 머리 — 1차 탭(제목·🔔 은 공통 탭 헤더)
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .center) {
-                Text("커뮤니티").cmText(24, .bold).kerning(-0.6).foregroundStyle(FC.ink)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer()
-                // 🔍 은 백엔드 검색(q) 전까지 두지 않는다(SPEC 4절)
-                if CommunityAPI.isLoggedIn {
-                    Button { showNotifications = true } label: {
-                        Image(systemName: "bell").font(.system(size: 20, weight: .medium)).foregroundStyle(FC.ink)
-                            .frame(width: 44, height: 44).contentShape(Rectangle())
-                    }
-                    .accessibilityLabel("내 글 새 댓글 알림")
-                }
-            }
-            .padding(.leading, 16).padding(.trailing, 6).padding(.top, 4).frame(minHeight: 52)
-
             HStack(spacing: 22) {
                 ForEach(visibleTabs) { t in tabButton(t) }
                 Spacer(minLength: 0)

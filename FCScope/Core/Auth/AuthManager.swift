@@ -12,7 +12,9 @@ import Observation
 final class AuthManager {
     static let shared = AuthManager()
 
-    private(set) var user: User?
+    private(set) var user: User? {
+        didSet { if let user, user.id != oldValue?.id { Task { await syncVerifiedClub() } } }
+    }
     private(set) var loading = true
     let client: SupabaseClient?
     private var currentNonce: String?
@@ -31,6 +33,18 @@ final class AuthManager {
             client = nil
         }
         Task { await bootstrap() }
+    }
+
+    /// 계정에 인증한 구단주명이 있는데 기기의 내 구단이 비어 있으면(재설치·새 기기·웹에서 인증) 그 이름으로 채운다.
+    /// 로그인해 있어도 홈이 "구단주명을 등록해 보세요"를 띄우던 버그 — 내 구단은 기기 값(LocalPrefs)만 보고 있었다.
+    /// 기기에서 직접 고른 내 구단은 덮어쓰지 않는다.
+    private func syncVerifiedClub() async {
+        let id = user?.id
+        guard id != nil, LocalPrefs.shared.myNickname == nil,
+              let p: ProfileResponse = try? await APIClient.shared.get("/api/profile"),
+              let v = p.profile?.verifiedNickname?.trimmingCharacters(in: .whitespaces), !v.isEmpty,
+              LocalPrefs.shared.myNickname == nil, user?.id == id else { return }  // 그새 계정이 바뀌었으면 버린다
+        LocalPrefs.shared.myNickname = v
     }
 
     var isConfigured: Bool { client != nil }

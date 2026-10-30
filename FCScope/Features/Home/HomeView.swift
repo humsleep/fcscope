@@ -34,6 +34,14 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 hero
+                // 쿠팡 파트너스 — 입력창 바로 아래. 입력을 시작하면(최근 검색 드롭다운·키보드) 접어 검색을 가리지 않는다.
+                // 계층에서 빼면 웹뷰가 새로 만들어져 쿠팡·분석 노출이 포커스마다 다시 잡힌다 — 붙여 둔 채 높이만 접는다.
+                if AdsManager.shared.canShowPartnerBanner {
+                    let show = !heroFocused && heroQuery.isEmpty
+                    CoupangBanner(placement: "search")
+                        .frame(height: show ? nil : 0, alignment: .top).clipped().opacity(show ? 1 : 0)
+                        .allowsHitTesting(show).accessibilityHidden(!show)
+                }
                 homeSections
             }
             .padding(16)
@@ -42,11 +50,11 @@ struct HomeView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .fcScreen()
-        .navigationTitle("전적").navigationBarTitleDisplayMode(.inline)
-        .toolbar { brandToolbar }
+        .fcTabHeader("전적")
         .task { await vm.load() }
         .refreshable { await vm.refresh() }
         .onAppear { Task { await loadOpponents() } }
+        .onChange(of: prefs.myNickname) { _, _ in Task { await loadOpponents() } }
     }
 
     /// 히어로 아래 섹션들. 최근 검색·내 구단 스냅샷은 **다른 화면(전적)에서** 바뀐다 — 그 변경이 애니메이션 트랜잭션에
@@ -62,20 +70,6 @@ struct HomeView: View {
                 } else if vm.state.isLoading { Skeleton(height: 60) }
         }
         .transaction { $0.animation = nil; $0.disablesAnimations = true }
-    }
-
-    @ToolbarContentBuilder private var brandToolbar: some ToolbarContent {
-            // 앱 안에서 아이콘 마크가 한 번도 안 나오던 문제 — 홈 내비에 S 마크 + 워드마크(디자인 M11)
-            ToolbarItem(placement: .principal) {
-                HStack(spacing: 7) {
-                    SpotGlyph(height: 22)
-                    (Text("FC ").foregroundStyle(FC.brand) + Text("SCOPE").foregroundStyle(FC.ink))
-                        .font(.scoreboard(17)).tracking(1)
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("FC Scope")
-                .accessibilityAddTraits(.isHeader)
-            }
     }
 
     private func loadOpponents() async {

@@ -60,7 +60,7 @@ struct MetaView: View {
                 }
             }.padding(16)
         }
-        .fcScreen().navigationTitle("선수").navigationBarTitleDisplayMode(.inline)
+        .fcScreen().fcTabHeader("선수")
         .searchable(text: $query, prompt: "선수 이름으로 도감 검색")
         .task(id: query) { await search(query) }
         .task { await load() }

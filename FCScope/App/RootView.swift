@@ -21,7 +21,7 @@ struct RootView: View {
                         .tabItem { Label("전적", systemImage: "magnifyingglass") }.tag(Tab.home)
                     NavigationStack(path: $router.metaPath) { MetaView().navigationDestination(for: Route.self) { RouteView(route: $0) } }
                         .tint(FC.tint)
-                        .tabItem { Label("선수", systemImage: "person.text.rectangle") }.tag(Tab.meta)
+                        .tabItem { Label("선수", systemImage: "figure.soccer") }.tag(Tab.meta)
                     NavigationStack(path: $router.squadPath) { SquadBuilderView().navigationDestination(for: Route.self) { RouteView(route: $0) } }
                         .tint(FC.tint)
                         .tabItem { Label("스쿼드", systemImage: "shield.lefthalf.filled") }.tag(Tab.squad)
