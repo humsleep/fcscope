@@ -18,6 +18,7 @@ final class Analytics {
     static let shared = Analytics()
 
     enum Event: String {
+        /// 방문 1회 — props.day = 설치일(KST) 기준 경과 일수. D1·D7 리텐션은 day 1·7 의 app_open 으로 센다.
         case appOpen = "app_open"
         case search
         case recordView = "record_view"
@@ -32,10 +33,13 @@ final class Analytics {
         case adSlot = "ad_slot"
         /// 리뷰 요청을 실제로 띄움 — props.trigger(share·visit_3·weekly_up)
         case reviewPrompt = "review_prompt"
+        /// 기능 사용률 — props.feature: 탭(tab_home…)·화면(user·match·player·post·squad_detail·versus)
+        case featureOpen = "feature_open"
     }
 
     private static let installKey = "fcscope.analytics.installId"
     private static let lastActiveKey = "fcscope.analytics.lastActiveAt"
+    private static let installAtKey = "fcscope.analytics.installAt"
     /// 백그라운드에 이만큼 있다가 돌아오면 새 방문으로 센다(재방문율 계산의 기준).
     private static let sessionGap: TimeInterval = 30 * 60
     /// 요청 1회 상한 — 서버(lib/analytics/events.ts MAX_EVENTS)가 20개 넘는 부분을 **조용히 잘라낸다**.
@@ -46,6 +50,7 @@ final class Analytics {
     private static let iso = ISO8601DateFormatter()
 
     private let installId: String
+    private let installAt: Date
     private var queue: [[String: Any]] = []
     /// 전송 중인 배치 — 응답 전에 앱이 종료돼도 파일에 함께 남긴다.
     private var inFlight: [[String: Any]] = []
@@ -65,6 +70,13 @@ final class Analytics {
             UserDefaults.standard.set(id, forKey: Self.installKey)
             installId = id
         }
+        let d = UserDefaults.standard
+        if d.object(forKey: Self.installAtKey) == nil {
+            // 이 키 이전 설치는 AdsManager 가 남긴 첫 실행 시각을 설치일로 쓴다
+            let first = d.double(forKey: "fcscope.firstLaunchAt")
+            d.set(first > 0 ? first : Date().timeIntervalSince1970, forKey: Self.installAtKey)
+        }
+        installAt = Date(timeIntervalSince1970: d.double(forKey: Self.installAtKey))
         // 지난 실행에서 못 보낸 이벤트 복원
         if let url = Self.fileURL, let data = try? Data(contentsOf: url),
            let saved = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
@@ -88,9 +100,16 @@ final class Analytics {
     func appBecameActive() -> Bool {
         let last = UserDefaults.standard.double(forKey: Self.lastActiveKey)
         let newVisit = last == 0 || Date().timeIntervalSince1970 - last > Self.sessionGap
-        if newVisit { track(.appOpen) }
+        if newVisit { track(.appOpen, ["day": daysSinceInstall]) }
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.lastActiveKey)
         return newVisit
+    }
+
+    /// 설치일(KST)부터 오늘(KST)까지 달력 일수 — 0 = 설치 당일
+    private var daysSinceInstall: Int {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        return cal.dateComponents([.day], from: cal.startOfDay(for: installAt), to: cal.startOfDay(for: Date())).day ?? 0
     }
 
     /// 백그라운드로 갈 때 — 마지막 활동 시각을 남기고, 큐를 파일에 저장한 뒤 쌓인 이벤트를 모두 보낸다.

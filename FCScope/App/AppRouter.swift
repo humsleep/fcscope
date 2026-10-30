@@ -19,7 +19,9 @@ enum Tab: Int { case home, squad, meta, community, me }
 @MainActor
 final class AppRouter {
     static let shared = AppRouter()
-    var tab: Tab = .home
+    var tab: Tab = .home {
+        didSet { if tab != oldValue { Analytics.shared.track(.featureOpen, ["feature": "tab_\(tab)"]) } }
+    }
     var homePath = NavigationPath()
     var squadPath = NavigationPath()
     var metaPath = NavigationPath()
@@ -110,7 +112,26 @@ final class AppRouter {
 /// Route → 화면
 struct RouteView: View {
     let route: Route
+    /// 뒤로 와서 다시 보일 때(onAppear 재호출)는 세지 않는다
+    @State private var tracked = false
     var body: some View {
+        content.onAppear {
+            guard !tracked else { return }
+            tracked = true
+            Analytics.shared.track(.featureOpen, ["feature": feature])
+        }
+    }
+    private var feature: String {
+        switch route {
+        case .user: "user"
+        case .match: "match"
+        case .player: "player"
+        case .post: "post"
+        case .squad: "squad_detail"
+        case .versus: "versus"
+        }
+    }
+    @ViewBuilder private var content: some View {
         switch route {
         case .user(let nick): RecordView(nickname: nick)
         case .match(let id, let me, let fromRecord): MatchReportView(matchId: id, me: me, fromRecord: fromRecord)
