@@ -29,6 +29,8 @@ struct HomeView: View {
     @FocusState private var heroFocused: Bool
     /// 내 구단 "지난 방문 이후 새 경기" — 디스크 캐시에 남은 전적(백그라운드 갱신·이전 조회)으로만 계산한다. 홈에서 네트워크 0.
     @State private var sinceLastSeen: [MatchSummary]?
+    /// 내 최근 30경기 상대(소문자) — "상대 저격" 검색은 전면광고에서 뺀다.
+    @State private var myOpponents: Set<String> = []
 
     var body: some View {
         ScrollView {
@@ -87,10 +89,11 @@ struct HomeView: View {
     }
 
     private func loadSinceLastSeen() async {
-        guard let mine = prefs.myNickname else { sinceLastSeen = nil; return }
+        guard let mine = prefs.myNickname else { sinceLastSeen = nil; myOpponents = []; return }
         let path = "/api/v1/user/\(mine.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? mine)"
         guard let hit: (value: UserOverview, isFresh: Bool) = await APIClient.shared.cachedValue(path, query: ["type": "50"]) else { sinceLastSeen = nil; return }
         sinceLastSeen = prefs.matchesSinceLastSeen(nick: mine, in: hit.value.matches)
+        myOpponents = Set(hit.value.matches.compactMap { $0.opponent?.nickname.lowercased() })
     }
 
     private func search(_ raw: String) {
@@ -98,8 +101,11 @@ struct HomeView: View {
         guard !nick.isEmpty else { return }
         Haptic.light()
         Task {
-            let gated = SearchGate.shouldShowAd()
-            Analytics.shared.track(.search, ["gated": gated])
+            // 내 구단주·즐겨찾기·내 최근 상대는 "찾아보기"가 아니라 늘 보는 대상 — 광고를 띄우지 않고 무료 횟수도 쓰지 않는다.
+            let exempt = prefs.myNickname?.caseInsensitiveCompare(nick) == .orderedSame
+                || prefs.isFavorite(nick) || myOpponents.contains(nick.lowercased())
+            let gated = SearchGate.shouldShowAd(exempt: exempt)
+            Analytics.shared.track(.search, ["gated": gated, "exempt": exempt])
             if gated { await AdsManager.shared.showInterstitialIfReady() }
             router.push(.user(nick))
         }
