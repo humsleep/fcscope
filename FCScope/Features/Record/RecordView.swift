@@ -420,7 +420,7 @@ struct MatchesSection: View {
                             if let opp = m.opponent { Button { router.push(.user(opp.nickname)) } label: { Label("\(opp.nickname) 전적 보기", systemImage: "person") } }
                         }
                     // 광고 #2 — "더 보기"로 펼친 뒤 이전 경기 12행째 뒤(행 ≈ 70pt × 12 ≈ 1화면). LazyVStack 이라 예약(R5).
-                    if allMatches, i == 11 { AdSlot(placement: "record_matches_2", reserve: true).padding(.vertical, 12) }
+                    if allMatches, i == 11 { AdSlot(placement: "record_matches_2", reserve: true, format: .banner320x50).padding(.vertical, 12) }
                 }
             }
             if rest.count > Self.listPreview {
