@@ -349,3 +349,55 @@ struct PlaystyleSection: View {
         }
     }
 }
+
+// MARK: - 분석 스포트라이트(경기 탭 맨 위)
+
+/// 플레이스타일·종합 리포트는 이 앱만의 분석인데, 밑줄 탭 글자로만 보여 대부분 지나쳤다.
+/// 잔디색 카드에 실제 결과(내 유형·강점, 리포트 첫 진단)를 미리 보여 주고, 누르면 그 탭으로 간다.
+struct AnalysisSpotlight: View {
+    let style: PlaystyleResult?
+    let insight: Insight?
+    let open: (RecordViewModel.Section) -> Void
+    private let lime = Color(UIColor(hex: 0xd4f55a))
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles").font(.system(size: 12, weight: .bold)).foregroundStyle(lime)
+                Text("FC SCOPE 플레이 분석 · 최근 30경기").fcFont(12, weight: .bold).foregroundStyle(.white.opacity(0.85))
+            }
+            row(icon: "figure.soccer", title: "내 플레이스타일",
+                headline: style.map { "\($0.archetype.name)" } ?? "공격 패턴·강점·약점",
+                detail: style.map { s in s.chips.first(where: { $0.kind == "strength" })?.text ?? s.archetype.tagline } ?? "슛 위치·침투·압박으로 내 유형을 찾아요",
+                section: .style)
+            Rectangle().fill(.white.opacity(0.15)).frame(height: 1)
+            row(icon: "chart.bar.xaxis", title: "종합 리포트",
+                headline: insight.map { $0.tone == "warn" ? "고칠 점 발견" : "강점 발견" } ?? "실점 시간대·슛 유형",
+                detail: insight?.text ?? "언제 실점하고 어디서 골을 넣는지 짚어줘요",
+                section: .report)
+        }
+        .padding(16)
+        .background(FC.brandSolid, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    private func row(icon: String, title: String, headline: String, detail: String, section: RecordViewModel.Section) -> some View {
+        Button { Haptic.light(); open(section) } label: {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: icon).font(.system(size: 20, weight: .bold)).foregroundStyle(FC.brandSolid)
+                    .frame(width: 44, height: 44).background(lime, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).fcFont(12, weight: .semibold).foregroundStyle(.white.opacity(0.75))
+                    Text(headline).fcFont(18, weight: .heavy).foregroundStyle(.white).lineLimit(1).minimumScaleFactor(0.8)
+                    Text(detail.replacingOccurrences(of: " — ", with: ", ")).fcFont(13).foregroundStyle(.white.opacity(0.9)).lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right").font(.system(size: 14, weight: .bold)).foregroundStyle(lime)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(headline). \(detail)")
+        .accessibilityHint("눌러서 \(title) 보기")
+    }
+}

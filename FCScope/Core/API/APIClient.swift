@@ -17,6 +17,11 @@ enum APIError: LocalizedError {
     }
     var code: String? { if case .server(let c, _, _, _) = self { return c }; return nil }
     var isUserNotFound: Bool { code == "user_not_found" }
+    /// 요청이 취소됐을 뿐(당겨서 새로고침·화면 이동) — 오류 화면을 띄우지 않는다
+    var isCancelled: Bool {
+        guard case .network(let e) = self else { return false }
+        return e is CancellationError || (e as? URLError)?.code == .cancelled
+    }
 }
 
 private struct ServerErrorBody: Decodable { let error: String; let code: String? }

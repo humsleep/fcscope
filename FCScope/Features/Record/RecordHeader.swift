@@ -156,44 +156,10 @@ struct RecordHeader: View {
 
     private func tile<V: View>(_ label: String, hint: String? = nil, info: Bool = false, scoreInfo: Bool = false, sub: String, subColor: Color = FC.muted, @ViewBuilder value: () -> V) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 3) {
-                Text(label).fcText(.meta, weight: .semibold).foregroundStyle(FC.muted).lineLimit(1)
-                if let hint { Text(hint).fcText(.caption).foregroundStyle(FC.muted.opacity(0.8)).lineLimit(1).minimumScaleFactor(0.75) }
-                if info {
-                    Button { showBasis = true } label: {
-                        Image(systemName: "info.circle").font(.system(size: 11, weight: .semibold)).foregroundStyle(FC.muted)
-                            .frame(width: 22, height: 18).contentShape(Rectangle().inset(by: -10))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("몰수 경기 기준 설명")
-                    // 팝오버는 ⓘ 버튼에 건다 — 타일 묶음 전체에 걸면 화살표가 가운데(스코어) 타일을 가리켰다(QA 2R P2-6)
-                    .popover(isPresented: $showBasis, arrowEdge: .top) {
-                        basisNote.presentationCompactAdaptation(.popover)
-                    }
-                }
-                if scoreInfo {
-                    Button { showScoreInfo = true } label: {
-                        Image(systemName: "info.circle").font(.system(size: 11, weight: .semibold)).foregroundStyle(FC.muted)
-                            .frame(width: 22, height: 18).contentShape(Rectangle().inset(by: -13))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("경기력 설명")
-                    .popover(isPresented: $showScoreInfo, arrowEdge: .top) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("경기력이란?").fcText(.headline).foregroundStyle(FC.ink)
-                            Text("승패가 기본이고, 점수 차·넥슨 평점·점유율로 더하고 빼요. 10점 만점, 5~6.4가 평균, 6.5 이상이면 잘한 경기예요.")
-                            Text("넥슨 평점은 넥슨이 매기는 선수들 평균 평점이에요.")
-                            Text("몰수 경기는 몰수승 6 · 몰수패 3으로 고정해 평균에 넣어요(넥슨 랭크에서도 승패로 쳐요).")
-                            // 승률 ⓘ 를 없애고 여기로 — 헤더 ⓘ 가 3개라 복잡했다(UX 패널 R4)
-                            if forfeits > 0 {
-                                Text("승률도 몰수 포함(넥슨 공식 전적과 같은 기준)\(normalWinRate.map { ", 빼면 \($0)%" } ?? ""). 득점·실점은 몰수를 뺀 실제 경기 기준이에요.")
-                            }
-                        }
-                        .fcText(.callout).foregroundStyle(FC.ink).padding(16).frame(width: 300, alignment: .leading)
-                        .background(FC.surface)
-                        .presentationCompactAdaptation(.popover)
-                    }
-                }
+            // 좁은 폭(작은 기기·큰 글자)에서 "경…"으로 잘렸다 — 이름은 절대 줄이지 않고, 자리가 없으면 보조 문구(hint)를 뺀다
+            ViewThatFits(in: .horizontal) {
+                tileHead(label, hint: hint, info: info, scoreInfo: scoreInfo)
+                tileHead(label, hint: nil, info: info, scoreInfo: scoreInfo)
             }
             value().lineLimit(1).minimumScaleFactor(0.7)
             Text(sub).fcText(.meta, weight: subColor == FC.muted ? .regular : .semibold).foregroundStyle(subColor).lineLimit(1).minimumScaleFactor(0.8)
@@ -203,6 +169,48 @@ struct RecordHeader: View {
         .background(FC.bg.opacity(0.55), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(FC.line, lineWidth: 1))
         .accessibilityElement(children: .combine)
+    }
+
+    private func tileHead(_ label: String, hint: String?, info: Bool, scoreInfo: Bool) -> some View {
+        HStack(spacing: 3) {
+            Text(label).fcText(.meta, weight: .semibold).foregroundStyle(FC.muted).lineLimit(1).fixedSize()
+            if let hint { Text(hint).fcText(.caption).foregroundStyle(FC.muted.opacity(0.8)).lineLimit(1).fixedSize() }
+            if info {
+                Button { showBasis = true } label: {
+                    Image(systemName: "info.circle").font(.system(size: 11, weight: .semibold)).foregroundStyle(FC.muted)
+                        .frame(width: 22, height: 18).contentShape(Rectangle().inset(by: -10))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("몰수 경기 기준 설명")
+                // 팝오버는 ⓘ 버튼에 건다 — 타일 묶음 전체에 걸면 화살표가 가운데(스코어) 타일을 가리켰다(QA 2R P2-6)
+                .popover(isPresented: $showBasis, arrowEdge: .top) {
+                    basisNote.presentationCompactAdaptation(.popover)
+                }
+            }
+            if scoreInfo {
+                Button { showScoreInfo = true } label: {
+                    Image(systemName: "info.circle").font(.system(size: 11, weight: .semibold)).foregroundStyle(FC.muted)
+                        .frame(width: 22, height: 18).contentShape(Rectangle().inset(by: -13))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("경기력 설명")
+                .popover(isPresented: $showScoreInfo, arrowEdge: .top) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("경기력이란?").fcText(.headline).foregroundStyle(FC.ink)
+                        Text("승패가 기본이고, 점수 차·넥슨 평점·점유율로 더하고 빼요. 10점 만점, 5~6.4가 평균, 6.5 이상이면 잘한 경기예요.")
+                        Text("넥슨 평점은 넥슨이 매기는 선수들 평균 평점이에요.")
+                        Text("몰수 경기는 몰수승 6 · 몰수패 3으로 고정해 평균에 넣어요(넥슨 랭크에서도 승패로 쳐요).")
+                        // 승률 ⓘ 를 없애고 여기로 — 헤더 ⓘ 가 3개라 복잡했다(UX 패널 R4)
+                        if forfeits > 0 {
+                            Text("승률도 몰수 포함(넥슨 공식 전적과 같은 기준)\(normalWinRate.map { ", 빼면 \($0)%" } ?? ""). 득점·실점은 몰수를 뺀 실제 경기 기준이에요.")
+                        }
+                    }
+                    .fcText(.callout).foregroundStyle(FC.ink).padding(16).frame(width: 300, alignment: .leading)
+                    .background(FC.surface)
+                    .presentationCompactAdaptation(.popover)
+                }
+            }
+        }
     }
 
     // MARK: 폼 스트립 + 범례

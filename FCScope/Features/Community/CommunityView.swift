@@ -47,7 +47,8 @@ final class CommunityModel {
 
     func load(reset: Bool = false) async {
         if reset { page = 1; moreFailed = false }
-        if state.value == nil || reset { state = .loading }
+        // 새로고침은 목록을 그대로 둔 채 받는다 — 로딩 상태로 바꾸면 목록이 잠깐 사라졌다
+        if state.value == nil { state = .loading }
         await fetch(page: 1, append: false)
     }
 
@@ -128,6 +129,11 @@ final class CommunityModel {
             state = .loaded(r)
         } catch {
             guard gen == generation else { return }
+            // 당겨서 새로고침 중 요청이 취소되면 "네트워크 연결을 확인해 주세요"가 떴다 — 취소는 오류가 아니다
+            if (error as? APIError)?.isCancelled == true || error is CancellationError {
+                if state.value == nil, !posts.isEmpty { state = .idle }
+                return
+            }
             if append { moreFailed = true } else { state = .failed(error) }
         }
     }
@@ -185,7 +191,8 @@ struct CommunityView: View {
                 .onPreferenceChange(ScrollOffsetKey.self) { y in trackScroll(y) }
                 .onPreferenceChange(AdRowFramesKey.self) { adRowFrames = $0 }
                 .refreshable {
-                    await model.load(reset: true)
+                    // refreshable 의 작업은 화면이 다시 그려지면 취소된다 — 별도 Task 로 끝까지 받는다
+                    await Task { await model.load(reset: true) }.value
                     CMHaptic.selection()
                 }
                 .onChange(of: model.tab) { _, _ in proxy.scrollTo("top", anchor: .top) }

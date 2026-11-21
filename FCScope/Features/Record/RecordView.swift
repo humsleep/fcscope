@@ -130,8 +130,17 @@ final class RecordViewModel {
     }
     func loadSection() async {
         Analytics.shared.track(.sectionView, ["section": String(describing: section)])
+        await load(section)
+    }
+    /// 스타일·리포트를 경기 탭에서 미리 받아 둔다 — 분석 카드에 실제 결과를 미리 보여 주고, 탭을 누르면 바로 뜨게.
+    func prefetchAnalysis() async {
+        async let s: Void = load(.style)
+        async let r: Void = load(.report)
+        _ = await (s, r)
+    }
+    private func load(_ sec: Section) async {
         let type = matchType, q = query
-        switch section {
+        switch sec {
         case .matches: break
         case .report:
             if report.value != nil { return }
@@ -280,6 +289,11 @@ struct RecordView: View {
                     onTypeTap: { selectSection(.report) },
                     onVersus: { router.push(.versus(me: o.profile.nickname, type: o.matchType)) }
                 )
+                // 이 앱만의 분석(스타일·리포트)이 밑줄 탭 글자 하나로만 보였다 — 경기 탭 맨 위에 실제 결과를 미리 보여 준다
+                if vm.section == .matches, o.summary.played > 0 {
+                    AnalysisSpotlight(style: vm.playstyle.value?.result, insight: vm.report.value?.insights.first) { selectSection($0) }
+                        .task(id: o.matchType) { await vm.prefetchAnalysis() }
+                }
                 // 탭 두 줄(모드 세그먼트 + 콘텐츠 칩)을 한 덩어리로: 모드는 드롭다운 칩, 콘텐츠는 밑줄 탭.
                 RecordTabBar(
                     tabs: o.matchTabs, matchType: vm.matchType, week: o.week,
