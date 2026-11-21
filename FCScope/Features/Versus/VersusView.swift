@@ -112,7 +112,7 @@ struct VersusView: View {
         // 공유 CTA·마지막 줄이 유리 탭 바 뒤에 깔리지 않게(디자인 M10)
         .safeAreaPadding(.bottom, 24)
         .fcScreen()
-        .navigationTitle("친구랑 VS")
+        .navigationTitle("친구 비교")
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await vm.loadMine()
@@ -215,7 +215,7 @@ struct VersusView: View {
 
     private var emptyHint: some View {
         VStack(spacing: 8) {
-            Text("⚔️").font(.system(size: 40))
+            Image(systemName: "figure.soccer").font(.system(size: 36, weight: .semibold)).foregroundStyle(FC.brandSolid)
             Text("같이 하는 친구 이름을 넣어 봐요").fcFont(15, weight: .semibold).foregroundStyle(FC.ink)
             Text("결과는 스토리 카드로 바로 공유할 수 있어요.").fcFont(13).foregroundStyle(FC.muted)
         }
@@ -238,7 +238,7 @@ struct VersusView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                Text("폼 티어는 FC Scope 가 최근 경기(승률 50% · 득실 25% · 스코어 25%)로 계산한 등급이에요. 넥슨 공식 등급이 아니에요. 동점 항목은 어느 쪽 승리로도 세지 않아요.")
+                Text("폼 티어는 FC SCOPE 가 최근 경기(승률 50% · 득실 25% · 스코어 25%)로 계산한 등급이에요. 넥슨 공식 등급이 아니에요. 동점 항목은 어느 쪽 승리로도 세지 않아요.")
                     .fcText(.caption).foregroundStyle(FC.muted)
                 // 광고 — 비교 결과가 있을 때만, 맨 아래 캡션(탭 불가) 뒤(AD-PLACEMENT 1-8). 입력·빈 안내·로딩·오류에는 없다.
                 AdSlot(placement: "vs", format: .inline(maxHeight: 250)).padding(.top, 8)
@@ -279,7 +279,7 @@ struct VersusCompareCard<Action: View>: View {
         .background {
             ZStack {
                 FC.surface
-                RadialGradient(colors: [FC.tint.opacity(0.2), .clear], center: .top, startRadius: 0, endRadius: 280)
+                PitchMarkings()
             }
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         }

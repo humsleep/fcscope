@@ -47,15 +47,17 @@ struct MatchReportView: View {
             MatchResultHero(m: m, onTapUser: { router.push(.user($0)) })
             let reasons = m.lossReasons
             if !reasons.isEmpty { lossPanel(reasons, advice: m.lossAdvice) }
+            else if !m.winReasons.isEmpty { winPanel(m.winReasons, risk: m.winRisk) }  // 이긴 경기에도 원인(UX 패널 R4)
             ShareCardButton(match: m, label: m.me.result == "승" ? "이 경기 스토리로 자랑" : "이 경기 스토리로 공유", style: .hero)
             if let p = m.potm {
                 Panel(padding: 12) {
                     HStack(spacing: 12) {
                         PlayerImage(spid: p.spId, size: 56, radius: 12)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text("POTM").fcScoreboard(12, weight: .semibold).foregroundStyle(FC.gold).lineLimit(1)
+                            // "POTM"만으론 뜻을 몰랐고, 상대 선수인데 내 선수처럼 보였다(UX 패널 2026-11 R1) — 풀어 쓰고 편을 밝힌다
+                            Text(p.side == m.me.nickname ? "경기 최우수 선수 · 우리 팀" : "경기 최우수 선수 · 상대 팀").fcFont(12, weight: .semibold).foregroundStyle(p.side == m.me.nickname ? FC.gold : FC.muted).lineLimit(1)
                             // 한 줄: 포지션 · 선수 — 구단주명 접두는 위 히어로에 이미 있어 뺐다(디자인 N7). 상대 선수면 그때만 밝힌다.
-                            (Text(p.side == m.me.nickname ? "" : "\(p.side) · ").foregroundStyle(FC.muted) + Text("\(p.positionLabel) · ").foregroundStyle(FC.muted) + Text(p.name).foregroundStyle(FC.ink).bold())
+                            (Text("\(p.positionLabel) · ").foregroundStyle(FC.muted) + Text(p.name).foregroundStyle(FC.ink).bold())
                                 .font(.fcFont(15, typeSize)).lineLimit(1).minimumScaleFactor(0.75)
                         }
                         Spacer()
@@ -72,11 +74,8 @@ struct MatchReportView: View {
                     if let o = m.opponent { shotLegend(o, tone: FC.muted) }
                 }
                 ShotMapView(mine: m.me.shots, theirs: m.opponent?.shots ?? [], myTone: FC.tint, theirTone: FC.muted)
-                Text("● 골 · ○ 노골 · 금색 골대 · 점을 누르면 시간·선수").fcFont(11).foregroundStyle(FC.muted)
+                Text("왼쪽 골대 = 내가 공격 · 채운 점 골 · 빈 점 노골 · 금색 테두리 골대 맞힘 · 유효슛 = 골문 안으로 간 슛 · 점을 누르면 시간·선수").fcFont(11).foregroundStyle(FC.muted)
             }
-            // 광고 — 슛맵 범례 캡션(탭 불가) 뒤 · 팀 스탯 앞(AD-PLACEMENT 1-3). 슛맵 점은 탭 가능하므로 +8pt.
-            // 읽는 화면이라 큰 소재(inline, 최대 250pt)가 들어올 수 있는 자리 — 깊은 자리라 받은 뒤 편다.
-            AdSlot(placement: "match", format: .inline(maxHeight: 250)).padding(.top, 8)
             if let o = m.opponent {
                 VStack(alignment: .leading, spacing: 8) {
                     SectionLabel("팀 스탯")
@@ -90,6 +89,7 @@ struct MatchReportView: View {
                                 Text(o.nickname).foregroundStyle(FC.muted).frame(width: 110, alignment: .trailing)
                             }
                             .fcFont(11, weight: .semibold).lineLimit(1)
+                            stat("넥슨 평점 (선수 평균)", m.me.rating > 0 ? String(format: "%.1f", m.me.rating) : "-", o.rating > 0 ? String(format: "%.1f", o.rating) : "-")
                             stat("슛 (유효)", "\(m.me.stats.shots) (\(m.me.stats.effectiveShots))", "\(o.stats.shots) (\(o.stats.effectiveShots))")
                             stat("패스 성공률", m.me.stats.passRate.map { "\($0)%" } ?? "-", o.stats.passRate.map { "\($0)%" } ?? "-")
                             stat("드리블", "\(m.me.stats.dribble)", "\(o.stats.dribble)")
@@ -101,10 +101,14 @@ struct MatchReportView: View {
                 }
             }
             VStack(alignment: .leading, spacing: 8) {
-                SectionLabel("선수 평점")
+                SectionLabel("선수별 넥슨 평점")
+                // 선수마다 붙은 시즌 배지가 뭔지 몰랐다(UX 패널 R4~R6 P2)
+                Text("이름 앞 배지는 선수 카드의 시즌이에요. 같은 선수도 시즌마다 능력치가 달라요.").fcFont(12).foregroundStyle(FC.muted)
                 ratings(m.me)
                 if let o = m.opponent { ratings(o) }
             }
+            // 광고 — 리포트를 다 읽은 뒤 맨 끝, 작은 배너. 슛맵과 팀 스탯 사이 300×250 이 흐름을 끊었다(UX 패널 2026-11 R2 P1).
+            AdSlot(placement: "match", format: .banner320x50).padding(.top, 8)
             HStack {
                 // 전적 → 경기 → "전적으로"가 같은 전적을 또 쌓아 뒤로가기를 두 번 눌러야 했다.
                 // 바로 앞 화면이 그 전적이면 뒤로 가고, 딥링크 등으로 들어왔을 때만 새로 연다.
@@ -115,6 +119,28 @@ struct MatchReportView: View {
     }
 
     /// 진 경기 "왜 졌을까" — 이 경기 기록에서 뽑은 1~2줄(`MatchDetailResponse.lossReasons`).
+    private func winPanel(_ reasons: [String], risk: String?) -> some View {
+        Panel(padding: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                SectionLabel("이렇게 이겼어요", color: FC.win)
+                ForEach(reasons, id: \.self) { r in
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text("▸").fcScoreboard(12).foregroundStyle(FC.win)
+                        Text(r).fcFont(14, weight: .semibold).foregroundStyle(FC.ink).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                if let risk {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text("▸").fcScoreboard(12).foregroundStyle(FC.lose)
+                        Text(risk).fcFont(14).foregroundStyle(FC.ink).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Text("이 경기 슛·유효슛·점유·최우수 선수로 본 진단이에요").fcText(.caption).foregroundStyle(FC.muted)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     private func lossPanel(_ reasons: [String], advice: String?) -> some View {
         Panel(padding: 12) {
             VStack(alignment: .leading, spacing: 6) {
@@ -159,9 +185,10 @@ struct MatchReportView: View {
                         HStack(spacing: 8) {
                             PlayerImage(spid: p.spId, size: 30, radius: 8)
                             Text(p.positionLabel).fcScoreboard(12, weight: .semibold).foregroundStyle(FC.muted).frame(width: 36, alignment: .leading)
-                            (Text(p.name) + Text(p.goals > 0 ? " ⚽\(p.goals)" : "").foregroundStyle(FC.ink) + Text(p.assists > 0 ? " A\(p.assists)" : "").foregroundStyle(FC.muted)).font(.fcFont(13, typeSize)).foregroundStyle(FC.ink).lineLimit(1)
+                            SeasonBadge(spid: p.spId, season: "", height: 13)
+                            (Text(p.name) + Text(p.goals > 0 ? " \(p.goals)골" : "").foregroundStyle(FC.ink) + Text(p.assists > 0 ? " \(p.assists)도움" : "").foregroundStyle(FC.muted)).font(.fcFont(13, typeSize)).foregroundStyle(FC.ink).lineLimit(1)
                             Spacer()
-                            Text(String(format: "%.1f", p.rating)).fcScoreboard(13).foregroundStyle(p.rating >= 7.5 ? FC.gold : p.rating < 6 ? FC.lose : FC.ink)
+                            Text(String(format: "%.1f", p.rating)).fcScoreboard(13).foregroundStyle(p.rating >= 7.5 ? FC.win : p.rating < 6 ? FC.lose : FC.ink)  // 좋음 = 초록 하나(금색은 최우수 선수 전용, R3)
                         }
                     }.buttonStyle(.plain)
                 }
@@ -200,7 +227,7 @@ struct ShotMapView: View {
         VStack(spacing: 6) {
             GeometryReader { g in
                 ZStack {
-                    Canvas { ctx, size in Self.drawPitch(ctx, size, ground: FC.surface2, line: FC.line) }
+                    Canvas { ctx, size in Self.drawPitch(ctx, size, ground: FC.turf, line: .white, lineWidth: 1.5, stripe: FC.turfStripe) }
                         .accessibilityHidden(true)
                     // 내 슛 — 왼쪽 골대를 공격(히어로의 "나 왼쪽"과 같은 쪽)
                     ForEach(mine) { s in
@@ -248,7 +275,6 @@ struct ShotMapView: View {
             .strokeBorder(s.hitPost ? FC.gold : tone, lineWidth: 2)
             .background(Circle().fill(s.isGoal ? (s.hitPost ? FC.gold : tone) : Color.clear))
             .frame(width: s.isGoal ? 14 : 11, height: s.isGoal ? 14 : 11)
-            .shadow(color: s.isGoal ? tone.opacity(0.7) : .clear, radius: 5)
             // 11~14pt 점만 탭 영역이면 거의 안 눌린다 — 보이는 점은 그대로, 히트 영역만 28pt 원으로(.position 은 중심 기준).
             .frame(width: 28, height: 28)
             .contentShape(Circle())
@@ -269,9 +295,16 @@ struct ShotMapView: View {
     }
 
     /// 가로로 긴 전체 운동장 — 양쪽 골대·페널티 박스, 가운데 하프라인과 센터서클.
-    static func drawPitch(_ ctx: GraphicsContext, _ size: CGSize, ground: Color, line: Color, lineWidth: CGFloat = 1) {
+    static func drawPitch(_ ctx: GraphicsContext, _ size: CGSize, ground: Color, line: Color, lineWidth: CGFloat = 1, stripe: Color? = nil) {
         var field = Path(); field.addRect(CGRect(origin: .zero, size: size))
         ctx.fill(field, with: .color(ground))
+        if let stripe {
+            // 잔디 깎은 줄무늬 — 세로 띠 10개 중 홀수 번째
+            var bands = Path()
+            let bw = size.width / 10
+            for i in stride(from: 1, to: 10, by: 2) { bands.addRect(CGRect(x: CGFloat(i) * bw, y: 0, width: bw, height: size.height)) }
+            ctx.fill(bands, with: .color(stripe))
+        }
 
         let w = size.width, h = size.height
         var lines = Path()
@@ -305,7 +338,7 @@ struct MiniShotMap: View {
     var body: some View {
         let sx = ShotMapView.scale(mine + theirs, \.x), sy = ShotMapView.scale(mine + theirs, \.y)
         Canvas { ctx, size in
-            ShotMapView.drawPitch(ctx, size, ground: FC.surface2, line: FC.line)
+            ShotMapView.drawPitch(ctx, size, ground: FC.turf, line: .white, lineWidth: 1.5, stripe: FC.turfStripe)
             for (shots, isMine, tone) in [(theirs, false, FC.muted), (mine, true, FC.tint)] {
                 for s in shots {
                     let pt = ShotMapView.point(s, sx: sx, sy: sy, mine: isMine, in: size)

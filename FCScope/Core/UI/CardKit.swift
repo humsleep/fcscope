@@ -89,10 +89,8 @@ struct CardCanvas<Content: View>: View {
                     Rectangle().fill(Color.white.opacity(i.isMultiple(of: 2) ? 0.018 : 0)).frame(width: 120)
                 }
             }
-            EllipticalGradient(colors: [CardPalette.brandEnd.opacity(0.18), .clear],
-                               center: .init(x: 0.5, y: 0), startRadiusFraction: 0, endRadiusFraction: 0.55)
-            EllipticalGradient(colors: [CardPalette.gold.opacity(0.07), .clear],
-                               center: .init(x: 1, y: 1), startRadiusFraction: 0, endRadiusFraction: 0.45)
+            // 야간 경기장 분필선(예전 마젠타·금색 빛 번짐 자리)
+            PitchMarkings(color: Color.white.opacity(0.06))
             // 인스타 답장창에 가려지는 영역 — 워터마크만. 홍보 문구가 하단 CTA·설치 안내와 세 줄로 겹쳐
             // "광고 올린 사람"처럼 보였다(USER-PANEL-GENZ) — 안내는 하단 한 줄로 합쳤다.
             VStack(spacing: 18) {
@@ -255,7 +253,7 @@ struct CardFooter: View {
                     Text(cta).font(.pretendard(30, .semibold)).foregroundStyle(CardPalette.ink.opacity(0.9)).lineLimit(1).minimumScaleFactor(0.8)
                     HStack(spacing: 10) {
                         Image(systemName: "apple.logo").font(.system(size: 24, weight: .semibold)).foregroundStyle(CardPalette.muted)
-                        Text("App Store에서 FC Scope").font(.pretendard(26, .medium)).foregroundStyle(CardPalette.muted).lineLimit(1)
+                        Text("App Store에서 FC SCOPE").font(.pretendard(26, .medium)).foregroundStyle(CardPalette.muted).lineLimit(1)
                     }
                 }
                 Spacer(minLength: 0)
@@ -281,7 +279,7 @@ struct AppStoreQRTile: View {
             }
         }
         .frame(width: side, height: side)
-        .accessibilityLabel("App Store FC Scope 설치 QR 코드")
+        .accessibilityLabel("App Store FC SCOPE 설치 QR 코드")
     }
 }
 
@@ -458,7 +456,7 @@ struct HalfShotMap: View {
         ZStack(alignment: .bottomLeading) {
             Canvas { ctx, s in
                 let w = s.width, h = s.height
-                ctx.fill(Path(CGRect(origin: .zero, size: s)), with: .color(CardPalette.surface))
+                ctx.fill(Path(CGRect(origin: .zero, size: s)), with: .color(CardPalette.turf))
                 var l = Path()
                 l.addRect(CGRect(x: 1, y: 1, width: w - 2, height: h - 2))
                 let bw = w * 0.59, bd = h * 0.31
@@ -467,7 +465,7 @@ struct HalfShotMap: View {
                 l.addRect(CGRect(x: (w - aw) / 2, y: 0, width: aw, height: ad))
                 let r = w * 0.135
                 l.addArc(center: CGPoint(x: w / 2, y: h), radius: r, startAngle: .degrees(180), endAngle: .degrees(360), clockwise: false)
-                ctx.stroke(l, with: .color(CardPalette.line), lineWidth: 2)
+                ctx.stroke(l, with: .color(CardPalette.chalk), lineWidth: 2)
                 let gw = w * 0.11
                 ctx.fill(Path(CGRect(x: (w - gw) / 2, y: 0, width: gw, height: 4)), with: .color(CardPalette.ink.opacity(0.6)))
                 // 비골 → 골대 → 골 순서로 그려 골이 위에 오게 한다

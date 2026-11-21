@@ -97,6 +97,8 @@ final class AdsManager {
     private func start() async {
         guard !ready else { return }
         starting = true
+        // 10대 사용자가 있다 — 노출 소재를 PG(보호자 지도) 이하로 제한(UX 패널 R5: 몸매 강조 의류·선정적 그림 소재)
+        MobileAds.shared.requestConfiguration.maxAdContentRating = .parentalGuidance
         await MobileAds.shared.start()
         ready = true
         // 메인 탭 첫 슬롯을 미리 요청 — 응답이 오기 전에 사용자가 그 자리에 닿으면 빈 예약 카드만 보였다(QA 5R P1-3)
@@ -389,7 +391,9 @@ final class BannerStore {
     func preloadFirstScreens() {
         let w = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.bounds.width ?? 390
         let card = w - 52   // 화면 여백 16×2 + 카드 안쪽 10×2
-        for p in ["home", "record_matches", "meta_1", "squad_builder"] { _ = entry(key: p, placement: p, format: .anchored, width: card) }
+        // 홈·전적은 320×50(UX 패널 R5: 미리 받은 큰 소재가 남았다). 선수 탭은 기존 크기 유지. 스쿼드 빌더 슬롯은 없앴다.
+        for p in ["home", "record_matches"] { _ = entry(key: p, placement: p, format: .banner320x50, width: 320) }
+        _ = entry(key: "meta_1", placement: "meta_1", format: .anchored, width: card)
         _ = entry(key: "community_list", placement: "community_list", format: .banner320x50, width: 320)
     }
 }
@@ -485,7 +489,7 @@ struct AdSlot: View {
             let collapse = failed && !(useReserve && (model.visible || model.passed))
             if !collapse {
                 let shown = loaded || useReserve
-                VStack(alignment: .leading, spacing: shown ? 6 : 0) {
+                VStack(alignment: .leading, spacing: shown ? 4 : 0) {
                     if shown { Text("AD · 광고").fcText(.caption, weight: .semibold).foregroundStyle(FC.muted) }
                     GeometryReader { geo in
                         // 배너 최소 폭(280pt) 이상일 때만 요청한다 — 전환 중 좁은 폭으로 만들면 영구 실패했다
@@ -506,7 +510,7 @@ struct AdSlot: View {
                     }
                     .frame(height: loaded ? (filledSize?.height ?? 0) : (useReserve ? reservedHeight : 0))
                 }
-                .padding(.horizontal, 10).padding(.vertical, shown ? 10 : 0)
+                .padding(.horizontal, 10).padding(.vertical, shown ? 6 : 0)  // 50pt 배너에 컨테이너 약 100pt는 과했다(UX 패널 R6) — 약 82pt
                 .background(shown ? FC.surface2 : Color.clear, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .opacity(shown ? 1 : 0)
                 .animation(useReserve ? nil : .easeOut(duration: 0.25), value: loaded)

@@ -3,7 +3,8 @@ import UserNotifications
 import UIKit
 import BackgroundTasks
 
-/// APNs 토큰 등록 → 서버(/api/v1/devices). 주간 리캡·메타 요약·내 글 댓글 푸시는 서버 크론이 보낸다.
+/// APNs 토큰 등록 → 서버(/api/v1/devices). 주간 리캡·메타 요약·새 클래스·즐겨찾기 하이라이트는 서버 크론이,
+/// 내 글·내 댓글의 새 댓글 푸시는 댓글 등록 API 가 보낸다(로그인한 기기만 — user_id 연결).
 @MainActor
 final class PushManager {
     static let shared = PushManager()

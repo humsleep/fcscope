@@ -174,7 +174,7 @@ struct AttachPickerSheet: View {
                 Section {
                     Picker("종류", selection: $kind) {
                         Text("내 전적 카드").tag(PostAttach.Kind.record)
-                        Text("VS 카드").tag(PostAttach.Kind.versus)
+                        Text("비교 카드").tag(PostAttach.Kind.versus)
                     }
                     .pickerStyle(.segmented)
                     .listRowBackground(Color.clear)
@@ -200,7 +200,7 @@ struct AttachPickerSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(FC.bg.ignoresSafeArea())
-            .navigationTitle("전적 · VS 첨부").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("전적 · 비교 첨부").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {

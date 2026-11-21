@@ -53,7 +53,7 @@ struct ReportSection: View {
                                 let g = goals(r.report)
                                 VStack(alignment: .leading) { Text(g.excl ? "\(g.games)경기 득실 · 몰수 제외" : "최근 \(g.games)경기 득실").fcText(.meta).foregroundStyle(FC.muted)
                                     (Text("\(g.gf)").foregroundStyle(FC.ink) + Text(" : ").foregroundStyle(FC.muted) + Text("\(g.ga)").foregroundStyle(FC.ink)).font(.fcScoreboard(24, typeSize)) }
-                                VStack(alignment: .leading) { Text("평균 경기 평점").fcFont(12).foregroundStyle(FC.muted); Text(String(format: "%.2f", r.report.avgRating)).fcScoreboard(24).foregroundStyle(FC.ink) }
+                                VStack(alignment: .leading) { Text("평균 넥슨 평점").fcFont(12).foregroundStyle(FC.muted); Text(String(format: "%.2f", r.report.avgRating)).fcScoreboard(24).foregroundStyle(FC.ink) }
                                 if let w = r.report.weekly, w.recentGames > 0 {
                                     // 증감은 두 기간 모두 표본이 있을 때만 — 지난 기간 4경기·0%면 "46% ▲46"처럼 값과 증감이 같아졌다(QA 2R P2-5)
                                     let d = Self.weeklyDelta(w)
@@ -166,7 +166,7 @@ struct PlayersSection: View {
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     Button { router.pendingSquadImport = .owner(p.builderOwner); router.tab = .squad } label: {
-                        Panel(padding: 12) { HStack { Text("🛡️ 이 스쿼드 그대로 빌더로 열기").fcFont(14, weight: .semibold).foregroundStyle(FC.ink); Spacer(); Text("열기 →").fcScoreboard(13).foregroundStyle(FC.tint) } }
+                        Panel(padding: 12) { HStack { Text("이 스쿼드 그대로 빌더로 열기").fcFont(14, weight: .semibold).foregroundStyle(FC.ink); Spacer(); Text("열기 →").fcScoreboard(13).foregroundStyle(FC.tint) } }
                     }.buttonStyle(.plain)
                     // "스쿼드 실전 가치" 판정 패널은 뺐다 — 클리닉 점수와 같은 재료(선수 평점)를 밈 등급으로 한 번 더 보여 줘
                     // 숫자만 늘었다. 응답 필드(squadVerdict·squadRating)는 계약상 그대로 받는다.
@@ -180,8 +180,8 @@ struct PlayersSection: View {
                                     VStack(alignment: .leading) { (Text("\(picks.total - picks.topPickCount)") + Text("명").font(.fcScoreboard(14, typeSize)).foregroundStyle(FC.muted)).font(.fcScoreboard(28, typeSize)).foregroundStyle(FC.ink); Text("TOP10 외").font(.fcFont(12, typeSize)).foregroundStyle(FC.muted) }
                                 }
                                 Text("내가 쓴 \(picks.total)명 중 포지션별 인기 TOP10과 겹치는 카드\(picks.date.map { " · \($0) 스냅샷" } ?? "") · 매일 갱신").fcFont(11).foregroundStyle(FC.muted)
-                                if let overview { ShareCardButton(story: .pickMatch(overview, picks), label: "🔥 대세픽 카드", compact: true) }
-                                else { ShareCardButton(spec: .pickMatch(nickname: nickname, picks: picks), label: "🔥 대세픽 카드", compact: true) }
+                                if let overview { ShareCardButton(story: .pickMatch(overview, picks), label: "대세픽 카드", compact: true) }
+                                else { ShareCardButton(spec: .pickMatch(nickname: nickname, picks: picks), label: "대세픽 카드", compact: true) }
                             }
                         }
                     }
@@ -260,14 +260,14 @@ struct PlayersSection: View {
                             if !p.season.isEmpty { SeasonBadge(spid: p.spId, season: p.season) }
                             if p.topPick { Chip(text: "대세픽", color: FC.win, bg: FC.win.opacity(0.15)) }
                         }
-                        Text("\(p.positionLabel) · \(p.games)경기 · ⚽\(p.goals) 🅰\(p.assists) · 패스 \(Int(p.passRate))%").fcFont(12).foregroundStyle(FC.muted)
+                        Text("\(p.positionLabel) · \(p.games)경기 · \(p.goals)골 \(p.assists)도움 · 패스 \(Int(p.passRate))%").fcFont(12).foregroundStyle(FC.muted)
                         if let r = p.ranker, let line = Self.rankerLine(p, r) {
                             Text(line).fcFont(11).foregroundStyle(FC.muted)
                         }
                         // 30경기 평균에 "오늘은 좀 아쉬웠다" 같은 한 경기용 밈 등급을 찍으면 뜻이 어긋난다 — 숫자(선수 평점)만 남긴다.
                     }
                     Spacer()
-                    VStack(alignment: .trailing) { Text(String(format: "%.2f", p.avgRating)).fcScoreboard(20).foregroundStyle(p.avgRating >= 7.5 ? FC.gold : p.avgRating < 6 ? FC.lose : FC.ink); Text("선수 평점").fcFont(11).foregroundStyle(FC.muted) }
+                    VStack(alignment: .trailing) { Text(String(format: "%.2f", p.avgRating)).fcScoreboard(20).foregroundStyle(p.avgRating >= 7.5 ? FC.gold : p.avgRating < 6 ? FC.lose : FC.ink); Text("넥슨 평점").fcFont(11).foregroundStyle(FC.muted) }
                 }
             }
         }.buttonStyle(.plain)

@@ -442,7 +442,7 @@ struct RankCardView: View {
         // 카드의 주인공이라 "옛날 등급 자랑"으로 읽혔다(유저 패널 2R §0-6). 배치 중(10경기 미만)이면 예전처럼 등급이 주인공.
         let tier = o.summary.played > 0 ? o.formTier : nil
         let level = tier?.level
-        TemplateCard(chip: "계급 인증", o: o, images: images,
+        TemplateCard(chip: "등급 인증", o: o, images: images,
                      kicker: level != nil ? "지금 내 폼 · 최근 \(tier?.games ?? 0)경기" : "커리어 하이 · \(d?.matchTypeName ?? "공식경기") 역대 최고") {
             if let l = level, let t = tier {
                 HStack(spacing: 36) {
@@ -580,7 +580,7 @@ struct WeeklyCardView: View {
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 4) {
-                            Text("경기 스코어").font(.pretendard(22)).foregroundStyle(CardPalette.muted)
+                            Text("경기력").font(.pretendard(22)).foregroundStyle(CardPalette.muted)
                             Text(String(format: "%.1f", best.score)).font(.scoreboard(96)).foregroundStyle(CardPalette.gold)
                         }
                     }

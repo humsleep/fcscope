@@ -3,26 +3,26 @@ import UIKit
 
 /// 커뮤니티 v2 전용 색 토큰(docs/community-v2/SPEC.md 3-1).
 ///
-/// `FC`(Theme.swift)의 S-spot 팔레트를 그대로 쓰고, 커뮤니티에서만 필요한 다섯 개를 여기에 더한다.
+/// `FC`(Theme.swift)의 매치데이 팔레트를 그대로 쓰고, 커뮤니티에서만 필요한 다섯 개를 여기에 더한다.
 /// Theme.swift 를 다른 작업이 함께 고치고 있어 이름 충돌을 피하려고 별도 네임스페이스(`CM`)로 둔다.
 /// `win`/`lose` 는 커뮤니티에서 쓰지 않는다 — 데이터 의미 전용(배틀 B팀이 "진 쪽"으로 읽히던 문제).
 enum CM {
     /// 목록 행 구분선 — ink 14%(다크) / 9%(라이트)
     static let hair = Color(UIColor { t in
-        t.userInterfaceStyle == .light ? UIColor(hex: 0x15132b).withAlphaComponent(0.09) : UIColor(hex: 0xeeedf8).withAlphaComponent(0.14)
+        t.userInterfaceStyle == .light ? UIColor(hex: 0x111a14).withAlphaComponent(0.09) : UIColor(hex: 0xecf2ee).withAlphaComponent(0.14)
     })
-    /// 메타 줄·시간·답글 달기 (다크 5.3:1 · 라이트 4.7:1)
-    static let faint = dyn(0x8580b3, 0x6e6994)
+    /// 메타 줄·시간·답글 달기 (흰 배경 5.0:1)
+    static let faint = dyn(0x8a9c90, 0x637068)
     /// 본문·댓글 본문 — 제목(ink)보다 한 단계 낮춘 위계
-    static let ink2 = dyn(0xd9d5f2, 0x2a2550)
+    static let ink2 = dyn(0xd2ddd5, 0x2a352e)
     /// 배틀 B팀 · HOT · 추천 50↑ · 내가 누른 추천
     static let coral = dyn(0xff7a45, 0xb4400f)
     /// 클럽·대회 계열 말머리
     static let teal = dyn(0x3fd0c2, 0x0a7366)
-    /// 투표 버튼 글자 — 다크/라이트 모두 남흑(tint·coral 채움 위 6.2:1 · 7.5:1)
-    static let voteInk = Color(UIColor(hex: 0x0b0a1f))
+    /// 투표 버튼 글자 — 라이트는 남색·코랄 채움 위 흰색, 다크는 밝은 채움 위 잉크색
+    static let voteInk = dyn(0x0b130f, 0xffffff)
     /// 골드 채움(BEST 배지) 위 글자 — 다크 #F7C948 위 남흑 / 라이트 #A66A00 위 흰색
-    static let onGold = dyn(0x0b0a1f, 0xffffff)
+    static let onGold = dyn(0x0b130f, 0xffffff)
 
     private static func dyn(_ dark: UInt32, _ light: UInt32) -> Color {
         Color(UIColor { $0.userInterfaceStyle == .light ? UIColor(hex: light) : UIColor(hex: dark) })

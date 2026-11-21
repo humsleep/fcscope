@@ -50,7 +50,7 @@ struct RootView: View {
                     .transition(.identity)
             }
         }
-        .preferredColorScheme(nil)
+        .preferredColorScheme(.light) // 매치데이 테마는 라이트 고정(어둡다는 피드백, 2026-11)
         .onAppear { prefs.recordVisit() }
         .task {
             // 번들 선수 인덱스 로드(검색 서버 왕복 0) + 주 1회 신규 시즌 갱신

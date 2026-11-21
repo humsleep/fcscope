@@ -74,7 +74,7 @@ private struct SquadAnalysisPanel: View {
     var body: some View {
         Panel(padding: 12) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("🛡️ 스쿼드 분석 · 시즌 팀컬러 · 강화 단계").fcFont(15, weight: .bold).foregroundStyle(FC.ink)
+                Text("스쿼드 분석 · 시즌 팀컬러 · 강화 단계").fcFont(15, weight: .bold).foregroundStyle(FC.ink)
                 Text("최근 공식경기 선발 11명으로 계산해요.").fcFont(12).foregroundStyle(FC.muted)
                 HStack(spacing: 8) {
                     TextField("구단주명", text: $nick)

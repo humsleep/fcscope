@@ -28,7 +28,7 @@ struct MyPageView: View {
                 myClubCard
                 // 실험(2026-11): 애드몹 대신 쿠팡 파트너스 — 노출당 수익 비교 후 이긴 쪽을 남긴다.
                 // 맨 끝(설정 아래)에선 거의 노출되지 않아 내 구단 카드 바로 아래로 올렸다. 본문 카드가 하나 이상일 때만.
-                if hasContent, AdsManager.shared.canShowPartnerBanner { CoupangBanner(placement: "me") }
+                // 내 정보 쿠팡 배너는 뺐다 — 설정 화면의 상품 광고가 신뢰를 깎았다(UX 패널 2026-11 R1·R3)
                 if !prefs.favorites.isEmpty { favoritesCard }
                 if let sq = profile?.squads, !sq.isEmpty {
                     Panel(padding: 12) { VStack(alignment: .leading, spacing: 6) { SectionLabel("내 스쿼드"); ForEach(sq) { s in Button { router.push(.squad(s.id)) } label: { HStack { Text(s.name).fcFont(14, weight: .semibold).foregroundStyle(FC.ink); Spacer(); Text(s.formation).fcScoreboard(12).foregroundStyle(FC.muted) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.chip)) }.buttonStyle(.plain) } } }
@@ -36,7 +36,7 @@ struct MyPageView: View {
                 if let posts = profile?.posts, !posts.isEmpty {
                     Panel(padding: 12) { VStack(alignment: .leading, spacing: 6) { SectionLabel("내가 쓴 글"); ForEach(posts) { p in Button { router.push(.post(p.id)) } label: { HStack { Text(p.title).fcFont(14, weight: .semibold).foregroundStyle(FC.ink).lineLimit(1); Spacer(); Image(systemName: "chevron.right").foregroundStyle(FC.muted) }.padding(8).background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.chip)) }.buttonStyle(.plain) } } }
                 }
-                if prefs.streak.current >= 2 { Text("🔥 \(prefs.streak.current)일 연속 방문 (최고 \(prefs.streak.best)일)").fcFont(13, weight: .semibold).foregroundStyle(FC.gold) }
+                if prefs.streak.current >= 2 { Label("\(prefs.streak.current)일 연속 방문 (최고 \(prefs.streak.best)일)", systemImage: "flame.fill").fcFont(13, weight: .semibold).foregroundStyle(FC.gold) }
                 // 시스템 기본 폰트는 AX5 까지 3배로 커져 이 한 줄이 화면 절반을 차지했다 — 앱 공통 배율(1.6배 상한)을 쓴다.
                 NavigationLink { SettingsView() } label: { Panel(padding: 12) { HStack { Label("설정 · 약관 · 계정", systemImage: "gearshape").fcFont(15).lineLimit(1).minimumScaleFactor(0.8).foregroundStyle(FC.ink); Spacer(); Image(systemName: "chevron.right").font(.system(size: 13 * TypeScale.factor(typeSize), weight: .semibold)).foregroundStyle(FC.muted) } } }.buttonStyle(.plain)
             }.padding(16)
@@ -71,16 +71,16 @@ struct MyPageView: View {
                         SpotGlyph(height: 30)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("로그인하고 내 구단을 이어 봐요").fcFont(17, weight: .bold).foregroundStyle(FC.ink)
-                            Text("전적·VS·스쿼드는 로그인 없이도 다 돼요").fcFont(12.5).foregroundStyle(FC.muted)
+                            Text("전적 조회 · 친구 비교 · 스쿼드는 로그인 없이도 다 돼요").fcFont(12.5).foregroundStyle(FC.muted)
                         }
                     }
                     VStack(alignment: .leading, spacing: 10) {
-                        perk("checkmark.seal.fill", "구단주 인증", "닉네임 옆 ✓ — 커뮤니티에서 내 구단주명을 증명해요")
+                        perk("checkmark.seal.fill", "구단주 인증", "닉네임 옆 ✓ 표시로 커뮤니티에서 내 구단주명을 증명해요")
                         perk("bell.badge.fill", "댓글 알림", "내 글에 달린 새 댓글을 여기서 모아 봐요")
-                        perk("square.and.pencil", "글쓰기 · 추천 · 답글", "스쿼드 평가 받고, 전적·VS 카드도 첨부해요")
+                        perk("square.and.pencil", "글쓰기 · 추천 · 답글", "스쿼드 평가 받고, 전적·비교 카드도 첨부해요")
                         perk("shield.fill", "내 스쿼드 보관", "빌더에서 만든 스쿼드를 저장하고 공유코드로 꺼내 써요")
                     }
-                    Button { showLogin = true } label: { Text("Apple · Google로 로그인").lineLimit(1).minimumScaleFactor(0.8) }
+                    Button { showLogin = true } label: { Text("로그인").lineLimit(1).minimumScaleFactor(0.8) }
                         .buttonStyle(BrandButtonStyle(fullWidth: true))
                     Text("구단주명·전적은 넥슨 공개 데이터예요. 로그인은 커뮤니티 활동에만 써요.").fcFont(11.5).foregroundStyle(CM.faint)
                         .fixedSize(horizontal: false, vertical: true)
@@ -104,7 +104,7 @@ struct MyPageView: View {
                 SectionLabel("지난 방문 대비")
                 HStack(spacing: 20) {
                     VStack(alignment: .leading) { Text("최근 \(s.played)경기 승률").font(.fcFont(12, typeSize)).foregroundStyle(FC.muted); (Text("\(s.winRate)%").foregroundStyle(FC.ink) + Text(s.deltaWinRate.map { $0 > 0 ? " ▲\($0)%p" : $0 < 0 ? " ▼\(-$0)%p" : " ±0" } ?? "").font(.fcScoreboard(13, typeSize)).foregroundStyle((s.deltaWinRate ?? 0) >= 0 ? FC.win : FC.lose)).font(.fcScoreboard(24, typeSize)) }
-                    VStack(alignment: .leading) { Text("평균 경기 평점").fcFont(12).foregroundStyle(FC.muted); Text(String(format: "%.2f", s.avgRating)).fcScoreboard(24).foregroundStyle(FC.ink) }
+                    VStack(alignment: .leading) { Text("평균 넥슨 평점").fcFont(12).foregroundStyle(FC.muted); Text(String(format: "%.2f", s.avgRating)).fcScoreboard(24).foregroundStyle(FC.ink) }
                 }
                 Text(s.prevDate.map { "\($0) 방문 대비" } ?? "내일 다시 방문하면 변화를 보여드려요.").fcFont(11).foregroundStyle(FC.muted)
             }
@@ -324,7 +324,7 @@ struct SettingsView: View {
                     subtitle: "샘플구단주 · Lv.120 · 챔피언스",
                     stamp: CardStamp(text: "18승 4무 8패", color: CardPalette.ink),
                     badges: [
-                        CardBadge(label: "FC 스코어", value: "6.8", color: CardPalette.gold),
+                        CardBadge(label: "경기력", value: "6.8", color: CardPalette.gold),
                         CardBadge(label: "최근 경기", value: "30"),
                         CardBadge(label: "득실", value: "54:41"),
                     ],
@@ -346,7 +346,7 @@ struct SettingsView: View {
                 Button("온보딩 다시 보기") { prefs.onboardingDone = false }
             }
             #endif
-            Section { Text("FC Scope iOS v\(AppConfig.appVersion)\nFC Scope은 비공식 팬 서비스입니다. Data based on NEXON Open API. 게임 데이터의 저작권은 NEXON·EA에 있습니다.").fcFont(12).foregroundStyle(FC.muted) }
+            Section { Text("FC SCOPE iOS v\(AppConfig.appVersion)\nFC SCOPE는 비공식 팬 서비스입니다. Data based on NEXON Open API. 게임 데이터의 저작권은 NEXON·EA에 있습니다.").fcFont(12).foregroundStyle(FC.muted) }
         }
         .navigationTitle("설정")
         .task { await refreshCacheSize(); await refreshNotifStatus() }

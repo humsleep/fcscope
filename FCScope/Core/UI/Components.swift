@@ -125,6 +125,9 @@ struct SeasonBadge: View {
                 Image(uiImage: image).resizable().scaledToFit().frame(height: height).fixedSize()
             } else if !season.isEmpty {
                 Chip(text: season, color: FC.gold, bg: FC.gold.opacity(0.15))
+            } else {
+                // 시즌 이름 없이 부르면 빈 Group 이라 .task 가 돌지 않았다(아이콘이 영영 안 뜸) — 자리만 잡는다
+                Color.clear.frame(width: 1, height: height)
             }
         }
         .accessibilityLabel(season.isEmpty ? "시즌" : "\(season) 시즌")
@@ -300,7 +303,7 @@ struct ShareCardButton: View {
         .background {
             if hero {
                 // 큰 컬러 글로우는 "AI 랜딩" 느낌이었다 — 반경·불투명도를 줄였다(디자인 N2)
-                Capsule().fill(FC.brand).shadow(color: FC.brandEnd.opacity(0.18), radius: 6, y: 3)
+                Capsule().fill(FC.brand)
             } else {
                 Capsule().fill(FC.surface2).overlay(Capsule().strokeBorder(FC.line, lineWidth: 1))
             }
@@ -398,11 +401,14 @@ struct ShareCardSheet: View {
             Button {
                 Analytics.shared.track(.cardShare, ["type": Analytics.cardType(filename), "channel": "kakao"])
                 ReviewPrompt.askOnReturn(.share)
-                KakaoShare.shareImage(image, title: "FC Scope · 피온 전적 분석")
+                KakaoShare.shareImage(image, title: "FC SCOPE · 피온 전적 분석")
             } label: {
+                // 카카오 노란색 — 사용자가 한눈에 알아보는 색(카카오 공유 버튼 가이드: #FEE500 + 검정 글자)
                 Label("카카오톡으로 보내기", systemImage: "message.fill").frame(maxWidth: .infinity)
+                    .foregroundStyle(Color.black.opacity(0.85))
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.borderedProminent)
+            .tint(Color(hex: 0xFEE500))
             // 시트를 연 시점을 공유 의사로 센다(card_share). 리뷰는 공유·저장을 실제로 마쳤을 때만 묻는다.
             Button {
                 Analytics.shared.track(.cardShare, ["type": Analytics.cardType(filename), "channel": "system"])
@@ -463,17 +469,18 @@ struct MoverCard: View {
 
     var body: some View {
         Button { router.push(.player(m.spId)) } label: {
-            Panel(padding: 12, highlight: FC.win.opacity(0.4)) {
+            Panel(padding: 12) {
                 HStack(spacing: 10) {
                     PlayerImage(spid: m.spId, size: 44)
                     VStack(alignment: .leading, spacing: 2) {
-                        SectionLabel("⚡ 오늘의 급상승", color: FC.win)
+                        SectionLabel("오늘의 급상승", color: FC.win)
                         Text(m.name).fcFont(15, weight: .bold).foregroundStyle(FC.ink)
                         Text("\(m.positionLabel) · \(m.lineTitle ?? m.line)\(showUsage ? (m.usage.map { " · 선발 \($0)회" } ?? "") : "")")
                             .fcFont(12).foregroundStyle(FC.muted)
                     }
                     Spacer()
-                    Text(m.isNew ? "NEW 진입" : "▲\(m.deltaValue ?? 0)").fcScoreboard(14).foregroundStyle(m.isNew ? FC.gold : FC.win)
+                    // "▲8"만으론 단위를 몰랐다(UX 패널 2026-11 R1) — 어제 대비 선발 횟수 증가임을 밝힌다
+                    Text(m.isNew ? "새로 진입" : "선발 +\(m.deltaValue ?? 0)").fcScoreboard(14).foregroundStyle(m.isNew ? FC.gold : FC.win)
                         .padding(.horizontal, 8).padding(.vertical, 5)
                         .background((m.isNew ? FC.gold : FC.win).opacity(0.15), in: RoundedRectangle(cornerRadius: Radius.chip))
                 }
@@ -497,18 +504,19 @@ struct MatchRow: View {
                 }
                 HStack(spacing: 6) {
                     Text(DateFmt.short(m.matchDate)).fcFont(12).foregroundStyle(FC.muted)
-                    if m.forfeit { Chip(text: "몰수", color: FC.lose, bg: FC.lose.opacity(0.15)) }
-                    Text("점유 \(m.me.possession)%").fcFont(12).foregroundStyle(FC.muted)
+                    // 몰수(상대 이탈·연결 끊김) — 실제로 뛰지 않은 경기라 점유율을 싣지 않는다(UX 패널 2026-11 R2)
+                    if m.forfeit { Text("몰수 · 한쪽 이탈·끊김").fcFont(12).foregroundStyle(FC.muted) }
+                    else { Text("점유 \(m.me.possession)%").fcFont(12).foregroundStyle(FC.muted) }
                 }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                // 큰 숫자에 이름이 없어 바로 아래 "평점"과 같은 값으로 오해했다 — FC Scope 스코어임을 밝힌다.
-                HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Text("스코어").fcFont(10).foregroundStyle(FC.muted)
-                    Text(String(format: "%.1f", m.score)).fcScoreboard(16).foregroundStyle(m.score >= 6.5 ? FC.win : m.score < 5 ? FC.lose : FC.ink)
-                }
-                Text("경기 평점 \(String(format: "%.1f", m.me.rating))").fcFont(11).foregroundStyle(FC.muted)
+                // 숫자는 하나만 — "스코어"와 "경기 평점"이 나란히 있어 뜻을 몰랐다(UX 패널 2026-11 R1 P0).
+                // 넥슨 평점은 매치 리포트에서 따로 "넥슨 평점"으로 보여 준다.
+                // 몰수는 서버가 고정값(3·6)을 준다 — 실력 점수처럼 보이지 않게 "—"
+                // 몰수는 평균에 넣는 고정값(6·3)을 회색으로 보여 준다 — "—"인데 평균엔 들어가 설명과 어긋났다(UX 패널 R4)
+                Text(String(format: "%.1f", m.score)).fcScoreboard(17).foregroundStyle(m.forfeit ? FC.muted : m.score >= 6.5 ? FC.win : m.score < 5 ? FC.lose : FC.ink)
+                Text(m.forfeit ? "몰수 고정값" : "경기력").fcFont(11).foregroundStyle(FC.muted)
             }
             Image(systemName: "chevron.right").fcFont(12).foregroundStyle(FC.muted)
         }
@@ -555,10 +563,12 @@ struct RuleBadge: View {
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
             : AnyLayout(HStackLayout(alignment: .top, spacing: 8))
         layout {
-            Text("\(prefix)\(rule.title)").fcScoreboard(12, weight: .semibold).foregroundStyle(FC.tone(rule.tone))
-                .padding(.horizontal, 8).padding(.vertical, 4).background(FC.tone(rule.tone).opacity(0.15), in: RoundedRectangle(cornerRadius: Radius.chip))
+            // 칩은 중립 1종 + 상태 2색(좋음·나쁨)만 — 남색·금색·초록·빨강 4색 알약이 섞여 시끄러웠다(UX 패널 R6)
+            let c: Color? = ["win", "lime", "good"].contains(rule.tone) ? FC.win : ["lose", "warn"].contains(rule.tone) ? FC.lose : nil
+            Chip(text: "\(prefix)\(rule.title)", color: c ?? FC.ink, bg: c?.opacity(0.13) ?? FC.surface2)
                 .fixedSize()
-            Text(rule.desc).fcFont(13).foregroundStyle(FC.muted)
+            // 서버 문구의 " — "는 대시 남발로 읽혔다(UX 패널 R3) — 쉼표로
+            Text(rule.desc.replacingOccurrences(of: " — ", with: ", ")).fcFont(13).foregroundStyle(FC.muted)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }

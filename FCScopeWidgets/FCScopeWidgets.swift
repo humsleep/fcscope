@@ -25,7 +25,7 @@ struct FormProvider: TimelineProvider {
     static let suite = UserDefaults(suiteName: "group.xyz.fcscope.app")
     /// 앱이 이 안에 받아 둔 내 폼이면 네트워크 없이 그린다 — 대부분의 타임라인 요청은 앱의 reloadTimelines 직후라 이미 최신이다.
     static let freshFor: TimeInterval = 30 * 60
-    func placeholder(in context: Context) -> FormEntry { FormEntry(date: .now, nickname: "FC Scope", winRate: 62, score: 6.8, streak: 3, form: ["승","승","승","패","무"], tier: "수준급") }
+    func placeholder(in context: Context) -> FormEntry { FormEntry(date: .now, nickname: "FC SCOPE", winRate: 62, score: 6.8, streak: 3, form: ["승","승","승","패","무"], tier: "수준급") }
     /// 위젯 갤러리·일시 스냅샷은 즉시 돌려줘야 한다 — 캐시 또는 샘플만 쓴다.
     func getSnapshot(in context: Context, completion: @escaping (FormEntry) -> Void) { completion(cached()?.entry ?? placeholder(in: context)) }
     func getTimeline(in context: Context, completion: @escaping (Timeline<FormEntry>) -> Void) {

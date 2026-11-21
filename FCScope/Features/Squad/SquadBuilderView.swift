@@ -229,14 +229,6 @@ struct SquadBuilderView: View {
                     .textFieldStyle(.plain).fcFont(15).foregroundStyle(FC.ink)
                     .padding(.horizontal, 12).padding(.vertical, 10)
                     .background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control))
-                HStack(spacing: 8) {
-                    let canSave = !(model.busy || model.filled == 0)
-                    // 저장·공유는 브랜드 CTA. 비활성은 스타일이 반투명으로 처리한다.
-                    Button { Task { await model.save(); if model.savedId != nil { showSaved = true } } } label: { Text(model.busy ? "저장 중…" : "저장 · 공유 링크") }
-                        .buttonStyle(BrandButtonStyle(fullWidth: true, compact: true)).disabled(!canSave)
-                    // 앱 전체 tint 가 destructive 역할보다 우선해 "비우기"가 긍정 버튼처럼 보였다.
-                    Button(role: .destructive) { showClear = true } label: { Text("비우기") }.buttonStyle(.bordered).tint(FC.lose).disabled(model.filled == 0)
-                }
                 if let id = model.savedId {
                     Panel(padding: 12) {
                         VStack(alignment: .leading, spacing: 6) {
@@ -250,13 +242,25 @@ struct SquadBuilderView: View {
                     }
                 }
                 Text("슬롯을 탭해 선수를 검색·배치하고, 배치된 선수를 탭하면 교체·제거할 수 있어요. 선수를 길게 눌러 다른 자리에 놓으면 서로 바뀌고, 빈 잔디에 놓으면 그 자리의 포지션이 바뀌어요(예: LW → LM). 11자리가 어떤 포메이션과 딱 맞으면 포메이션 이름도 바뀌어요. 같은 선수는 시즌이 달라도 한 명만.").fcFont(12).foregroundStyle(FC.muted)
-                // 광고 — 도움말 문단(탭 불가) 뒤 맨 끝. 드래그가 계속되는 피치와 75pt 이상 떨어진다(AD-PLACEMENT 1-5 · 정책 P2).
-                // 편집 중 저장 줄 아래에서 갑자기 펼쳐지면 손가락이 걸리므로 높이를 미리 잡는다(R1).
-                AdSlot(placement: "squad_builder", reserve: true).padding(.top, 8)
+                // 빌더 광고는 뺐다 — 탭마다 광고가 있어 피로하다는 지적(UX 패널 2026-11 R3). 공유받은 스쿼드 보기 화면에는 남아 있다.
             }.padding(16)
         }
-        // 저장·비우기 줄이 유리 탭 바 뒤에 깔리지 않게(디자인 M10)
-        .safeAreaPadding(.bottom, 24)
+        // 저장·비우기 줄은 탭 바 위에 고정 — 스크롤 끝에 두면 첫 화면에서 탭 바에 반쯤 걸려 잘려 보였다(UX 패널 R2~R6).
+        // 고정 줄이 .bar 배경을 가지므로 도움말 문단이 탭 바 밑으로 비치던 문제도 함께 사라진다(흐림 마스크 제거).
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            HStack(spacing: 8) {
+                let canSave = !(model.busy || model.filled == 0)
+                // 저장·공유는 브랜드 CTA. 비활성은 스타일이 반투명으로 처리한다.
+                Button { Task { await model.save(); if model.savedId != nil { showSaved = true } } } label: { Text(model.busy ? "저장 중…" : "저장 · 공유 링크") }
+                    .buttonStyle(BrandButtonStyle(fullWidth: true, compact: true)).disabled(!canSave)
+                // 앱 전체 tint 가 destructive 역할보다 우선해 "비우기"가 긍정 버튼처럼 보였다.
+                Button(role: .destructive) { showClear = true } label: { Text("비우기") }.buttonStyle(.bordered).tint(FC.lose).disabled(model.filled == 0)
+            }
+            .padding(.horizontal, 16).padding(.vertical, 8)
+            // .bar 는 반투명이라 아래 이름 칸이 비쳐 또 잘린 것처럼 보였다 — 바탕색 + 위 실선
+            .background(FC.bg)
+            .overlay(alignment: .top) { Rectangle().fill(FC.line).frame(height: 1) }
+        }
         .scrollDisabled(model.isDraggingSlot)
         .fcScreen().fcTabHeader("스쿼드") {
             Button("계산기") { router.push(.calculators) }

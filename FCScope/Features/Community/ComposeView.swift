@@ -70,7 +70,7 @@ struct ComposeView: View {
         .alert("알림", isPresented: Binding(get: { msg != nil }, set: { _ in msg = nil })) { Button("확인") {} } message: { Text(msg ?? "") }
         .alert("글은 올라갔어요", isPresented: Binding(get: { attachNotice != nil }, set: { if !$0, let id = attachNotice { attachNotice = nil; onDone(id); dismiss() } })) {
             Button("확인") {}
-        } message: { Text("서버가 아직 전적·VS 첨부를 지원하지 않아 첨부는 빠졌어요. 서버 업데이트 후 다시 첨부할 수 있어요.") }
+        } message: { Text("서버가 아직 전적·비교 첨부를 지원하지 않아 첨부는 빠졌어요. 서버 업데이트 후 다시 첨부할 수 있어요.") }
         .confirmationDialog("작성 중인 글이 있어요", isPresented: $confirmLeave, titleVisibility: .visible) {
             Button("임시저장하고 나가기") { flushDraft(); dismiss() }
             Button("지우고 나가기", role: .destructive) { cprefs.clearDraft(); dismiss() }
@@ -392,10 +392,10 @@ struct ComposeView: View {
                 // 내 전적 카드 · VS 카드 첨부(2라운드 연속 요청 · 유저 패널) — 배틀은 A·B 스쿼드가 본문이라 뺀다
                 if let t = type, t.type != "squad_battle" {
                     Button { showAttachPicker = true } label: {
-                        Label { Text("전적·VS").cmText(14, .semibold) } icon: { Image(systemName: "chart.bar.fill").font(.system(size: 15)) }
+                        Label { Text("전적·비교").cmText(14, .semibold) } icon: { Image(systemName: "chart.bar.fill").font(.system(size: 15)) }
                             .foregroundStyle(draft.attach == nil ? FC.muted : FC.tint).frame(minHeight: 44)
                     }
-                    .accessibilityLabel("내 전적 카드나 VS 카드 첨부")
+                    .accessibilityLabel("내 전적 카드나 비교 카드 첨부")
                 }
                 // "양식"은 본문 아래 점선 "+ 양식 넣기" 하나만 둔다 — 같은 기능이 두 곳에 있었다(디자인 3R 4-2)
                 Spacer()

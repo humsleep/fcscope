@@ -19,7 +19,7 @@ enum KakaoShare {
     }
 
     /// 친구 리그 순위처럼 글만 보낼 때
-    static func shareText(_ text: String, path: String?, button: String = "FC Scope 에서 보기") {
+    static func shareText(_ text: String, path: String?, button: String = "FC SCOPE 에서 보기") {
         send(TextTemplate(text: String(text.prefix(200)), link: link(path), buttonTitle: button))
     }
 
@@ -32,7 +32,7 @@ enum KakaoShare {
                                   imageWidth: Int(image.size.width * image.scale), imageHeight: Int(image.size.height * image.scale),
                                   link: l)
             DispatchQueue.main.async {
-                send(FeedTemplate(content: content, buttons: [Button(title: "FC Scope 에서 보기", link: l)]))
+                send(FeedTemplate(content: content, buttons: [Button(title: "FC SCOPE 에서 보기", link: l)]))
                 completion(true)
             }
         }

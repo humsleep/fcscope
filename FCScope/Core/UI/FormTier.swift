@@ -107,6 +107,16 @@ struct FormTier: Equatable {
         return next.floor - p
     }
     var label: String { level.map { "폼 \($0.name)" } ?? "폼 배치 중" }
+    /// 평균(플래티넘) 대비 위치를 말로 — "폼 골드 · 보통 = 플래티넘"이 좋은지 나쁜지 몰랐다(UX 패널 2026-11 R1 P0)
+    var vsAverage: String {
+        guard let level else { return "10경기 채우면 나와요" }
+        let d = level.rawValue - Level.platinum.rawValue
+        switch d {
+        case 0: return "딱 평균"
+        case ..<0: return "평균보다 \(d == -1 ? "한" : d == -2 ? "두" : "세") 단계 아래"
+        default: return "평균보다 \(d == 1 ? "한" : d == 2 ? "두" : "세") 단계 위"
+        }
+    }
 
     /// 순수 함수 — 테스트·미리보기에서 직접 부른다.
     static func points(winRate: Int, goalDiffPerGame: Double, score: Double) -> Int {
@@ -170,7 +180,7 @@ struct FormTierBadge: View {
             Text(tier.label).fcRender(size == .compact ? 12 : 13, .bold).foregroundStyle(FC.ink).lineLimit(1).fixedSize()
             if let p = tier.points, size == .regular {
                 // "40"만 있으면 상위 40%인지 40점인지 몰랐다(유저 패널 A) — 단위를 붙인다. 탭하면 산식 시트.
-                Text("\(p)점").fcText(.meta, weight: .semibold).foregroundStyle(FC.muted).monospacedDigit()
+                Text("\(p)/100").fcText(.meta, weight: .semibold).foregroundStyle(FC.muted).monospacedDigit().lineLimit(1).fixedSize()
             } else if tier.isPlacement {
                 Text("\(tier.games)/\(FormTier.minGames)").fcScoreboard(12, weight: .semibold).foregroundStyle(FC.muted)
             }
@@ -183,8 +193,8 @@ struct FormTierBadge: View {
         .overlay(Capsule().strokeBorder(stroke, lineWidth: 1))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(tier.isPlacement
-            ? "FC Scope 폼 티어 배치 중, \(tier.games)경기 중 \(FormTier.minGames)경기 필요"
-            : "FC Scope 폼 티어 \(tier.level?.name ?? ""), \(tier.points ?? 0)점")
+            ? "FC SCOPE 폼 티어 배치 중, \(tier.games)경기 중 \(FormTier.minGames)경기 필요"
+            : "FC SCOPE 폼 티어 \(tier.level?.name ?? ""), \(tier.points ?? 0)점")
     }
 
     private var stroke: LinearGradient {
@@ -234,7 +244,7 @@ struct FormTierInfoSheet: View {
                         FormTierBadge(tier: tier)
                         Spacer()
                     }
-                    Text("폼 티어는 FC Scope 가 **최근 \(tier.games)경기**만으로 매번 다시 계산하는 \"요즘 폼\" 등급이에요. 넥슨 공식 등급(챔피언스·월드클래스 등)과는 달라요.")
+                    Text("폼 티어는 FC SCOPE 가 **최근 \(tier.games)경기**만으로 매번 다시 계산하는 \"요즘 폼\" 등급이에요. 넥슨 공식 등급(챔피언스·월드클래스 등)과는 달라요.")
                         .fcText(.callout).foregroundStyle(FC.ink).fixedSize(horizontal: false, vertical: true)
                     if tier.isPlacement {
                         Text("10경기를 채우면 등급이 나와요. 지금 \(tier.games)경기예요.")
@@ -243,7 +253,7 @@ struct FormTierInfoSheet: View {
                         breakdown
                     }
                     ladder
-                    Text("승률이 절반, 득실과 FC 스코어가 4분의 1씩이에요. 승률 50% · 득실 0 · 스코어 5.0 인 딱 평균이면 50점(플래티넘 시작)이에요.")
+                    Text("승률이 절반, 득실과 경기력이 4분의 1씩이에요. 승률 50% · 득실 0 · 경기력 5.0 인 딱 평균이면 50점(플래티넘 시작)이에요.")
                         .fcText(.meta).foregroundStyle(FC.muted).fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(20)

@@ -70,7 +70,7 @@ struct LeagueView: View {
     private var alertCard: some View {
         Panel(padding: 12, highlight: FC.tint.opacity(0.4)) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("🔔 추월 알림 받기").fcFont(15, weight: .bold).foregroundStyle(FC.ink)
+                Text("추월 알림 받기").fcFont(15, weight: .bold).foregroundStyle(FC.ink)
                 Text("친구가 최근 7일 승률로 나를 앞지르면 바로 알려 드려요. 주간 성적표도 같이 받아요.")
                     .fcFont(13).foregroundStyle(FC.muted)
                 HStack(spacing: 8) {
@@ -130,7 +130,7 @@ struct LeagueView: View {
     private var emptyState: some View {
         Panel {
             VStack(alignment: .leading, spacing: 8) {
-                Text("🏆 친구를 데려오면 리그가 열려요").fcFont(17, weight: .bold).foregroundStyle(FC.ink)
+                Text("친구를 데려오면 리그가 열려요").fcFont(17, weight: .bold).foregroundStyle(FC.ink)
                 Text("친구의 전적을 검색하고 ☆(즐겨찾기)를 누르면 이 순위표에 들어와요. 내 구단도 정해 두면 내 순위와 추월 알림을 볼 수 있어요.")
                     .fcFont(13).foregroundStyle(FC.muted)
                 Button { router.tab = .home } label: { Text("친구 전적 검색하기").frame(maxWidth: .infinity) }
@@ -142,13 +142,13 @@ struct LeagueView: View {
     /// 카카오 텍스트 템플릿은 200자까지 — 상위 5명만, 링크는 버튼이 대신한다.
     private var kakaoText: String {
         let lines = rows.filter(\.qualified).prefix(5).enumerated().map { i, r in "\(i + 1)위 \(r.nick) \(r.winRate)%" }
-        return (["🏆 FC Scope 친구 리그 · 최근 7일"] + lines).joined(separator: "\n")
+        return (["🏆 FC SCOPE 친구 리그 · 최근 7일"] + lines).joined(separator: "\n")
     }
 
     private var shareText: String {
         let lines = rows.filter(\.qualified).prefix(10).enumerated().map { i, r in
             "\(i + 1)위 \(r.nick) \(r.winRate)% (\(r.win)승 \(r.draw)무 \(r.lose)패)"
         }
-        return (["🏆 FC Scope 친구 리그 · 최근 7일"] + lines + ["", "https://www.fcscope.xyz"]).joined(separator: "\n")
+        return (["🏆 FC SCOPE 친구 리그 · 최근 7일"] + lines + ["", "https://www.fcscope.xyz"]).joined(separator: "\n")
     }
 }

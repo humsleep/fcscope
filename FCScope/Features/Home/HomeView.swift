@@ -169,7 +169,7 @@ struct HomeView: View {
             Panel(highlight: FC.tint.opacity(0.4)) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        SectionLabel("일단 구경부터 👀", color: FC.tint)
+                        SectionLabel("일단 구경부터", color: FC.tint)
                         Text("예시 리포트 먼저 보기").fcFont(17, weight: .bold).foregroundStyle(FC.ink)
                         Text("구단주 \(nick)의 실제 전적·슛맵·진단이에요. 로그인 없이 바로 봐요.").fcFont(13).foregroundStyle(FC.muted)
                     }
@@ -229,25 +229,63 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack {
-            TabView(selection: $page) {
-                onboardPage(icon: "chart.xyaxis.line", title: "감이 아니라, 데이터로.", desc: "구단주명 하나로 최근 30경기 승률·슛맵·선수 성적표·플레이스타일을 진단해요. 로그인 없이 바로.").tag(0)
-                VStack(spacing: 16) {
-                    Image(systemName: "person.text.rectangle").fcFont(56).foregroundStyle(FC.tint)
-                    Text("내 구단주명을 알려주세요").fcFont(22, weight: .bold).foregroundStyle(FC.ink)
-                    // 다른 페이지와 같은 좌우 여백 — 없으면 이 페이지만 설명이 화면 끝까지 붙는다.
-                    Text("홈에 내 폼 카드가 고정되고, 위젯·주간 성적표에 쓰여요. 나중에 바꿀 수 있어요.").fcFont(14).foregroundStyle(FC.muted).multilineTextAlignment(.center).padding(.horizontal, 32)
-                    TextField("FC온라인 구단주명", text: $nick).textFieldStyle(.roundedBorder).padding(.horizontal, 32).autocorrectionDisabled()
-                        .focused($nickFocused)
-                        .textInputAutocapitalization(.never).submitLabel(.done)
-                    checkLine.frame(minHeight: 20)
-                }.tag(1)
-                onboardPage(icon: "sportscourt", title: "마지막 경기부터 바로", desc: "방금 끝난 경기의 슛맵·POTM·선수 평점을 한눈에. 카드 한 장으로 공유도 돼요.").tag(2)
+            // 로고 워드마크 — 시스템 아이콘만 있어 템플릿 같았다(UX 패널 2026-11 R1·R3)
+            HStack(spacing: 8) {
+                SpotGlyph(height: 26)
+                (Text("FC ").foregroundStyle(FC.brandSolid) + Text("SCOPE").foregroundStyle(FC.ink)).font(.scoreboard(20)).tracking(1)
             }
-            .tabViewStyle(.page)
-            // 2쪽에서 키보드를 띄운 채 넘기면 3쪽에 키보드가 남았다(QA P2-5)
+            .padding(.top, 24)
+            .accessibilityElement().accessibilityLabel("FC SCOPE")
+            // 페이지 TabView(.page)는 실행 직후 "다음"을 누르면 점·버튼은 2쪽인데 내용은 1쪽에 남는 일이 있었다
+            // (UX 패널 2026-11 R2 캡처) — 구단주명 칸을 못 보고 지나간다. 직접 전환해 어긋날 수 없게 한다. 좌우 스와이프도 받는다.
+            ZStack {
+                switch page {
+                case 0:
+                    // 1·2쪽도 3쪽처럼 실제 화면 모양 미리보기 — 시스템 아이콘이 템플릿 같았다(UX 패널 R6)
+                    VStack(spacing: 16) {
+                        OnboardingRecordPreview()
+                        Text("감이 아니라, 데이터로.").fcFont(22, weight: .bold).foregroundStyle(FC.ink)
+                        Text("구단주명 하나로 최근 30경기 승률·슛맵·선수 성적표·플레이스타일을 진단해요. 로그인 없이 바로.").fcFont(14).foregroundStyle(FC.muted).multilineTextAlignment(.center).padding(.horizontal, 32)
+                    }
+                        .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)).combined(with: .opacity))
+                case 1:
+                    VStack(spacing: 16) {
+                        OnboardingHomePreview()
+                        Text("내 구단주명을 알려주세요").fcFont(22, weight: .bold).foregroundStyle(FC.ink)
+                        // 다른 페이지와 같은 좌우 여백 — 없으면 이 페이지만 설명이 화면 끝까지 붙는다.
+                        Text("홈에 내 폼 카드가 고정되고, 위젯·주간 성적표에 쓰여요. 나중에 바꿀 수 있어요.").fcFont(14).foregroundStyle(FC.muted).multilineTextAlignment(.center).padding(.horizontal, 32)
+                        TextField("FC온라인 구단주명", text: $nick).textFieldStyle(.roundedBorder).padding(.horizontal, 32).autocorrectionDisabled()
+                            .focused($nickFocused)
+                            .textInputAutocapitalization(.never).submitLabel(.done)
+                        checkLine.frame(minHeight: 20)
+                    }
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)).combined(with: .opacity))
+                default:
+                    // 아이콘 대신 실제 경기 카드 모양 미리보기 — 시스템 아이콘만 있어 무엇을 얻는지 안 보였다(UX 패널 R5)
+                    VStack(spacing: 16) {
+                        OnboardingMatchPreview()
+                        Text("마지막 경기부터 바로").fcFont(22, weight: .bold).foregroundStyle(FC.ink)
+                        Text("방금 끝난 경기의 슛맵·최우수 선수·선수 평점을 한눈에. 카드 한 장으로 공유도 돼요.").fcFont(14).foregroundStyle(FC.muted).multilineTextAlignment(.center).padding(.horizontal, 32)
+                    }
+                        .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)).combined(with: .opacity))
+                }
+            }
+            .padding(.bottom, 90)  // 화면 정중앙보다 조금 위(시선이 먼저 닿는 곳)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 30).onEnded { v in
+                if v.translation.width < -50, page < 2 { withAnimation { page += 1 } }
+                else if v.translation.width > 50, page > 0 { withAnimation { page -= 1 } }
+            })
             .onChange(of: page) { _, p in if p != 1 { nickFocused = false } }
-            // 기본 페이지 점은 흰색이라 라이트 모드 배경(거의 흰색)에서 보이지 않았다 — 반투명 배경 캡슐을 깐다.
-            .indexViewStyle(.page(backgroundDisplayMode: .always))
+            HStack(spacing: 8) {
+                ForEach(0..<3, id: \.self) { i in
+                    Capsule().fill(i == page ? FC.brandSolid : FC.line).frame(width: i == page ? 20 : 8, height: 8)
+                }
+            }
+            .animation(.snappy, value: page)
+            .padding(.bottom, 16)
+            .accessibilityElement().accessibilityLabel("\(page + 1) / 3쪽")
             Button {
                 nickFocused = false
                 if page < 2 { withAnimation { page += 1 } } else { finish() }
@@ -295,14 +333,6 @@ struct OnboardingView: View {
         }
     }
 
-    private func onboardPage(icon: String, title: String, desc: String) -> some View {
-        VStack(spacing: 16) {
-            Image(systemName: icon).fcFont(56).foregroundStyle(FC.tint)
-            Text(title).fcFont(22, weight: .bold).foregroundStyle(FC.ink)
-            Text(desc).fcFont(14).foregroundStyle(FC.muted).multilineTextAlignment(.center).padding(.horizontal, 32)
-        }
-    }
-
     /// 확인된 구단주명(넥슨 표기)으로 저장하고 바로 그 전적으로 보낸다 — 홈에 남겨 두면 "이제 뭘 하지"가 된다.
     /// 없는 구단주로 판정된 이름은 저장하지 않는다(홈 카드·위젯·주간 리캡이 빈 이름을 붙잡는다).
     private func finish() {
@@ -316,5 +346,105 @@ struct OnboardingView: View {
         if let saved { prefs.myNickname = saved }
         prefs.onboardingDone = true
         if let saved { router.tab = .home; router.homePath.append(Route.user(saved)) }
+    }
+}
+
+
+/// 온보딩 1쪽 미리보기 — 전적 헤더 모양(예시 데이터): 3칸 타일 + 최근 10경기 폼.
+private struct OnboardingRecordPreview: View {
+    private let form = Array("승승패승무승패승승패")
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                tile("승률", "56%", FC.ink)
+                tile("경기력", "6.8", FC.win)
+                tile("경기당 득점", "2.1", FC.ink)
+            }
+            HStack(spacing: 4) {
+                ForEach(form.indices, id: \.self) { i in
+                    let c: Color = form[i] == "승" ? FC.win : form[i] == "패" ? FC.lose : FC.muted
+                    Text(String(form[i])).fcFont(11, weight: .bold).foregroundStyle(c)
+                        .frame(maxWidth: .infinity, minHeight: 22).background(c.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
+                }
+            }
+        }
+        .modifier(OnboardingPreviewCard())
+        .accessibilityElement().accessibilityLabel("예시 전적: 승률 56%, 경기력 6.8, 최근 10경기 폼")
+    }
+    private func tile(_ label: String, _ value: String, _ color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text(value).fcScoreboard(20).foregroundStyle(color)
+            Text(label).fcFont(10.5).foregroundStyle(FC.muted).lineLimit(1).minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, 8)
+        .background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.chip))
+    }
+}
+
+/// 온보딩 2쪽 미리보기 — 구단주명을 넣으면 홈에 고정되는 "내 구단" 카드(예시 데이터).
+private struct OnboardingHomePreview: View {
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                SectionLabel("내 구단")
+                Text("내 구단주명").fcFont(17, weight: .bold).foregroundStyle(FC.ink)
+                HStack(spacing: 8) {
+                    Text("승률 56%").fcScoreboard(14).foregroundStyle(FC.ink)
+                    Text("▲3%p").fcScoreboard(12).foregroundStyle(FC.win)
+                    Text("3연승").fcFont(12, weight: .bold).foregroundStyle(FC.gold)
+                }
+            }
+            Spacer()
+            Image(systemName: "chevron.right").fcFont(12).foregroundStyle(FC.muted)
+        }
+        .modifier(OnboardingPreviewCard())
+        .accessibilityElement().accessibilityLabel("예시 홈 카드: 내 구단 승률 56%, 3연승")
+    }
+}
+
+/// 온보딩 미리보기 카드 공통 겉모양(3쪽 경기 카드와 같은 폭·테두리)
+private struct OnboardingPreviewCard: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .padding(12)
+            .frame(width: 260)
+            .background(FC.surface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(FC.line))
+    }
+}
+
+/// 온보딩 3쪽 미리보기 — 실제 마지막 경기 카드와 같은 모양(예시 데이터, 화면 낭독에는 "예시"로 읽힌다).
+private struct OnboardingMatchPreview: View {
+    /// 예시 슛 위치(0~1, 왼쪽 골대를 공격) — (x, y, 골인가)
+    private let mine: [(CGFloat, CGFloat, Bool)] = [(0.06, 0.45, true), (0.09, 0.55, true), (0.12, 0.38, false), (0.16, 0.6, false), (0.08, 0.5, true)]
+    private let theirs: [(CGFloat, CGFloat, Bool)] = [(0.9, 0.42, true), (0.86, 0.6, false), (0.93, 0.55, true)]
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Text("승").fcFont(15, weight: .bold).foregroundStyle(FC.win)
+                    .frame(width: 32, height: 32).background(FC.win.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+                Text("5 : 3").fcScoreboard(22).foregroundStyle(FC.ink)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 0) {
+                    Text("7.6").fcScoreboard(17).foregroundStyle(FC.win)
+                    Text("경기력").fcFont(11).foregroundStyle(FC.muted)
+                }
+            }
+            Canvas { ctx, size in
+                ShotMapView.drawPitch(ctx, size, ground: FC.turf, line: .white, lineWidth: 1.5, stripe: FC.turfStripe)
+                for (shots, tone) in [(theirs, FC.muted), (mine, FC.tint)] {
+                    for (x, y, goal) in shots {
+                        let r: CGFloat = goal ? 5 : 4
+                        let rect = CGRect(x: x * size.width - r, y: y * size.height - r, width: 2 * r, height: 2 * r)
+                        if goal { ctx.fill(Path(ellipseIn: rect), with: .color(tone)) }
+                        ctx.stroke(Path(ellipseIn: rect), with: .color(tone), lineWidth: 1.5)
+                    }
+                }
+            }
+            .aspectRatio(ShotMapView.pitchRatio, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.chip))
+        }
+        .modifier(OnboardingPreviewCard())
+        .accessibilityElement().accessibilityLabel("예시 경기 카드: 5 대 3 승리, 경기력 7.6, 슛맵")
     }
 }

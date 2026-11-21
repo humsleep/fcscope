@@ -280,7 +280,6 @@ struct RecordView: View {
                     onTypeTap: { selectSection(.report) },
                     onVersus: { router.push(.versus(me: o.profile.nickname, type: o.matchType)) }
                 )
-                if isMine(o), pushUndetermined, !prefs.pushPromptDismissed { pushPrompt }
                 // 탭 두 줄(모드 세그먼트 + 콘텐츠 칩)을 한 덩어리로: 모드는 드롭다운 칩, 콘텐츠는 밑줄 탭.
                 RecordTabBar(
                     tabs: o.matchTabs, matchType: vm.matchType, week: o.week,
@@ -294,6 +293,8 @@ struct RecordView: View {
                 case .players: PlayersSection(state: vm.players, nickname: o.profile.nickname, overview: o, retry: retrySection)
                 case .style: PlaystyleSection(state: vm.playstyle, retry: retrySection)
                 }
+                // 푸시 권유는 경기 목록·진단을 본 뒤에 — 첫 화면에서 목록을 밀어내던 것을 내렸다(UX 패널 2026-11 R1)
+                if isMine(o), pushUndetermined, !prefs.pushPromptDismissed { pushPrompt }
                 // 광고는 각 탭 섹션 안 "콘텐츠가 바뀌는 틈"에 둔다(AD-PLACEMENT 1-2) — 맨 끝 슬롯은 없앴다.
                 // 기록이 없는 모드(빈 상태)에는 섹션이 슬롯을 만들지 않는다.
             }
@@ -306,10 +307,10 @@ struct RecordView: View {
     /// 소프트 푸시 요청 — 온보딩에서 가치를 보기 전에 시스템 팝업을 띄우던 것을, 내 전적을 처음 본 뒤로 옮겼다.
     /// "받기"를 눌렀을 때만 시스템 팝업이 뜬다. "괜찮아요"는 영구히 닫는다(설정에서 언제든 켤 수 있다).
     private var pushPrompt: some View {
-        Panel(padding: 12, highlight: FC.tint.opacity(0.4)) {
+        Panel(padding: 12) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
-                    Text("🔔").fcFont(22)
+                    Image(systemName: "bell.fill").fcFont(20).foregroundStyle(FC.brandSolid)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("일요일 밤 주간 성적표 받아볼래요?").fcFont(15, weight: .bold).foregroundStyle(FC.ink)
                         Text("이번 주 승률·연승 리캡만 보내요. 경기마다 알림하지 않아요.").fcFont(12).foregroundStyle(FC.muted)
@@ -358,14 +359,14 @@ struct MatchesSection: View {
             Panel { Text(o.listOk ? "최근 경기 기록이 없어요." : "넥슨 조회가 일시적으로 원활하지 않아요. 잠시 후 당겨서 새로고침해 주세요.").fcFont(14).foregroundStyle(FC.muted).frame(maxWidth: .infinity) }
         } else {
             if o.loaded < o.requested {
-                Text("⚠️ 최근 \(o.requested)경기 중 \(o.loaded)경기만 불러와 \(o.loaded)경기 기준으로 계산했어요.").fcFont(13).foregroundStyle(FC.muted)
+                Text("최근 \(o.requested)경기 중 \(o.loaded)경기만 불러와 \(o.loaded)경기 기준으로 계산했어요.").fcFont(13).foregroundStyle(FC.muted)
                     .padding(10).background(FC.gold.opacity(0.1), in: RoundedRectangle(cornerRadius: Radius.control))
             }
             // 전적을 여는 가장 흔한 이유는 "방금 그 경기" — 맨 위에 슛맵·POTM 까지 바로 보여 준다.
             if let last = o.matches.first { LastMatchCard(m: last, me: o.profile.ouid) }
-            // 광고 #1 — 마지막 경기 카드 뒤 · "이전 경기" 라벨 앞(AD-PLACEMENT 1-2). 위는 카드(탭) → +12pt, 아래는 라벨.
-            if o.summary.played > 0 { AdSlot(placement: "record_matches", reserve: true).padding(.top, 12) }
             matchList
+            // 광고 #1 — 경기 목록 뒤 · 진단 앞. 마지막 경기와 목록 사이에 끼어 "경기보다 광고가 먼저"로 읽혔다(UX 패널 2026-11 R1).
+            if o.summary.played > 0 { AdSlot(placement: "record_matches", reserve: true, format: .banner320x50).padding(.vertical, 8) }
             // 진단은 최대 두 장만 펼쳐 둔다: 이번 주 + 경기 성향.
             if o.week.games >= 3 { weekly(o.week) }
             if !o.diagnosis.notes.isEmpty {
@@ -436,10 +437,10 @@ struct MatchesSection: View {
         Panel {
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("경기 평점 추이 (과거 → 최근)").fcFont(12).foregroundStyle(FC.muted)
+                    Text("넥슨 평점 추이 (과거 → 최근)").fcFont(12).foregroundStyle(FC.muted)
                     RatingSparkline(values: o.matches.reversed().map { $0.me.rating })
                 }
-                Text("FC Scope 스코어는 승패·득실차·경기 평점·점유율을 종합한 퍼포먼스 점수(10점 만점)예요.").fcFont(11).foregroundStyle(FC.muted)
+                Text("경기력은 승패·득실차·넥슨 평점·점유율을 합친 FC SCOPE 점수예요(10점 만점, 5~6.4가 평균).").fcFont(11).foregroundStyle(FC.muted)
             }
         }
     }
@@ -447,10 +448,10 @@ struct MatchesSection: View {
     private func weekly(_ w: WeeklyRecap) -> some View {
         // 접근성 크기에서는 오른쪽 카드 버튼이 폭을 먹어 기록이 잘렸다 — 버튼을 아래 줄로 내린다.
         let stacked = typeSize.isAccessibilitySize
-        return Panel(padding: 12, highlight: FC.tint.opacity(0.3)) {
+        return Panel(padding: 12) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
-                    Text("📅").fcFont(24)
+                    Image(systemName: "calendar").fcFont(22).foregroundStyle(FC.brandSolid)
                     // 승·무·패와 보조 지표를 한 줄에 몰아넣으니 글자를 키우자마자 "12승 7 / 무 9패"
                     // 처럼 숫자 중간에서 줄바꿈됐다. 두 줄로 나눠 각자 한 줄을 갖게 한다.
                     VStack(alignment: .leading, spacing: 3) {
@@ -461,7 +462,7 @@ struct MatchesSection: View {
                         HStack(spacing: 6) {
                             // 서버 주간 avgScore 는 최근 스코어와 척도가 달라 나란히 두면 헷갈린다 — 승률만.
                             Text("승률 \(w.winRate)%").fcFont(12).foregroundStyle(FC.muted)
-                            if w.bestStreak >= 2 { Text("🔥최다 \(w.bestStreak)연승").fcFont(12, weight: .bold).foregroundStyle(FC.win) }
+                            if w.bestStreak >= 2 { Text("최다 \(w.bestStreak)연승").fcFont(12, weight: .bold).foregroundStyle(FC.win) }
                         }
                         .lineLimit(1).minimumScaleFactor(0.8)
                     }
@@ -474,9 +475,9 @@ struct MatchesSection: View {
     }
 
     private func streakBanner(_ s: StreakInfo) -> some View {
-        Panel(padding: 12, highlight: (s.color == "lose" ? FC.lose : FC.win).opacity(0.4)) {
+        Panel(padding: 12) {
             HStack(spacing: 10) {
-                Text(s.color == "lose" ? "🥶" : "🔥").fcFont(24)
+                Image(systemName: s.color == "lose" ? "arrow.down.right" : "flame.fill").fcFont(22).foregroundStyle(s.color == "lose" ? FC.lose : FC.win)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(s.text).fcScoreboard(18).foregroundStyle(FC.tone(s.color))
                     // 문구가 길어 카드 버튼과 겹치며 어색하게 접혔다 — 짧게.
@@ -492,11 +493,11 @@ struct MatchesSection: View {
     private func revenge(_ r: Rival) -> some View {
         // 버튼 안에 공유 버튼을 중첩하면 탭이 어느 쪽으로 갈지 불안정하다 — 형제로 분리한다.
         // 왼쪽 영역(이모지·문구·여백)만 프로필 이동 버튼이고, 레이아웃은 이전과 동일.
-        Panel(padding: 12, highlight: FC.lose.opacity(0.4)) {
+        Panel(padding: 12) {
             HStack(spacing: 10) {
                 Button { router.push(.user(r.nickname)) } label: {
                     HStack(spacing: 10) {
-                        Text("🎯").fcFont(24)
+                        Image(systemName: "scope").fcFont(22).foregroundStyle(FC.tint)
                         VStack(alignment: .leading, spacing: 2) {
                             SectionLabel("천적 복수전", color: FC.lose)
                             Text("\(r.nickname)에게 \(r.win)승 \(r.lose)패 — 아직 \(r.lose - r.win)점 뒤").fcFont(14, weight: .bold).foregroundStyle(FC.ink)
@@ -579,7 +580,8 @@ struct LastMatchCard: View {
                             Text("vs \(m.opponent?.nickname ?? "상대 없음")").fcFont(15, weight: .bold).foregroundStyle(FC.ink).lineLimit(1)
                             HStack(spacing: 6) {
                                 if m.forfeit { Chip(text: "몰수", color: FC.lose, bg: FC.lose.opacity(0.15)) }
-                                Text("점유 \(m.me.possession)% · 경기 평점 \(String(format: "%.1f", m.me.rating))").fcFont(12).foregroundStyle(FC.muted).lineLimit(1)
+                                // 넥슨 평점은 아래 최우수 선수 줄에만(R3: 한 카드에 같은 이름 두 숫자)
+                                Text(m.forfeit ? "몰수 경기 · 한쪽 이탈·끊김" : "점유 \(m.me.possession)% · 경기력 \(String(format: "%.1f", m.score))").fcFont(12).foregroundStyle(FC.muted).lineLimit(1)
                             }
                         }
                         Spacer(minLength: 0)
@@ -590,27 +592,33 @@ struct LastMatchCard: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 MiniShotMap(mine: d.me.shots, theirs: d.opponent?.shots ?? [])
                                 // 범례는 점과 같은 쪽 — 내 슛(보라) 왼쪽, 상대(중립 muted) 오른쪽. MiniShotMap·매치 리포트 슛맵과 같은 규칙(QA 2R P1-2)
+                                // 양쪽 모두 슛·유효슛 — 상대는 유효슛이 빠져 비교가 안 됐다(UX 패널 R6 P1). 용어 뜻은 아래 한 줄.
                                 HStack(spacing: 6) {
-                                    legendDot(FC.tint, "내 슛 \(d.me.stats.shots) (유효 \(d.me.stats.effectiveShots))")
+                                    legendDot(FC.tint, "내 슛 \(d.me.stats.shots) · 유효 \(d.me.stats.effectiveShots)")
                                     Spacer(minLength: 8)
-                                    if let o = d.opponent { legendDot(FC.muted, "\(o.nickname) 슛 \(o.stats.shots)") }
+                                    if let o = d.opponent { legendDot(FC.muted, "상대 슛 \(o.stats.shots) · 유효 \(o.stats.effectiveShots)") }
                                 }
                                 .fcFont(11, weight: .medium).lineLimit(1)
+                                Text("채운 점 = 골 · 유효 = 골문 안으로 간 슛").fcFont(11).foregroundStyle(FC.muted)
                             }
                         }
                         if let p = d.potm {
                             HStack(spacing: 8) {
                                 PlayerImage(spid: p.spId, size: 32, radius: 8)
-                                Text("POTM").fcScoreboard(11, weight: .semibold).foregroundStyle(FC.gold)
-                                (Text(p.name).foregroundStyle(FC.ink).bold() + Text(" · \(p.side)").foregroundStyle(FC.muted))
-                                    .fcFont(13).lineLimit(1).minimumScaleFactor(0.8)
+                                // 매치 리포트와 같은 말 — "POTM"·"선수 평점"을 몰랐다(UX 패널 2026-11 R1)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(p.side == m.me.nickname ? "최우수 선수 · 우리 팀" : "최우수 선수 · 상대 팀").fcFont(11, weight: .semibold).foregroundStyle(p.side == m.me.nickname ? FC.gold : FC.muted)
+                                    Text(p.name).fcFont(13, weight: .bold).foregroundStyle(FC.ink).lineLimit(1).minimumScaleFactor(0.8)
+                                }
                                 Spacer(minLength: 4)
-                                (Text("선수 평점 ").font(.fcFont(10, typeSize)).foregroundStyle(FC.muted) + Text(String(format: "%.1f", p.rating)).foregroundStyle(FC.gold))
+                                (Text("넥슨 평점 ").font(.fcFont(10, typeSize)).foregroundStyle(FC.muted) + Text(String(format: "%.1f", p.rating)).foregroundStyle(FC.gold))
                                     .fcScoreboard(16).lineLimit(1).fixedSize()
                             }
                         }
                     } else if loading {
-                        Skeleton(height: 90)
+                        // 슛맵과 같은 크기의 잔디 자리 — 회색 상자가 떴다가 높이가 바뀌며 밀렸다(UX 패널 2026-11 R2 P2)
+                        RoundedRectangle(cornerRadius: Radius.chip).fill(FC.turf)
+                            .aspectRatio(ShotMapView.pitchRatio, contentMode: .fit)
                     }
                 }
             }

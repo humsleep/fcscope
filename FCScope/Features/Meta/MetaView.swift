@@ -55,7 +55,7 @@ struct MetaView: View {
                             if i == 0 { AdSlot(placement: "meta_1", reserve: true).padding(.vertical, 8) }
                             if i == 2, m.lines.count >= 4 { AdSlot(placement: "meta_2", format: .inline(maxHeight: 250)).padding(.vertical, 8) }
                         }
-                        Text("순위: FC Scope에 조회된 최근 \(modeName)에서 선발로 뛴 횟수. 골·패스는 넥슨 상위 랭커 기록(카드당 최근 20경기).").fcFont(11).foregroundStyle(FC.muted)
+                        Text("순위: FC SCOPE에 조회된 최근 \(modeName)에서 선발로 뛴 횟수. 골·패스는 넥슨 상위 랭커 기록(카드당 최근 20경기).").fcFont(11).foregroundStyle(FC.muted)
                     }
                 }
             }.padding(16)
@@ -116,6 +116,8 @@ struct MetaView: View {
             VStack(alignment: .leading, spacing: 6) {
                 SectionLabel(line.title)
                 let maxCount = max(1, line.rows.map(\.count).max() ?? 1)
+                // 전날 스냅샷이 없으면 모든 행이 NEW 라 아무 정보가 없다(UX 패널 R1~R3) — 일부만 새로 들어왔을 때만 보인다
+                let showNew = !line.rows.allSatisfy(\.isNew)
                 ForEach(Array(line.rows.enumerated()), id: \.element.id) { i, r in
                     Button { router.push(.player(r.spId)) } label: {
                         HStack(spacing: 8) {
@@ -128,7 +130,7 @@ struct MetaView: View {
                             Spacer()
                             // 순위 변동을 횟수 왼쪽 같은 줄에 — 둘째 줄로 떨어지면 오른쪽 열 높이가 들쭉날쭉했다(디자인 N5)
                             HStack(spacing: 6) {
-                                if r.isNew { Text("NEW").fcScoreboard(11).foregroundStyle(FC.gold) }
+                                if r.isNew { if showNew { Text("새로").fcFont(11, weight: .semibold).foregroundStyle(FC.gold) } }
                                 else if let d = r.deltaValue, d != 0 { Text(d > 0 ? "▲\(d)" : "▼\(-d)").fcScoreboard(11).foregroundStyle(d > 0 ? FC.win : FC.lose) }
                                 Text(r.usage.map { "\($0)회" } ?? "n=\(r.matchCount)").fcScoreboard(11).foregroundStyle(FC.muted)
                             }
@@ -196,7 +198,7 @@ struct PlayerDetailView: View {
                         router.pendingSquadImport = .add(hit, line: main.map(Formation.lineOf), pos: main)
                         router.tab = .squad
                     } label: {
-                        Text("🛡️ 스쿼드 빌더에 배치").frame(maxWidth: .infinity)
+                        Text("스쿼드 빌더에 배치").frame(maxWidth: .infinity)
                     }.buttonStyle(.bordered)
                     DataCenterLink(title: "\(p.name) 시세 보기 · 공식 데이터센터", playerName: p.name)
                 }.padding(16)

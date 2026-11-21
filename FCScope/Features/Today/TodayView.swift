@@ -11,6 +11,9 @@ struct TodayView: View {
     @State private var mine: UserOverview?
     @State private var hot: [Post] = []
     @State private var league: [LeagueEntry] = []
+    @State private var nickInput = ""
+    @State private var registering = false
+    @State private var registerError: String?
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -18,12 +21,14 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 14) {
                 header
                 if let nick = prefs.myNickname { myFormCard(nick) } else { registerCard }
+                // 마지막 경기(슛맵·POTM·결과) — 홈을 매일 열 이유. 전적 화면과 같은 카드(UX 패널 2026-11 R1 P1)
+                if prefs.myNickname != nil, let o = mine, let last = o.matches.first { LastMatchCard(m: last, me: o.profile.ouid) }
                 if let w = mine?.week, w.games > 0, let nick = prefs.myNickname { weekCard(w, nick: nick) }
                 if league.count >= 2 { leagueCard }
                 if !prefs.favorites.isEmpty { favoritesSection }
                 if let home = vm.state.value {
                     if let mover = home.mover { MoverCard(m: mover) }
-                    AdSlot(placement: "home", reserve: true).padding(.top, 8)
+                    AdSlot(placement: "home", format: .banner320x50).padding(.top, 8)  // 접기 슬롯 — 못 받으면 빈 회색 상자가 남던 것(R1)
                 } else if vm.state.isLoading { Skeleton(height: 60) }
                 let visibleHot = hot.filter { !prefs.isBlocked($0.authorId) }
                 if !visibleHot.isEmpty {
@@ -70,27 +75,58 @@ struct TodayView: View {
         hot = (try? await CommunityAPI.list(["page": "1"]))?.hot ?? []
     }
 
-    /// 구단주명이 없으면 홈의 절반이 비어 보인다 — 내 구단은 전적 화면의 "내 구단으로"로 정하므로 전적 탭으로 보낸다.
+    /// 구단주명이 없으면 홈의 절반이 비어 보인다 — 다른 탭으로 보내지 않고 여기서 바로 입력받는다.
+    /// 넥슨에서 확인된 이름(표기 그대로)만 저장하고 그 전적으로 보낸다. 없는 이름은 저장하지 않는다(온보딩과 같은 규칙).
     private var registerCard: some View {
-        Button { router.tab = .home } label: {
-            Panel(highlight: FC.tint.opacity(0.4)) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        SectionLabel("내 구단 고정", color: FC.tint)
-                        Text("구단주명을 등록해 보세요").fcFont(17, weight: .bold).foregroundStyle(FC.ink)
-                        Text("내 전적을 검색하고 '내 구단으로'를 누르면 매일 여기서 폼·새 경기·이번 주 성적을 봐요.").fcFont(13).foregroundStyle(FC.muted)
+        Panel(highlight: FC.brandSolid.opacity(0.35)) {
+            VStack(alignment: .leading, spacing: 10) {
+                SectionLabel("내 구단 고정", color: FC.brandSolid)
+                Text("구단주명만 넣으면 끝").fcFont(17, weight: .bold).foregroundStyle(FC.ink)
+                Text("매일 여기서 내 폼·새 경기·이번 주 성적을 보여 드려요.").fcFont(13).foregroundStyle(FC.muted)
+                HStack(spacing: 8) {
+                    TextField("구단주명", text: $nickInput)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .submitLabel(.go).onSubmit { Task { await registerMine() } }
+                        .fcFont(16)
+                        .padding(.horizontal, 14).frame(height: 46)
+                        .background(FC.surface2, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                    Button { Task { await registerMine() } } label: {
+                        Group { if registering { ProgressView().tint(FC.brandInk) } else { Text("등록") } }
+                            .fcFont(15, weight: .bold).foregroundStyle(FC.brandInk)
+                            .frame(width: 72, height: 46)
+                            .background(FC.brandSolid, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
                     }
-                    Spacer()
-                    Image(systemName: "chevron.right").fcFont(12).foregroundStyle(FC.muted)
+                    .buttonStyle(.plain)
+                    .disabled(registering || nickInput.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
+                if let registerError { Text(registerError).fcFont(13, weight: .semibold).foregroundStyle(FC.lose) }
             }
         }
-        .buttonStyle(.plain)
+    }
+
+    private func registerMine() async {
+        let n = nickInput.trimmingCharacters(in: .whitespaces)
+        guard !n.isEmpty, !registering else { return }
+        registering = true; registerError = nil
+        defer { registering = false }
+        struct ProfileOnly: Decodable { let profile: UserProfile }
+        let enc = n.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? n
+        let saved: String
+        do {
+            let r: ProfileOnly = try await APIClient.shared.get("/api/v1/user/\(enc)", query: ["stage": "profile"], auth: false)
+            saved = r.profile.nickname.caseInsensitiveCompare(n) == .orderedSame ? r.profile.nickname : n
+        } catch {
+            if (error as? APIError)?.isUserNotFound == true { registerError = "그런 구단주명을 찾지 못했어요"; Haptic.light(); return }
+            saved = n  // 넥슨 확인 불가(점검 등) — 입력 그대로 저장
+        }
+        prefs.myNickname = saved
+        Haptic.success()
+        router.openUser(saved)
     }
 
     private func myFormCard(_ nick: String) -> some View {
         Button { router.openUser(nick) } label: {
-            Panel(highlight: FC.tint.opacity(0.5)) {
+            Panel {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         SectionLabel("내 구단")
@@ -101,8 +137,8 @@ struct TodayView: View {
                                 if let p = s.prevWinRate, p != s.winRate {
                                     Text(s.winRate > p ? "▲\(s.winRate - p)%p" : "▼\(p - s.winRate)%p").fcScoreboard(12).foregroundStyle(s.winRate > p ? FC.win : FC.lose)
                                 }
-                                if s.streak >= 2 { Text("🔥\(s.streak)연승").fcFont(12, weight: .bold).foregroundStyle(FC.gold) }
-                                if s.streak <= -2 { Text("🥶\(-s.streak)연패").fcFont(12, weight: .bold).foregroundStyle(FC.lose) }
+                                if s.streak >= 2 { Text("\(s.streak)연승").fcFont(12, weight: .bold).foregroundStyle(FC.gold) }
+                                if s.streak <= -2 { Text("\(-s.streak)연패").fcFont(12, weight: .bold).foregroundStyle(FC.lose) }
                             }
                         } else {
                             Text("탭해서 최근 폼 확인").fcFont(13).foregroundStyle(FC.muted)
@@ -128,7 +164,7 @@ struct TodayView: View {
         Button { router.openUser(nick) } label: {
             Panel(padding: 12) {
                 HStack(spacing: 10) {
-                    Text("📅").fcFont(22)
+                    Image(systemName: "calendar").fcFont(20).foregroundStyle(FC.brandSolid)
                     VStack(alignment: .leading, spacing: 3) {
                         SectionLabel("이번 주 · \(w.label)")
                         // 한 줄에 몰면 큰 글씨에서 "승률 4…"로 잘렸다 — 기록과 승률을 각자 한 줄로(RecordView 주간 카드와 같은 처리)
@@ -152,7 +188,7 @@ struct TodayView: View {
             Panel(padding: 12) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        SectionLabel("🏆 친구 리그 · 최근 7일")
+                        SectionLabel("친구 리그 · 최근 7일")
                         Spacer()
                         let ranked = league.filter(\.qualified)
                         if let i = ranked.firstIndex(where: \.isMe) {
@@ -167,7 +203,7 @@ struct TodayView: View {
                         HStack(spacing: 8) {
                             ForEach(Array(top.enumerated()), id: \.element.id) { i, r in
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("\(["🥇", "🥈", "🥉"][i]) \(r.nick)").fcFont(13, weight: .semibold).foregroundStyle(r.isMe ? FC.tint : FC.ink).lineLimit(1)
+                                    Text("\(i + 1)위  \(r.nick)").fcFont(13, weight: .semibold).foregroundStyle(r.isMe ? FC.tint : FC.ink).lineLimit(1)
                                     Text("\(r.winRate)%").fcScoreboard(13).foregroundStyle(FC.muted)
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -194,7 +230,7 @@ struct TodayView: View {
                                     if let p = s.prevWinRate, p != s.winRate {
                                         Text(s.winRate > p ? "▲" : "▼").fcScoreboard(11).foregroundStyle(s.winRate > p ? FC.win : FC.lose)
                                     }
-                                    if s.streak >= 2 { Text("🔥\(s.streak)").fcFont(11) }
+                                    if s.streak >= 2 { Text("\(s.streak)연승").fcFont(11, weight: .bold).foregroundStyle(FC.win) }
                                 }
                             } else { Text("폼 미확인").fcFont(11).foregroundStyle(FC.muted) }
                         }

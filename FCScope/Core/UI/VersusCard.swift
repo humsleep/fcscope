@@ -39,7 +39,7 @@ struct VersusComparison {
         out.append(Row(label: "폼 티어", left: tierText(tierA), right: tierText(tierB), winner: tierWinner))
         out.append(Row(label: "경기당 득점", left: f1(a.goalsForPerGame), right: f1(b.goalsForPerGame), winner: cmp(a.goalsForPerGame, b.goalsForPerGame)))
         out.append(Row(label: "경기당 실점", left: f1(a.goalsAgainstPerGame), right: f1(b.goalsAgainstPerGame), winner: cmp(a.goalsAgainstPerGame, b.goalsAgainstPerGame, higherBetter: false)))
-        out.append(Row(label: "FC 스코어", left: f1(a.score), right: f1(b.score), winner: cmp(a.score, b.score)))
+        out.append(Row(label: "경기력", left: f1(a.score), right: f1(b.score), winner: cmp(a.score, b.score)))
         // 서버 진단 유형은 "플레이스타일"(성향 분석 · 스타일 탭)과 다른 값이다 — 같은 이름을 쓰면 화면마다 내 타입이 달라 보였다(QA P1-4)
         out.append(Row(label: "요즘 흐름", left: a.diagnosis.type?.title ?? "-", right: b.diagnosis.type?.title ?? "-", winner: .none))
         return out
@@ -111,7 +111,7 @@ struct VersusCardView: View {
         } content: {
             VStack(spacing: 12) {
                 ForEach(c.rows) { r in row(r) }
-                Text("폼 티어는 FC Scope 가 최근 경기로 계산한 등급이에요 · 넥슨 공식 등급 아님")
+                Text("폼 티어는 FC SCOPE 가 최근 경기로 계산한 등급이에요 · 넥슨 공식 등급 아님")
                     .font(.pretendard(20)).foregroundStyle(CardPalette.muted).lineLimit(1).minimumScaleFactor(0.7)
                     .padding(.top, 4)
             }

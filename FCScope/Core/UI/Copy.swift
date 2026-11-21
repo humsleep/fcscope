@@ -29,7 +29,7 @@ enum FCCopy {
         }
         let won = result == "승"
         switch server {
-        case "완벽한 경기력": return won ? "경기력까지 완벽했어요 🔥" : "경기력은 완벽했는데 아쉽…"
+        case "완벽한 경기력": return won ? "경기력까지 완벽했어요" : "경기력은 완벽했는데 아쉽…"
         case "안정적인 경기": return won ? "안정감 있게 챙긴 승리" : "내용은 괜찮았던 판"
         case "무난한 경기": return won ? "깔끔하게 챙긴 승리" : "한 끗이 모자랐어요"
         case "고전한 경기": return won ? "꾸역꾸역 이겨냈어요" : "오늘은 좀 꼬였던 판"
@@ -50,8 +50,8 @@ enum FCCopy {
 
     /// 스쿼드 클리닉 band 코드(lib/squad-clinic.ts BAND_LABEL) → 표시 문구. 모르는 코드는 그대로.
     static func squadBand(_ band: String) -> String {
-        ["top": "최상위 스쿼드 👑", "strong": "상위권 스쿼드", "balanced": "안정권 스쿼드",
-         "building": "성장 중인 스쿼드 🌱", "rebuild": "손볼 곳 있는 스쿼드"][band] ?? band
+        ["top": "최상위 스쿼드", "strong": "상위권 스쿼드", "balanced": "안정권 스쿼드",
+         "building": "성장 중인 스쿼드", "rebuild": "손볼 곳 있는 스쿼드"][band] ?? band
     }
 }
 
@@ -100,24 +100,24 @@ extension MatchDetailResponse {
         var out: [(kind: LossKind, text: String)] = []
         // 1) 슛 자체가 적다(집계)
         if ms.shots <= 4, ms.shots < os.shots {
-            out.append((.fewShots, "슛 \(ms.shots)개로는 어려웠어요 — 상대는 \(os.shots)개"))
+            out.append((.fewShots, "슛 \(ms.shots)개로는 어려웠어요, 상대는 \(os.shots)개"))
         }
         // 2) 쐈지만 골문으로 안 갔다(집계)
         if ms.shots >= 6, ms.effectiveShots <= ms.shots, ms.effectiveShots * 3 <= ms.shots {
-            out.append((.offTarget, "슛 \(ms.shots)개 중 유효슛 \(ms.effectiveShots)개 — 골문으로 간 슛이 적었어요"))
+            out.append((.offTarget, "슛 \(ms.shots)개 중 유효슛 \(ms.effectiveShots)개, 골문으로 간 슛이 적었어요"))
         }
         // 3) 박스 밖에서 많이 쐈다(슛 기록 — 기록이 집계와 맞고 모든 슛에 위치가 있을 때)
         if myLogOK, ms.shots >= 5, me.shots.allSatisfy({ $0.inPenalty != nil }) {
             let box = me.shots.filter { $0.inPenalty == true }.count
-            if box * 2 < me.shots.count { out.append((.longShots, "슛 \(me.shots.count)개 중 박스 안 \(box)개 — 먼 거리 슛이 많았어요")) }
+            if box * 2 < me.shots.count { out.append((.longShots, "슛 \(me.shots.count)개 중 박스 안 \(box)개, 먼 거리 슛이 많았어요")) }
         }
         // 4) 골문으로 갔는데 안 들어갔다 — 내 골이 전부 내 슛에서 나왔을 때만(상대 자책골이 섞이면 "유효슛 N개에 G골"이 틀린다)
         if myLogOK, ms.effectiveShots >= 5, me.goals <= ms.effectiveShots, me.goals * 4 <= ms.effectiveShots {
-            out.append((.finishing, "유효슛 \(ms.effectiveShots)개에 \(me.goals)골 — 마무리가 아쉬웠어요"))
+            out.append((.finishing, "유효슛 \(ms.effectiveShots)개에 \(me.goals)골, 마무리가 아쉬웠어요"))
         }
         // 5) 상대 마무리 — 상대 골이 전부 상대 슛에서 나왔을 때만
         if oppLogOK, o.goals >= 2, o.goals <= os.effectiveShots, o.goals * 2 >= os.effectiveShots {
-            out.append((.oppFinishing, "상대는 유효슛 \(os.effectiveShots)개로 \(o.goals)골 — 상대 마무리가 날카로웠어요"))
+            out.append((.oppFinishing, "상대는 유효슛 \(os.effectiveShots)개로 \(o.goals)골, 상대 마무리가 날카로웠어요"))
         }
         // 5b) 상대 슛 기록에 없는 실점(자책골 등) — 기록 슛 수는 집계와 맞는데 골만 모자랄 때
         if o.shots.count == os.shots, oppLogGoals < o.goals {
@@ -126,7 +126,7 @@ extension MatchDetailResponse {
         }
         // 6) 공을 못 잡았다(집계)
         if me.possession <= 40 {
-            out.append((.possession, "점유 \(me.possession)% — 공을 오래 못 잡았어요"))
+            out.append((.possession, "점유 \(me.possession)%, 공을 오래 못 잡았어요"))
         }
         // 7) 동점에서 내준 늦은 결승골
         if let w = decidingGoal, w.minute >= 80 {
@@ -146,13 +146,13 @@ extension MatchDetailResponse {
             return Double(me.shots.filter { $0.inPenalty == true }.count) / Double(me.shots.count)
         }()
         switch first.kind {
-        case .fewShots: return "슛까지 가는 장면을 늘려 봐요 — 박스 근처에선 한 번 더 시도"
+        case .fewShots: return "슛까지 가는 장면을 늘려 봐요, 박스 근처에선 한 번 더 시도"
         case .offTarget:
             if let b = boxShare, b < 0.5 { return "박스 안까지 끌고 들어가서 마무리해 봐요" }
             return "서두르지 말고 각을 만든 뒤 골문 안으로 차 봐요"
         case .longShots: return "먼 거리 슛 대신 박스 안으로 한 번 더 패스해 봐요"
-        case .finishing: return "찬스는 났어요 — 골키퍼 위치를 보고 침착하게 마무리해 봐요"
-        case .oppFinishing: return "상대 유효슛을 줄이는 게 먼저 — 박스 앞 간격을 좁혀 봐요"
+        case .finishing: return "찬스는 났어요, 골키퍼 위치를 보고 침착하게 마무리해 봐요"
+        case .oppFinishing: return "상대 유효슛을 줄이는 게 먼저예요, 박스 앞 간격을 좁혀 봐요"
         case .ownGoal: return "우리 박스 안 걷어내기를 확실하게 해 봐요"
         case .possession: return "짧은 패스로 공을 더 오래 지켜 봐요"
         case .lateDecider: return "동점 막판엔 무리한 공격보다 수비 라인부터 정비해 봐요"

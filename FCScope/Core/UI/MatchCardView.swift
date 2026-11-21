@@ -102,7 +102,7 @@ struct MatchCardView: View {
             .font(.pretendard(28, .semibold)).lineLimit(1).minimumScaleFactor(0.7)
             ZStack(alignment: .topLeading) {
                 Canvas { ctx, s in
-                    ShotMapView.drawPitch(ctx, s, ground: CardPalette.surface, line: CardPalette.line, lineWidth: 3)
+                    ShotMapView.drawPitch(ctx, s, ground: CardPalette.turf, line: CardPalette.chalk, lineWidth: 3, stripe: CardPalette.turfStripe)
                     for (shots, mine, color) in [(theirs, false, CardPalette.muted), (m.me.shots, true, CardPalette.tint)] {
                         for shot in shots {
                             let pt = ShotMapView.point(shot, sx: sx, sy: sy, mine: mine, in: s)

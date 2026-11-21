@@ -376,7 +376,8 @@ struct CommunityView: View {
                         .onAppear { if p.id == visible.last?.id { Task { await model.loadMore() } } }
                     // 광고 — 3번째 행 뒤(행이 3개 미만이면 마지막 행 뒤), 이후 15행마다. 목록 행 모양의 작은 배너(320×50 · 운영자 결정 2026-10-04)
                     // 첫 슬롯은 첫 화면 안이라 높이를 미리 잡는다(R1). 반복 슬롯도 LazyVStack 이라 늦게 만들어진다 → 예약(R5).
-                    if i == min(2, visible.count - 1) {
+                    // 글이 8개 미만이면 광고를 넣지 않는다 — 글 4개 사이 광고가 "광고만 있는 게시판"으로 보였다(UX 패널 2026-11 R1·R2)
+                    if visible.count >= 8, i == 2 {
                         CompactAdRow(placement: "community_list", reserve: true)
                     } else if i > 2, (i - 2) % 15 == 0 {
                         CompactAdRow(placement: "community_list_more", reserve: true, instance: "\(i)")
@@ -421,8 +422,16 @@ struct CommunityView: View {
         } else if model.hasMore {
             HStack { Spacer(); ProgressView(); Spacer() }.padding(.vertical, 16)
         } else if count > 8 {
-            Text("다 봤어요 👀").cmText(13).foregroundStyle(CM.faint)
+            Text("다 봤어요").cmText(13).foregroundStyle(CM.faint)
                 .frame(maxWidth: .infinity).padding(.vertical, 20)
+        } else {
+            // 글이 적을 때 — 목록 아래가 휑하게 비어 "죽은 게시판"으로 보였다(UX 패널 2026-11 R1~R4). 첫 글을 쓰게 이끈다.
+            VStack(spacing: 10) {
+                Text("아직 글이 많지 않아요").cmText(15, .bold).foregroundStyle(FC.ink)
+                // 버튼은 오른쪽 아래 글쓰기 하나만 — 같은 동작 버튼 두 개가 겹쳤다(UX 패널 R5)
+                Text("스쿼드 평가, 포메이션 고민, 친선전 상대 찾기까지. 오른쪽 아래 글쓰기로 처음 올려 보세요.").cmText(13).foregroundStyle(CM.faint).multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity).padding(.vertical, 28).padding(.horizontal, 24)
         }
     }
 
@@ -500,7 +509,6 @@ struct CommunityView: View {
             .frame(width: fabCollapsed ? 52 : nil, height: 52)
             .background(FC.brand, in: Capsule())
             // 컬러 글로우를 줄였다 — 큰 번짐은 "AI 랜딩" 느낌이었다(디자인 N2)
-            .shadow(color: FC.brandEnd.opacity(0.18), radius: 6, y: 3)
             .contentShape(Capsule())
         }
         .buttonStyle(PressScaleStyle())

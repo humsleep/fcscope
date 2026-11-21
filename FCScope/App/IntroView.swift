@@ -16,26 +16,18 @@ struct IntroView: View {
     @Environment(\.colorScheme) private var scheme
 
     @State private var draw: CGFloat = 0
-    @State private var glow = false
     @State private var ballIn = false
     @State private var textIn = false
     @State private var leaving = false
     @State private var finished = false
 
     private var dark: Bool { scheme == .dark }
-    /// 공 색 — 다크는 아이콘처럼 흰색, 라이트는 아이콘 배경 인디고(밝은 배경 위 흰 공은 안 보인다).
-    private var ballColor: Color { dark ? .white : SpotMark.indigo }
+    /// 공 색 — 다크는 흰색, 라이트는 잉크색(밝은 배경 위 흰 공은 안 보인다).
+    private var ballColor: Color { dark ? .white : FC.ink }
 
     var body: some View {
         ZStack {
             Color("LaunchBackground")
-            // 아이콘 왼쪽 위의 인디고 하이라이트. 런치 스크린은 단색이라 S 가 그려지는 동안 서서히 올린다.
-            RadialGradient(
-                colors: [SpotMark.highlight.opacity(dark ? 0.9 : 0.08), .clear],
-                center: UnitPoint(x: 0.38, y: 0.12), startRadius: 0, endRadius: 520
-            )
-            .opacity(glow ? 1 : 0)
-
             VStack(spacing: 30) {
                 mark
                 wordmark
@@ -47,7 +39,7 @@ struct IntroView: View {
         .contentShape(Rectangle())
         .onTapGesture { finish() }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("FC Scope")
+        .accessibilityLabel("FC SCOPE")
         .task { await play() }
     }
 
@@ -61,13 +53,6 @@ struct IntroView: View {
         let spot = SpotMark.point(SpotMark.ball, s)
         let tip = SpotMark.point(SpotMark.topTerminal, s)
         return ZStack {
-            // S 뒤의 은은한 마젠타 빛 — 블러 없이 방사 그라디언트만(블러는 콜드 스타트 첫 프레임을 막았다).
-            RadialGradient(colors: [SpotMark.magenta.opacity(dark ? 0.32 : 0.16), .clear],
-                           center: .center, startRadius: 0, endRadius: 150)
-                .frame(width: 320, height: 320)
-                .position(SpotMark.point(CGPoint(x: 512, y: 540), s))
-                .opacity(glow ? 1 : 0)
-
             SpotMark.SPath()
                 .trim(from: 0, to: draw)
                 .stroke(SpotMark.gradient, style: StrokeStyle(lineWidth: 122 * s, lineCap: .butt, lineJoin: .round))
@@ -76,7 +61,6 @@ struct IntroView: View {
             Circle()
                 .fill(ballColor)
                 .frame(width: 2 * 68 * s, height: 2 * 68 * s)
-                .shadow(color: dark ? .white.opacity(0.55) : SpotMark.magenta.opacity(0.35), radius: ballIn ? 10 : 0)
                 .scaleEffect(ballIn ? 1 : 0.3)
                 .position(ballIn ? spot : tip)
                 .opacity(ballIn ? 1 : 0)
@@ -104,7 +88,7 @@ struct IntroView: View {
 
     private func play() async {
         if reduceMotion {
-            draw = 1; glow = true; ballIn = true; textIn = true
+            draw = 1; ballIn = true; textIn = true
             try? await Task.sleep(for: .seconds(0.6))
             finish()
             return
@@ -113,7 +97,6 @@ struct IntroView: View {
         // 0.5초쯤 늦게 그려지는데, Task.sleep 으로 단계를 나누면 벽시계가 먼저 흘러 뒤 단계가
         // 앞 단계보다 먼저 튀어나왔다(2026-10-03 시뮬레이터 녹화). delay 는 렌더 시점 기준이라 순서가 지켜진다.
         withAnimation(.easeInOut(duration: 0.55)) { draw = 1 }
-        withAnimation(.easeOut(duration: 0.45).delay(0.25)) { glow = true }
         withAnimation(.spring(response: 0.34, dampingFraction: 0.58).delay(0.5)) { ballIn = true }
         withAnimation(.easeOut(duration: 0.32).delay(0.62), completionCriteria: .logicallyComplete) {
             textIn = true
@@ -145,9 +128,6 @@ struct IntroView: View {
 /// 두 호를 중심 매개변수로 바꾸면 윗호 중심 (506,380) 반지름 (140,120), 아랫호 중심 (506,634) 반지름 (156,134).
 /// 인트로는 공의 궤적처럼 **아래 끝 → 위 끝** 으로 그리므로 SVG 와 반대 방향으로 샘플링한다.
 enum SpotMark {
-    static let indigo = Color(UIColor(hex: 0x1E1957))
-    static let highlight = Color(UIColor(hex: 0x28217A))
-    static let magenta = Color(UIColor(hex: 0xE0218A))
 
     /// 보이는 영역(아이콘 단위) — S(305…723 × 200…830)와 공을 감싸는 상자
     static let viewX: CGFloat = 262, viewY: CGFloat = 180
@@ -160,12 +140,8 @@ enum SpotMark {
         CGPoint(x: (p.x - viewX) * s, y: (p.y - viewY) * s)
     }
 
-    /// 아이콘 세로 그라디언트: y 230 오렌지 → 마젠타 → y 860 바이올렛
-    static let gradient = LinearGradient(
-        colors: [Color(UIColor(hex: 0xFF5A26)), magenta, Color(UIColor(hex: 0x4A1FD6))],
-        startPoint: UnitPoint(x: 0.5, y: (230 - viewY) / viewH),
-        endPoint: UnitPoint(x: 0.5, y: (860 - viewY) / viewH)
-    )
+    /// S 획 — 매치데이 테마의 잔디 초록 단색(예전 오렌지→마젠타→바이올렛 그라디언트를 걷어냈다)
+    static let gradient = FC.brandSolid
 
     struct SPath: Shape {
         func path(in rect: CGRect) -> Path {
@@ -187,18 +163,11 @@ enum SpotMark {
         }
     }
 
-    /// 워드마크 강조용 그라디언트(마젠타 → 오렌지). 라이트는 대비를 위해 한 톤 진하게.
-    static func textAccent(light: Bool) -> LinearGradient {
-        LinearGradient(
-            colors: light
-                ? [Color(UIColor(hex: 0xC2187A)), Color(UIColor(hex: 0xE04A12))]
-                : [Color(UIColor(hex: 0xFF4FA3)), Color(UIColor(hex: 0xFF9A3A))],
-            startPoint: .leading, endPoint: .trailing
-        )
-    }
+    /// 워드마크 강조색 — 잔디 초록 단색
+    static func textAccent(light: Bool) -> Color { FC.brandSolid }
 }
 
-/// 앱 안의 작은 S 마크(홈 내비 워드마크용) — 인트로와 같은 도형·그라디언트. 아이콘 마크가 앱 안에 한 번도 안 나오던 문제(디자인 M11·N1).
+/// 작은 S-spot 마크(내 정보 상단 등)
 struct SpotGlyph: View {
     /// 마크 높이(pt)
     var height: CGFloat = 24
@@ -209,7 +178,7 @@ struct SpotGlyph: View {
             SpotMark.SPath()
                 .stroke(SpotMark.gradient, style: StrokeStyle(lineWidth: 122 * s, lineCap: .butt, lineJoin: .round))
             Circle()
-                .fill(scheme == .dark ? Color.white : SpotMark.indigo)
+                .fill(scheme == .dark ? Color.white : FC.ink)
                 .frame(width: 2 * 68 * s, height: 2 * 68 * s)
                 .position(SpotMark.point(SpotMark.ball, s))
         }

@@ -4,7 +4,7 @@ import SwiftUI
  전적 헤더 v2 — "캡처하고 싶은 한 장"(UX-AUDIT-GENZ #4, 목업 ux-mockups/01-record.png).
 
  위에서 아래로: 계급 엠블럼 74pt + 닉네임 + 폼 티어 → 요즘 흐름 띠(서버 진단 유형) →
- 3칸 타일(승률 · 스코어 링 · 경기당 득점) → 최근 10경기 폼 블록 → "스토리로 자랑" + "계급 카드" + VS.
+ 3칸 타일(승률 · 스코어 링 · 경기당 득점) → 최근 10경기 폼 블록 → "스토리로 자랑" + "등급 카드" + "친구 비교".
 
  다이어트(디자인 리뷰 1라운드 M8, 목표 ≤ 380pt): 몰수 각주는 승률 타일의 ⓘ 팝오버로, 진단 설명은 최대 2줄,
  "친구랑 비교" 풀폭 행은 CTA 줄 오른쪽 원형 버튼으로, "내 구단으로"는 내비 메뉴로 옮겼다.
@@ -21,11 +21,12 @@ struct RecordHeader: View {
     var onVersus: () -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var showBasis = false
+    @State private var showScoreInfo = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             RecordIdentityRow(profile: o.profile, matchType: o.matchType, tier: o.summary.played > 0 ? o.formTier : nil, isMine: isMine)
-            if let t = o.diagnosis.type { nowBand(t) }
+            // "요즘 흐름" 띠는 뺐다 — 헤더 요소가 12개를 넘었다(UX 패널 2026-11 R2 P1). 진단 유형은 리포트 탭에 있다.
             if o.summary.played > 0 {
                 tiles
                 formStrip
@@ -39,9 +40,7 @@ struct RecordHeader: View {
         .background {
             ZStack {
                 FC.surface
-                // 은은한 바이올렛 글로우 — 목업의 보라 톤. 데이터 위에 깔리지 않게 오른쪽 위에만.
-                RadialGradient(colors: [FC.tint.opacity(0.22), .clear], center: .topTrailing, startRadius: 0, endRadius: 320)
-                RadialGradient(colors: [FC.brandEnd.opacity(0.08), .clear], center: .bottomLeading, startRadius: 0, endRadius: 260)
+                PitchMarkings()
             }
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
@@ -62,7 +61,7 @@ struct RecordHeader: View {
         // 설명은 제목 아래 전체 폭으로 — 오른쪽 칸에 두면 SE·AX 에서 "…상…"으로 잘렸다(QA P2-2)
         return Button(action: onTypeTap) {
             HStack(alignment: .center, spacing: 12) {
-                Text(Self.emoji(for: t)).font(.system(size: 24))
+                Image(systemName: Self.symbol(for: t)).font(.system(size: 20, weight: .semibold)).foregroundStyle(FC.brandSolid).frame(width: 28)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text("요즘 흐름").fcText(.caption, weight: .semibold).foregroundStyle(FC.muted)
@@ -79,12 +78,11 @@ struct RecordHeader: View {
             .padding(.leading, 14).padding(.trailing, 12).padding(.vertical, 10)
             // 폭은 아래 타일과 같은 전체 폭 — AX5 에서 내용 폭만큼만 잡혀 오른쪽 끝이 약 8pt 안쪽이었다(디자인 3R 4-1)
             .frame(maxWidth: .infinity, alignment: .leading)
-            // surface2 + 왼쪽 3pt 바. 가로 브랜드 그라디언트를 3pt 로 자르면 시작색(빨강)만 보여 경고 띠처럼 읽혔다(디자인 2R N-3)
-            // → 세로 tint 그라디언트 — 경고색 없이 브랜드 바이올렛만.
+            // surface2 + 왼쪽 3pt 잔디색 바
             .background(FC.surface2, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(alignment: .leading) {
                 UnevenRoundedRectangle(topLeadingRadius: 14, bottomLeadingRadius: 14, style: .continuous)
-                    .fill(LinearGradient(colors: [FC.tint, FC.tint.opacity(0.55)], startPoint: .top, endPoint: .bottom)).frame(width: 3)
+                    .fill(FC.brandSolid).frame(width: 3)
             }
             .contentShape(Rectangle())
         }
@@ -93,16 +91,15 @@ struct RecordHeader: View {
         .accessibilityHint("종합 리포트를 열어요")
     }
 
-    /// 서버 진단 유형 id → 이모지. 모르는 유형은 공.
-    static func emoji(for t: Rule) -> String {
+    /// 서버 진단 유형 id → SF 심볼. 모르는 유형은 축구공.
+    static func symbol(for t: Rule) -> String {
         let key = t.id + " " + t.title
-        if key.contains("화력") || key.contains("fire") || key.contains("attack") { return "🔥" }
-        if key.contains("철벽") || key.contains("wall") || key.contains("defen") { return "🧱" }
-        if key.contains("점유") || key.contains("possession") || key.contains("tiki") { return "🎯" }
-        if key.contains("역습") || key.contains("counter") { return "⚡️" }
-        if key.contains("리빌딩") || key.contains("rebuild") { return "🌱" }
-        if t.tone == "lose" || t.tone == "warn" { return "🌱" }
-        return "⚽️"
+        if key.contains("화력") || key.contains("fire") || key.contains("attack") { return "flame.fill" }
+        if key.contains("철벽") || key.contains("wall") || key.contains("defen") { return "shield.lefthalf.filled" }
+        if key.contains("점유") || key.contains("possession") || key.contains("tiki") { return "arrow.triangle.2.circlepath" }
+        if key.contains("역습") || key.contains("counter") { return "bolt.fill" }
+        if key.contains("리빌딩") || key.contains("rebuild") || t.tone == "lose" || t.tone == "warn" { return "arrow.up.forward" }
+        return "soccerball"
     }
 
     // MARK: 타일
@@ -117,7 +114,7 @@ struct RecordHeader: View {
     private var tiles: some View {
         let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
         return layout {
-            tile("승률", info: forfeits > 0, sub: "\(o.summary.win)승 \(o.summary.draw)무 \(o.summary.lose)패") {
+            tile("승률", hint: forfeits > 0 ? normalWinRate.map { "몰수 빼면 \($0)%" } : nil, sub: "\(o.summary.win)승 \(o.summary.draw)무 \(o.summary.lose)패") {
                 CountUp(target: Double(o.summary.winRate)) { v in
                     (Text("\(Int(v.rounded()))") + Text("%").font(.fcScoreboard(14, typeSize)).foregroundStyle(FC.muted))
                         .font(.fcScoreboard(28, typeSize)).foregroundStyle(FC.ink)
@@ -125,7 +122,7 @@ struct RecordHeader: View {
             }
             // "4.5 반등 준비 중"이 좋은지 나쁜지 몰랐다(유저 패널 5R B) — 보통 구간을 라벨에 붙인다.
             // 서버 scoreTier: 5.0 이상 6.5 미만 = 평범(앱 표기 "딱 평균"), 6.5 이상 수준급.
-            tile("스코어", hint: "보통 5~6.4", sub: FCCopy.tier(o.tier.label), subColor: FC.tone(o.tier.tone)) {
+            tile("경기력", hint: "10점 만점", scoreInfo: true, sub: FCCopy.tier(o.tier.label), subColor: FC.tone(o.tier.tone)) {
                 HStack(alignment: .center, spacing: 6) {
                     CountUp(target: o.score, delay: 0.05) { v in
                         Text(String(format: "%.1f", v)).font(.fcScoreboard(28, typeSize)).foregroundStyle(FC.tone(o.tier.tone))
@@ -134,9 +131,9 @@ struct RecordHeader: View {
                     ScoreRing(score: o.score, color: FC.tone(o.tier.tone), lineWidth: 4).frame(width: 24, height: 24)
                 }
             }
-            .accessibilityLabel("FC Scope 스코어 \(String(format: "%.1f", o.score))점, 10점 만점. \(FCCopy.tier(o.tier.label))")
+            .accessibilityLabel("경기력 \(String(format: "%.1f", o.score))점, 10점 만점. \(FCCopy.tier(o.tier.label))")
             // "실점 2.5 · 몰수 제외"가 SE 에서 잘려 기준이 사라졌다(QA P2-1) — 기준은 ⓘ 팝오버에 모았다.
-            tile("경기당 득점", sub: "실점 \(String(format: "%.1f", o.goalsAgainstPerGame))") {
+            tile("경기당 득점", sub: "실점 \(String(format: "%.1f", o.goalsAgainstPerGame))\(forfeits > 0 ? " · 몰수 제외" : "")") {
                 CountUp(target: o.goalsForPerGame, delay: 0.1) { v in
                     Text(String(format: "%.1f", v)).font(.fcScoreboard(28, typeSize)).foregroundStyle(FC.ink)
                 }
@@ -157,7 +154,7 @@ struct RecordHeader: View {
         .frame(width: 280, alignment: .leading)
     }
 
-    private func tile<V: View>(_ label: String, hint: String? = nil, info: Bool = false, sub: String, subColor: Color = FC.muted, @ViewBuilder value: () -> V) -> some View {
+    private func tile<V: View>(_ label: String, hint: String? = nil, info: Bool = false, scoreInfo: Bool = false, sub: String, subColor: Color = FC.muted, @ViewBuilder value: () -> V) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 3) {
                 Text(label).fcText(.meta, weight: .semibold).foregroundStyle(FC.muted).lineLimit(1)
@@ -172,6 +169,29 @@ struct RecordHeader: View {
                     // 팝오버는 ⓘ 버튼에 건다 — 타일 묶음 전체에 걸면 화살표가 가운데(스코어) 타일을 가리켰다(QA 2R P2-6)
                     .popover(isPresented: $showBasis, arrowEdge: .top) {
                         basisNote.presentationCompactAdaptation(.popover)
+                    }
+                }
+                if scoreInfo {
+                    Button { showScoreInfo = true } label: {
+                        Image(systemName: "info.circle").font(.system(size: 11, weight: .semibold)).foregroundStyle(FC.muted)
+                            .frame(width: 22, height: 18).contentShape(Rectangle().inset(by: -13))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("경기력 설명")
+                    .popover(isPresented: $showScoreInfo, arrowEdge: .top) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("경기력이란?").fcText(.headline).foregroundStyle(FC.ink)
+                            Text("승패가 기본이고, 점수 차·넥슨 평점·점유율로 더하고 빼요. 10점 만점, 5~6.4가 평균, 6.5 이상이면 잘한 경기예요.")
+                            Text("넥슨 평점은 넥슨이 매기는 선수들 평균 평점이에요.")
+                            Text("몰수 경기는 몰수승 6 · 몰수패 3으로 고정해 평균에 넣어요(넥슨 랭크에서도 승패로 쳐요).")
+                            // 승률 ⓘ 를 없애고 여기로 — 헤더 ⓘ 가 3개라 복잡했다(UX 패널 R4)
+                            if forfeits > 0 {
+                                Text("승률도 몰수 포함(넥슨 공식 전적과 같은 기준)\(normalWinRate.map { ", 빼면 \($0)%" } ?? ""). 득점·실점은 몰수를 뺀 실제 경기 기준이에요.")
+                            }
+                        }
+                        .fcText(.callout).foregroundStyle(FC.ink).padding(16).frame(width: 300, alignment: .leading)
+                        .background(FC.surface)
+                        .presentationCompactAdaptation(.popover)
                     }
                 }
             }
@@ -225,7 +245,7 @@ struct RecordHeader: View {
             VStack(spacing: 8) {
                 if o.summary.played > 0 { ShareCardButton(story: .user(o), label: "스토리로 자랑", style: .hero) }
                 HStack(spacing: 8) {
-                    if !o.profile.divisions.isEmpty { ShareCardButton(story: .rank(o), label: "🏆 계급 카드", style: .secondary) }
+                    if !o.profile.divisions.isEmpty { ShareCardButton(story: .rank(o), label: "등급 카드", style: .secondary) }
                     versusButton
                 }
             }
@@ -236,15 +256,17 @@ struct RecordHeader: View {
 
     private var versusButton: some View {
         Button(action: { Haptic.light(); onVersus() }) {
-            Text("VS").fcScoreboard(15).foregroundStyle(FC.tint)
-                .frame(minWidth: 50, minHeight: 50)
-                .padding(.horizontal, typeSize.isAccessibilitySize ? 12 : 0)
-                .background(FC.surface2, in: Capsule())
-                .overlay(Capsule().strokeBorder(FC.tint.opacity(0.7), lineWidth: 1.5))
+            // "VS"만으론 뭘 하는 버튼인지 몰랐다(UX 패널 R1~R5) — 동사로
+            // 보조 버튼은 "계급 카드"(ShareCardButton .secondary)와 같은 모양 — 회색 채움 + 회색 테두리 + 15 bold(UX 패널 R6 "버튼 3개가 다 다름")
+            Text("친구 비교")
+                .fcFont(15, weight: .bold).foregroundStyle(FC.ink).lineLimit(1).fixedSize()
+                .frame(minHeight: 50)
+                .padding(.horizontal, 14)
+                .background(Capsule().fill(FC.surface2).overlay(Capsule().strokeBorder(FC.line, lineWidth: 1)))
                 .contentShape(Capsule())
         }
         .buttonStyle(PressScaleStyle())
-        .accessibilityLabel("친구랑 비교 VS")
+        .accessibilityLabel("친구랑 비교")
         .accessibilityHint("승률 · 폼 티어 맞대결을 열어요")
     }
 
@@ -257,9 +279,9 @@ struct RecordHeader: View {
             if !o.profile.divisions.isEmpty {
                 // 주 CTA 가 layoutPriority 로 폭을 다 가져가므로 보조 버튼은 폭을 고정한다(maxWidth 만 주면 0으로 눌렸다).
                 if o.summary.played > 0 {
-                    ShareCardButton(story: .rank(o), label: "🏆 계급", style: .secondary).frame(width: 92)
+                    ShareCardButton(story: .rank(o), label: "등급 카드", style: .secondary).frame(width: 100)
                 } else {
-                    ShareCardButton(story: .rank(o), label: "🏆 계급 카드", style: .secondary)
+                    ShareCardButton(story: .rank(o), label: "등급 카드", style: .secondary)
                 }
             }
             // 친구 VS — 풀폭 행이던 것을 보조 원형 버튼으로(헤더 다이어트 · 디자인 M8)
@@ -314,8 +336,8 @@ struct RecordIdentityRow: View {
                 if let tier {
                     // 폼 티어 기준 — 승률 50% · 득실 0 · 평균 스코어면 51점 = 플래티넘(FormTier.points 로 계산한 값)
                     HStack(spacing: 6) {
-                        FormTierButton(tier: tier)
-                        Text("보통 = 플래티넘").fcText(.caption).foregroundStyle(FC.muted).lineLimit(1).minimumScaleFactor(0.8)
+                        FormTierButton(tier: tier).layoutPriority(1)
+                        Text(tier.vsAverage).fcText(.caption, weight: .semibold).foregroundStyle(FC.muted).lineLimit(1).minimumScaleFactor(0.8)
                     }
                 }
             }
@@ -331,7 +353,7 @@ struct RecordIdentityRow: View {
     private var emblem: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(RadialGradient(colors: [FC.tint.opacity(0.35), FC.surface2], center: .center, startRadius: 4, endRadius: 52))
+                .fill(FC.surface2)
             if let icon = division?.iconUrl {
                 RemoteImage(url: icon, size: 58)
             } else if let d = division {
@@ -344,7 +366,7 @@ struct RecordIdentityRow: View {
         }
         .frame(width: 74, height: 74)
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(
-            LinearGradient(colors: [FC.gold.opacity(0.7), FC.tint.opacity(0.4)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1.5))
+            FC.line, lineWidth: 1))
         .accessibilityHidden(true)
     }
 }
@@ -432,7 +454,7 @@ struct LetterEmblem: View {
         let p = parts
         VStack(spacing: 1) {
             Image(systemName: "crown.fill").font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(LinearGradient(colors: [FC.gold, FC.gold.opacity(0.7)], startPoint: .top, endPoint: .bottom))
+                .foregroundStyle(FC.gold)
             Text(p.base).fcRender(12, .bold).foregroundStyle(FC.gold).lineLimit(1).minimumScaleFactor(0.6)
                 .padding(.horizontal, 6)
         }

@@ -39,22 +39,26 @@ struct ShareCardSpec {
 
 /// 카드 전용 팔레트 — 카드는 항상 다크(공유 이미지라 뷰어 테마와 무관)
 enum CardPalette {
-    // 앱 다크 토큰(FC.*)과 같은 값 — 카드는 항상 다크로 렌더한다.
-    static let bg = Color(hex: 0x0b0a1f)
-    static let surface = Color(hex: 0x14122e)
-    static let line = Color(hex: 0x2a2656)
-    static let ink = Color(hex: 0xeeedf8)
-    static let muted = Color(hex: 0xa6a2c8)
-    /// 일반 강조(바이올렛) — 내 쪽 시리즈·보조 스탬프
-    static let tint = Color(hex: 0x9b7bff)
+    // 앱 다크 토큰(FC.*)과 같은 값 — 카드는 항상 다크("야간 경기장")로 렌더한다. 매치데이 리디자인(2026-11).
+    static let bg = Color(hex: 0x0b130f)
+    static let surface = Color(hex: 0x121c17)
+    static let line = Color(hex: 0x25352c)
+    static let ink = Color(hex: 0xecf2ee)
+    static let muted = Color(hex: 0x9aaca1)
+    /// 일반 강조(유니폼 남색의 다크 값) — 내 쪽 시리즈·보조 스탬프
+    static let tint = Color(hex: 0x93b4ff)
     /// 데이터 의미 전용: 좋음·나쁨·최상
     static let win = Color(hex: 0x3ddc97)
     static let gold = Color(hex: 0xf7c948)
     static let lose = Color(hex: 0xff5470)
-    /// 브랜드 그라디언트 — 로고·히어로 카피·도메인 필에만. 데이터 숫자에 쓰지 않는다.
-    static let brandStart = Color(hex: 0xf0502a)
-    static let brandEnd = Color(hex: 0xe0218a)
+    /// 브랜드(잔디 초록 단색) — 로고·히어로 카피·도메인 필에만. 데이터 숫자에 쓰지 않는다.
+    static let brandStart = Color(hex: 0x2fa866)
+    static let brandEnd = brandStart
     static let brand = LinearGradient(colors: [brandStart, brandEnd], startPoint: .leading, endPoint: .trailing)
+    /// 카드 속 슛맵 피치 — 야간 조명 아래 잔디(밝은 남색·회녹색 슛 점이 4:1 이상 보이게 어둡게)
+    static let turf = Color(hex: 0x1d5a33)
+    static let turfStripe = Color(hex: 0x1a5230)
+    static let chalk = Color.white.opacity(0.35)
 
     /// 서버 VerdictColor 문자열 → 카드 색
     static func verdict(_ name: String) -> Color {
@@ -98,12 +102,7 @@ struct ShareCardView: View {
         .background(
             ZStack {
                 CardPalette.bg
-                EllipticalGradient(
-                    colors: [CardPalette.brandEnd.opacity(0.18), .clear],
-                    center: .init(x: 0.5, y: 0),
-                    startRadiusFraction: 0,
-                    endRadiusFraction: 0.55
-                )
+                PitchMarkings(color: Color.white.opacity(0.06))
             }
         )
         .environment(\.colorScheme, .dark)
@@ -173,7 +172,7 @@ struct ShareCardView: View {
             HStack(alignment: .center, spacing: 24) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("내 전적도 검색 →").font(.pretendard(30)).foregroundStyle(CardPalette.muted)
-                    Text("App Store에서 FC Scope").font(.pretendard(26, .medium)).foregroundStyle(CardPalette.muted)
+                    Text("App Store에서 FC SCOPE").font(.pretendard(26, .medium)).foregroundStyle(CardPalette.muted)
                 }
                 Spacer()
                 AppStoreQRTile(side: 140)
@@ -207,7 +206,7 @@ extension ShareCardSpec {
         let division = o.profile.divisions.first { $0.matchType == 50 } ?? o.profile.divisions.first
         var badges: [CardBadge] = []
         if r.played > 0 {
-            badges.append(CardBadge(label: "FC 스코어", value: String(format: "%.1f", o.score), color: CardPalette.verdict(o.tier.tone == "win" ? "lime" : o.tier.tone)))
+            badges.append(CardBadge(label: "경기력", value: String(format: "%.1f", o.score), color: CardPalette.verdict(o.tier.tone == "win" ? "lime" : o.tier.tone)))
         }
         badges.append(CardBadge(label: "최근 경기", value: "\(r.played)"))
         badges.append(CardBadge(label: "득실", value: "\(r.goalsFor):\(r.goalsAgainst)"))
@@ -323,7 +322,7 @@ extension ShareCardSpec {
             badges: [
                 CardBadge(label: "점유율", value: "\(m.me.possession)%"),
                 CardBadge(label: "유효슛", value: "\(m.me.stats.effectiveShots)"),
-                CardBadge(label: "경기 평점", value: String(format: "%.1f", m.me.rating), color: color),
+                CardBadge(label: "넥슨 평점", value: String(format: "%.1f", m.me.rating), color: color),
             ],
             filename: "fcscope-match-\(m.matchId)"
         )

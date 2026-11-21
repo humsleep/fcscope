@@ -1,42 +1,48 @@
 import SwiftUI
 import UIKit
 
-/// 디자인 토큰 "S-spot 하이브리드"(docs/store-v2/ux-mockups/00-accent.png 옵션 C).
+/// 디자인 토큰 "매치데이"(2026-11 리디자인) — 경기장 잔디·분필 선·유니폼 남색.
 ///
-/// 색의 역할을 셋으로 나눈다 — 섞으면 "강조인지 승리인지"가 헷갈린다(라임 시절의 문제).
-/// - `brand`(오렌지→마젠타 그라디언트): 브랜드 순간 전용. CTA·공유·선택 탭·히어로 카피. **데이터에 쓰지 않는다.**
-/// - `tint`(바이올렛): 일반 강조. 링크·칩 선택·토글·내 쪽 시리즈.
+/// 예전 토큰(인디고 블랙 + 바이올렛 + 오렌지→마젠타 그라디언트)은 어둡고 "AI가 만든 앱"처럼 보인다는 피드백으로 교체했다.
+/// 앱은 라이트로 고정한다(RootView). 다크 값은 공유 카드(항상 다크)와 위젯 다크 모드용으로 남긴다.
+///
+/// 색의 역할은 그대로 셋으로 나눈다 — 섞으면 "강조인지 승리인지"가 헷갈린다.
+/// - `brand`(잔디 초록, 단색): 브랜드 순간 전용. CTA·공유·선택 탭. **데이터에 쓰지 않는다.**
+/// - `tint`(유니폼 남색): 일반 강조. 링크·칩 선택·토글·내 쪽 시리즈.
 /// - `win`·`lose`·`gold`: 데이터의 의미(좋음·나쁨·최상) 전용. 중립 숫자는 `ink`.
-/// 라이트 대비(본문 위 AA): tint #6D3FE0 5.5:1 · win #0B7A55 4.9:1 · lose #C81E3A 5.4:1 · gold #A66A00 4.5:1.
-/// 배경은 아이콘·런치 스크린과 같은 인디고 블랙(LaunchBackground 컬러셋과 같은 값) — 인트로→홈 이음새 없음.
+/// 라이트 대비(흰 카드 위): brand #11743C 5.9:1 · tint #1E3A8A 10.4:1 · muted 6.3:1 · win #0B7A55 5.3:1 · lose #C81E3A 5.4:1.
 enum FC {
-    static let bg = dyn(0x0b0a1f, 0xf5f4fb)
-    static let surface = dyn(0x14122e, 0xffffff)
-    static let surface2 = dyn(0x1d1a40, 0xeceaf6)
-    static let line = dyn(0x2a2656, 0xdcd8ec)
-    static let ink = dyn(0xeeedf8, 0x15132b)
-    static let muted = dyn(0xa6a2c8, 0x5e5a78)
-    /// 일반 강조(바이올렛)
-    static let tint = dyn(0x9b7bff, 0x6d3fe0)
-    /// tint 를 **채운** 배경 위 글자. 다크 #9B7BFF 위 흰 글자는 3.1:1 이라 남흑색, 라이트 #6D3FE0 위는 흰색(6.1:1).
-    static let tintInk = dyn(0x0b0a1f, 0xffffff)
-    /// 브랜드 그라디언트 양 끝(다크 #F0502A→#E0218A · 라이트 #E8481C→#C8177A)
-    static let brandStart = dyn(0xf0502a, 0xe8481c)
-    static let brandEnd = dyn(0xe0218a, 0xc8177a)
-    /// 그라디언트를 쓸 수 없는 곳(탭 바 선택색·SF 심볼 단색)용 브랜드 단색
-    static let brandSolid = dyn(0xe8367a, 0xc8177a)
-    /// 브랜드 그라디언트 위 글자 — 항상 흰색(17pt Bold 이상에서 3.6~5.4:1)
+    static let bg = dyn(0x0b130f, 0xf3f5f0)
+    static let surface = dyn(0x121c17, 0xffffff)
+    static let surface2 = dyn(0x1a271f, 0xe7ece3)
+    static let line = dyn(0x25352c, 0xd5dcd0)
+    static let ink = dyn(0xecf2ee, 0x111a14)
+    static let muted = dyn(0x9aaca1, 0x56635a)
+    /// 일반 강조(유니폼 남색)
+    static let tint = dyn(0x93b4ff, 0x1e3a8a)
+    /// tint 를 **채운** 배경 위 글자
+    static let tintInk = dyn(0x0b130f, 0xffffff)
+    /// 브랜드(잔디 초록). 그라디언트를 쓰지 않는다 — 양 끝을 같은 색으로 둬 기존 `FC.brand` 호출부가 단색이 된다.
+    static let brandStart = dyn(0x1a8048, 0x11743c)
+    static let brandEnd = brandStart
+    static let brandSolid = brandStart
+    /// 브랜드 위 글자 — 항상 흰색(라이트 5.9:1 · 다크 4.8:1)
     static let brandInk = Color.white
     static var brand: LinearGradient {
         LinearGradient(colors: [brandStart, brandEnd], startPoint: .leading, endPoint: .trailing)
     }
     static let gold = dyn(0xf7c948, 0xa66a00)
     static let win = dyn(0x3ddc97, 0x0b7a55)
-    static let draw = dyn(0xa6a2c8, 0x5e5a78)
+    static let draw = dyn(0x9aaca1, 0x56635a)
     static let lose = dyn(0xff5470, 0xc81e3a)
-    /// 피치 그라디언트 (스쿼드 빌더·공유 카드 공용). 라이트 모드에서도 잔디색은 고정.
-    static let pitchTop = Color(UIColor(hex: 0x123322))
-    static let pitchBottom = Color(UIColor(hex: 0x0d2419))
+    /// 피치(스쿼드 빌더·공유 카드 공용). 낮 경기 잔디색 — 라이트·다크 공통.
+    static let pitchTop = Color(UIColor(hex: 0x2f8a4c))
+    static let pitchBottom = Color(UIColor(hex: 0x26773f))
+    /// 피치 위 분필 선
+    static let chalk = Color.white.opacity(0.55)
+    /// 슛맵용 옅은 잔디(라이트 화면 안). 남색·회색 슛 점이 잘 보이도록 밝게, 줄무늬는 한 톤 진하게.
+    static let turf = Color(UIColor(hex: 0xc9e2c0))
+    static let turfStripe = Color(UIColor(hex: 0xbfdab5))
 
     private static func dyn(_ dark: UInt32, _ light: UInt32) -> Color {
         Color(UIColor { trait in
@@ -313,7 +319,28 @@ struct Panel<Content: View>: View {
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(FC.surface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(highlight ?? FC.line, lineWidth: 1))
+            // 테두리는 두 가지뿐 — 보통(회색) · 강조(잔디 초록). 화면마다 남색·라벤더·초록·분홍이 섞여 "카드 문법이 5종"이었다(UX 패널 2026-11 R1~R5).
+            // highlight 에 넘긴 색은 "강조한다"는 뜻으로만 쓴다. 강조는 화면당 1장(전적·홈은 마지막 경기 카드) — R6 "4장 중 3장이 초록".
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(highlight == nil ? FC.line : FC.brandSolid.opacity(0.35), lineWidth: 1))
+    }
+}
+
+/// 경기장 분필선 — 하프라인과 센터서클 일부. 카드 배경에 깔아 "축구 앱" 느낌을 낸다(예전 바이올렛 글로우 자리).
+/// 데이터 위에 겹치지 않게 아주 옅게, 오른쪽에만 그린다. 탭·접근성에는 보이지 않는다.
+struct PitchMarkings: View {
+    var color: Color = FC.brandSolid.opacity(0.09)
+    var body: some View {
+        Canvas { ctx, size in
+            let x = size.width * 0.82
+            let r = min(size.height * 0.42, size.width * 0.28)
+            var p = Path()
+            p.move(to: CGPoint(x: x, y: 0)); p.addLine(to: CGPoint(x: x, y: size.height))
+            p.addEllipse(in: CGRect(x: x - r, y: size.height / 2 - r, width: 2 * r, height: 2 * r))
+            p.addEllipse(in: CGRect(x: x - 3, y: size.height / 2 - 3, width: 6, height: 6))
+            ctx.stroke(p, with: .color(color), lineWidth: 1.5)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -326,10 +353,11 @@ struct SectionLabel: View {
         // 영문 라벨("SHOT MAP")은 전광판 서체 + 넓은 자간이 멋있지만, 한글에 자간 2.5 를 주면
         // "이 번 주 성 적 표" 처럼 글자가 흩어져 읽기 어렵다. 한글이면 본문 서체·기본 자간으로.
         // 역할 토큰 `.label`(13 렌더) — 커뮤니티·전적·홈이 같은 크기로 보인다.
+        // 섹션 제목은 한 가지 색 — 남색·초록·금색 라벨이 섞여 제목 방식이 4종으로 보였다(UX 패널 R1~R5). color 는 호환용으로만 받는다.
         if text.unicodeScalars.contains(where: { (0xAC00...0xD7A3).contains($0.value) }) {
-            Text(text).fcText(.label).foregroundStyle(color)
+            Text(text).fcText(.label).foregroundStyle(FC.muted)
         } else {
-            Text(text).fcRender(12, .semibold, scoreboard: true).kerning(2.5).foregroundStyle(color)
+            Text(text).fcRender(12, .semibold, scoreboard: true).kerning(0.6).foregroundStyle(FC.muted)
         }
     }
 }
