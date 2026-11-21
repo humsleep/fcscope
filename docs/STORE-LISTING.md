@@ -64,6 +64,13 @@ EA 상표("피파")도 같은 이유로 어디에도 쓰지 않는다(키워드 
 - 이름에서 "전적"이 빠지므로 부제 맨 앞에 `피온 전적 검색`을 둔다("FC온라인 전적검색" 1위는 일부 잃을 수 있다).
 - 설명 본문의 "FC온라인 전적 분석 앱"처럼 게임을 가리키는 설명적 사용은 두되, 이름·부제·키워드에는 상표를 쓰지 않는다.
 
+### 1.2.2 스토어 자산 (2026-11-21, 밝은 잔디 테마 v5)
+- 스크린샷: `docs/store-v2/screenshots-v5/` 01~10(6.9" 1320×2868), `1206x2622/`(6.3"). 순서는 파일 번호 그대로.
+  `01-record` → `02-loss` → `03-shotmap` → `04-win` → `05-home` → `06-players` → `07-vs` → `08-squad` → `09-cards` → `10-meta`
+- 앱 미리보기: `docs/store-v2/preview-v5/fcscope-preview-886x1920.mp4`(26초, 30fps, 무음 스테레오) — 6.9" 슬롯. 포스터 프레임은 0~3초(전적 화면) 권장.
+- 다시 만들기: `node docs/store-v2/screenshots-v5/src/render.mjs`, `node docs/store-v2/preview-v5/src/build.mjs`.
+- 아래 v4 순서는 이전 버전 기록.
+
 ### 스크린샷 순서 (검색 결과엔 앞 3장만 보인다)
 `04-form` → `03-shotmap` → `05-players` → `01-today` → `06-vs` → `07-calc` → `08-squad` → `09-cards` → `02-league` → `10-community`
 - "전적검색"으로 들어온 사람에게 전적·슛맵부터 보인다. `02-league`는 친구가 있어야 의미가 있어 뒤로.
