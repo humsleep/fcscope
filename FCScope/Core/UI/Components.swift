@@ -2,6 +2,7 @@ import SwiftUI
 import Nuke
 import NukeUI
 import UIKit
+import LinkPresentation
 
 /**
  선수 이미지 — 넥슨 CDN 직접 로드.
@@ -422,6 +423,7 @@ struct ShareCardSheet: View {
         }
         .padding(20)
         .presentationDetents([.large])
+        .presentationDragIndicator(.visible)  // 닫기 버튼이 없어 내려 닫는다는 걸 알려준다
         .presentationBackground(FC.bg)
     }
 
@@ -430,7 +432,7 @@ struct ShareCardSheet: View {
         var top = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController }.first
         while let next = top?.presentedViewController { top = next }
         guard let top else { return }
-        let vc = UIActivityViewController(activityItems: [image], applicationActivities: nil)
+        let vc = UIActivityViewController(activityItems: [ShareImageItem(image: image)], applicationActivities: nil)
         vc.completionWithItemsHandler = { _, completed, _, _ in
             if completed { Task { @MainActor in ReviewPrompt.ask(.share) } }
         }
@@ -439,6 +441,20 @@ struct ShareCardSheet: View {
             pop.sourceRect = CGRect(x: top.view.bounds.midX, y: top.view.bounds.maxY - 80, width: 0, height: 0)
         }
         top.present(vc, animated: true)
+    }
+}
+
+/// 공유 시트 맨 위 미리보기 — 이미지만 넘기면 빈 아이콘에 제목 없이 떴다(R7 확인).
+final class ShareImageItem: NSObject, UIActivityItemSource {
+    let image: UIImage
+    init(image: UIImage) { self.image = image }
+    func activityViewControllerPlaceholderItem(_ c: UIActivityViewController) -> Any { image }
+    func activityViewController(_ c: UIActivityViewController, itemForActivityType t: UIActivity.ActivityType?) -> Any? { image }
+    func activityViewControllerLinkMetadata(_ c: UIActivityViewController) -> LPLinkMetadata? {
+        let m = LPLinkMetadata()
+        m.title = "FC SCOPE 카드"
+        m.imageProvider = NSItemProvider(object: image)
+        return m
     }
 }
 

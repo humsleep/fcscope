@@ -229,7 +229,7 @@ struct VersusView: View {
             } else {
                 // 공유 CTA 는 판정 바로 아래(표 위) — 매치 화면처럼 "결과 → 공유" 순서, 탭 바에 가리지 않는다(디자인 M10)
                 VersusCompareCard(c: c) {
-                    ShareCardButton(story: .versus(c.a, c.b), label: "VS 카드 스토리로 공유", style: .hero)
+                    ShareCardButton(story: .versus(c.a, c.b), label: "비교 카드 스토리로 공유", style: .hero)
                 }
                 HStack(spacing: 8) {
                     Button { router.push(.user(c.b.profile.nickname)) } label: {

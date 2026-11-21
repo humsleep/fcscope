@@ -166,7 +166,7 @@ struct LoginView: View {
             VStack(spacing: 16) {
                 (Text("FC ").foregroundStyle(FC.brand) + Text("SCOPE").foregroundStyle(FC.ink)).font(.fcScoreboard(26, typeSize))
                 if let r = reason { Text(r).fcFont(14, weight: .semibold).foregroundStyle(FC.tint) }
-                Text("클럽 모집·커뮤니티 참여에는 로그인이 필요해요. 전적 검색·진단·스쿼드는 로그인 없이 쓸 수 있어요.").fcFont(13).foregroundStyle(FC.muted).multilineTextAlignment(.center)
+                Text("커뮤니티 글쓰기·댓글, 스쿼드 보관에는 로그인이 필요해요. 전적 조회·친구 비교·스쿼드 만들기는 로그인 없이 돼요.").fcFont(13).foregroundStyle(FC.muted).multilineTextAlignment(.center)
                 if !auth.isConfigured {
                     Text("로그인 준비 중이에요.").fcFont(13).foregroundStyle(FC.muted)
                 } else {
@@ -180,7 +180,8 @@ struct LoginView: View {
                             Image(systemName: agreed ? "checkmark.circle.fill" : "circle")
                                 .font(.system(size: 22 * TypeScale.factor(typeSize)))   // 옆 문구와 같은 배율로 커지게
                                 .foregroundStyle(agreed ? FC.tint : FC.muted)
-                            (Text("이용약관").underline() + Text("과 ") + Text("개인정보처리방침").underline() + Text("에 동의하며, 만 14세 이상입니다."))
+                            // 밑줄은 링크처럼 보였지만 누르면 체크만 됐다(R7) — 링크는 바로 아래 줄에만
+                            Text("이용약관과 개인정보처리방침에 동의하며, 만 14세 이상입니다.")
                                 .font(.fcFont(13, typeSize)).foregroundStyle(FC.muted)
                                 .multilineTextAlignment(.leading)
                             Spacer(minLength: 0)

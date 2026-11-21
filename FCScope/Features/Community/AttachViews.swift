@@ -24,7 +24,7 @@ struct PostAttachCard: View {
                 HStack(spacing: 6) {
                     Image(systemName: attach.kind == .versus ? "person.2.fill" : "chart.bar.fill")
                         .font(.system(size: 12, weight: .semibold)).foregroundStyle(FC.tint)
-                    Text(attach.kind == .versus ? "VS 카드" : "전적 카드").cmText(12.5, .semibold).foregroundStyle(FC.tint)
+                    Text(attach.kind == .versus ? "비교 카드" : "전적 카드").cmText(12.5, .semibold).foregroundStyle(FC.tint)
                     Text("· \(Self.modeName(attach.mode)) 최근 30경기").cmText(12).foregroundStyle(CM.faint)
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(FC.muted)
@@ -41,7 +41,7 @@ struct PostAttachCard: View {
         }
         .buttonStyle(PressScaleStyle())
         .accessibilityElement(children: .combine)
-        .accessibilityHint(attach.kind == .versus ? "VS 화면을 열어요" : "전적을 열어요")
+        .accessibilityHint(attach.kind == .versus ? "친구 비교 화면을 열어요" : "전적을 열어요")
         .task(id: attach) { await load() }
     }
 
@@ -192,7 +192,7 @@ struct AttachPickerSheet: View {
                 } footer: {
                     if let p = problem { Text(p).cmText(12.5, .semibold).foregroundStyle(CM.coral) }
                     Text(kind == .versus
-                         ? "두 구단주의 최근 30경기를 붙인 VS 카드가 글에 들어가요. 보는 사람이 열 때마다 최신 전적으로 그려요."
+                         ? "두 구단주의 최근 30경기를 붙인 비교 카드가 글에 들어가요. 보는 사람이 열 때마다 최신 전적으로 그려요."
                          : "폼 티어 · 승률 · 경기당 득실 · 요즘 흐름이 담긴 카드가 글에 들어가요. 열 때마다 최신 전적으로 그려요.")
                         .cmText(12).foregroundStyle(CM.faint)
                 }

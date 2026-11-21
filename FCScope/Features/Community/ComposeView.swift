@@ -359,7 +359,7 @@ struct ComposeView: View {
     /// 첨부한 전적·VS 카드 한 줄 — 탭하면 다시 고르고, 길게 눌러 빼기(스쿼드 첨부와 같은 문법)
     private func attachRow(_ a: PostAttach) -> some View {
         Button { showAttachPicker = true } label: {
-            rowLabel(icon: a.kind == .versus ? "person.2.fill" : "chart.bar.fill", iconColor: FC.tint, a.kind == .versus ? "VS 카드" : "전적 카드") {
+            rowLabel(icon: a.kind == .versus ? "person.2.fill" : "chart.bar.fill", iconColor: FC.tint, a.kind == .versus ? "비교 카드" : "전적 카드") {
                 HStack(spacing: 6) {
                     Text(a.kind == .versus ? "\(a.me) vs \(a.with ?? "")" : a.me).cmText(15, .semibold).foregroundStyle(FC.tint).lineLimit(1)
                     Button { draft.attach = nil } label: {

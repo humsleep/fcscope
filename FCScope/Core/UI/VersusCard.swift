@@ -85,7 +85,7 @@ struct VersusCardView: View {
 
     var body: some View {
         let (x, y) = c.tally
-        TemplateCard(chip: "친구랑 VS", o: c.a, images: images,
+        TemplateCard(chip: "친구 비교", o: c.a, images: images,
                      kicker: "\(c.matchTypeName) · 최근 \(c.a.summary.played) vs \(c.b.summary.played)경기",
                      cta: "너도 친구랑 붙어 봐 →", showNickname: false) {
             // 히어로 칸 높이는 260 고정(TemplateCard) — 넘치면 위 킥커를 덮는다. 128 + 16 + 112 ≈ 256.

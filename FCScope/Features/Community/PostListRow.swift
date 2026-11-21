@@ -58,7 +58,7 @@ struct PostListRow: View {
         var parts = ["\(post.typeLabel). \(post.title)"]
         if post.status == "closed" { parts.append("마감") }
         if post.squadId != nil { parts.append("스쿼드 첨부") }
-        if let a = post.attach { parts.append(a.kind == .versus ? "VS 카드 첨부" : "전적 카드 첨부") }
+        if let a = post.attach { parts.append(a.kind == .versus ? "비교 카드 첨부" : "전적 카드 첨부") }
         if let n = commentCount, n > 0 { parts.append("댓글 \(n)개") }
         parts.append("\(post.author.nickname), \(DateFmt.relative(post.createdAt))")
         if cprefs.serverV2, let l = post.likeCount, l > 0 { parts.append("추천 \(l)") }

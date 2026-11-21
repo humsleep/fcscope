@@ -64,7 +64,7 @@ struct ReportSection: View {
                             ForEach(r.insights) { i in
                                 HStack(alignment: .top, spacing: 6) {
                                     Text(i.tone == "good" ? "▲" : i.tone == "warn" ? "▼" : "◆").fcScoreboard(12).foregroundStyle(FC.tone(i.tone))
-                                    Text(i.text).fcFont(13).foregroundStyle(FC.ink)
+                                    Text(i.text.replacingOccurrences(of: " — ", with: ", ")).fcFont(13).foregroundStyle(FC.ink)
                                 }
                             }
                         }
@@ -110,9 +110,10 @@ struct ReportSection: View {
                     }
                     Panel {
                         VStack(alignment: .leading, spacing: 8) {
-                            SectionLabel("득실차 폼 (최신 → 과거)")
+                            // 위 "최근10" 줄과 같은 방향(왼쪽 과거 → 오른쪽 최신). 서버 form 은 최신이 먼저라 뒤집는다.
+                            SectionLabel("득실차 폼 (과거 → 최신)")
                             Chart {
-                                ForEach(Array(r.report.form.enumerated()), id: \.offset) { i, g in
+                                ForEach(Array(r.report.form.reversed().enumerated()), id: \.offset) { i, g in
                                     BarMark(x: .value("경기", i), y: .value("득실", g.diff)).foregroundStyle(g.diff > 0 ? FC.win : g.diff < 0 ? FC.lose : FC.muted)
                                 }
                             }
@@ -225,7 +226,7 @@ struct PlayersSection: View {
                 ForEach(c.issues) { i in
                     HStack(alignment: .top, spacing: 6) {
                         Circle().fill(i.severity == "high" ? FC.lose : i.severity == "mid" ? FC.gold : FC.muted).frame(width: 6, height: 6).padding(.top, 6)
-                        Text(i.text).fcFont(13).foregroundStyle(FC.ink)
+                        Text(i.text.replacingOccurrences(of: " — ", with: ", ")).fcFont(13).foregroundStyle(FC.ink)
                     }
                 }
             }
@@ -236,10 +237,12 @@ struct PlayersSection: View {
     /// (USER-PANEL-GENZ 덕후 패널). 공격·2선은 골, 수비 라인(CB·FB·WB·DM)은 태클, GK 는 패스만 비교한다.
     /// 태클 비교는 서버 `ranker.tackle`(2026-10 추가)이 있을 때만 — 옛 서버 응답이면 그 칸을 숨긴다.
     static func rankerLine(_ p: PlayerCard, _ r: PlayerCard.RankerCompare) -> String? {
+        guard r.matchCount >= 5 else { return nil }  // 랭커 1경기 표본으로 "경기당 골 -2.75" 같은 비교가 떴다(R7)
         let pos = p.positionLabel.uppercased()
         let pass = Int(p.passRate) - r.passRate
         let passPart = "패스 \(pass >= 0 ? "+" : "")\(pass)%p"
-        let n = " (n=\(r.matchCount))"
+        // "(n=20)" 통계 표기는 일반 사용자가 못 읽었다. 줄바꿈이 "랭커 20 / 경기"로 끊겨 NBSP·WORD JOINER 로 묶는다
+        let n = " · 랭커\u{00A0}\(r.matchCount)\u{2060}경기\u{00A0}기준"
         if pos == "GK" { return "랭커 대비 " + passPart + n }
         let defensive: Set<String> = ["CB", "LCB", "RCB", "SW", "LB", "RB", "LWB", "RWB", "CDM", "LDM", "RDM"]
         if defensive.contains(pos) {
@@ -335,7 +338,7 @@ struct PlaystyleSection: View {
                     }
                 }
                 if !r.chips.isEmpty {
-                    FlowLayout(spacing: 6) { ForEach(r.chips) { c in Chip(text: c.text, color: c.kind == "strength" ? FC.win : FC.lose, bg: (c.kind == "strength" ? FC.win : FC.lose).opacity(0.15)) } }
+                    FlowLayout(spacing: 6) { ForEach(r.chips) { c in Chip(text: c.text.replacingOccurrences(of: " — ", with: " · "), color: c.kind == "strength" ? FC.win : FC.lose, bg: (c.kind == "strength" ? FC.win : FC.lose).opacity(0.15)) } }
                 }
                 // 광고 — 5축 성향(과 강점·약점 칩, 탭 불가) 뒤 · 누적 슛맵 앞(AD-PLACEMENT 1-2)
                 AdSlot(placement: "record_style", reserve: true)
