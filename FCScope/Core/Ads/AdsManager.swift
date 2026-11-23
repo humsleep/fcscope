@@ -32,7 +32,10 @@ final class AdsManager {
     /// 배너를 보여도 되는가.
     /// 조건: 실제 AdMob 계정 값이 설정됨(테스트 ID 아님). 설치 후 유예 기간은 없다.
     var canShowAds: Bool {
-        AppConfig.admobConfigured && AppConfig.bannerAdUnit != nil
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: "hideAds") { return false } // 홍보 영상 캡처용: `-hideAds YES`
+        #endif
+        return AppConfig.admobConfigured && AppConfig.bannerAdUnit != nil
     }
 
     /// 쿠팡 파트너스 배너(제3자 스크립트) — EEA 에서 아직 동의를 못 받았으면 애드몹처럼 띄우지 않는다.
